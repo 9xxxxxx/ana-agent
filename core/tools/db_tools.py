@@ -1,6 +1,26 @@
 from langchain_core.tools import tool
 from sqlalchemy import inspect, text
-from core.database import get_engine, run_query_to_dataframe
+from core.database import get_engine, get_engine_by_url, run_query_to_dataframe
+
+@tool
+def switch_database_tool(database_url: str) -> str:
+    """切换当前的数据库连接。
+    当用户明确要求连接到新的数据库（如 SQLite 文件路径、新的 PostgreSQL URL 或切换 Schema）时必须立刻使用此工具。
+    参数:
+        database_url: 完整的数据库连接字符串（例如：sqlite:///test.db 或 postgresql+psycopg2://...）
+    """
+    import chainlit as cl
+    try:
+        # 测试新连接是否有效
+        eng = get_engine_by_url(database_url)
+        with eng.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        
+        # 将合法的 URL 写入当前用户 session
+        cl.user_session.set("db_url", database_url)
+        return f"Database successfully switched to: {database_url}. You should now use list_tables_tool to explore the new database."
+    except Exception as e:
+        return f"Failed to switch database. Error: {str(e)}"
 
 @tool
 def list_tables_tool() -> str:

@@ -2,13 +2,15 @@ from sqlalchemy import create_engine, text
 import pandas as pd
 from core.config import settings
 
-# 初始化基础数据库引擎
-engine = None
-if settings.DATABASE_URL:
-    try:
+# 引擎缓存池，避免同一 URL 反复创建连接池
+_engine_cache = {}
+
+def get_engine_by_url(url: str):
+    """根据指定的 URL 获取或创建数据库引擎实例"""
+    if url not in _engine_cache:
         # Pandas 和我们当前的基础架构依赖同步数据库游标
         # 如果用户配置了 asyncpg (异步引擎)，我们在此处统一转为由 psycopg2 驱动
-        sync_url = settings.DATABASE_URL.replace("+asyncpg", "+psycopg2")
+        sync_url = url.replace("+asyncpg", "+psycopg2")
         
         # 使用连接池机制
         engine = create_engine(
@@ -18,14 +20,27 @@ if settings.DATABASE_URL:
             pool_timeout=30,
             pool_recycle=1800,
         )
-    except Exception as e:
-        print(f"Failed to create database engine: {e}")
+        _engine_cache[url] = engine
+    return _engine_cache[url]
 
 def get_engine():
-    """获取数据库引擎实例"""
-    if engine is None:
-        raise ValueError("数据库引擎未初始化，请检查 DATABASE_URL 环境变量。")
-    return engine
+    """获取当前生效的数据库引擎。优先取会话级 URL，其次取环境变量默认 URL"""
+    current_url = settings.DATABASE_URL
+    
+    # 尝试从 Chainlit 的用户会话中读取动态配置的 URL
+    try:
+        import chainlit as cl
+        if cl.context.session:
+            session_url = cl.user_session.get("db_url")
+            if session_url:
+                current_url = session_url
+    except Exception:
+        pass
+
+    if not current_url:
+        raise ValueError("数据库引擎未初始化，且未提供 DATABASE_URL。")
+        
+    return get_engine_by_url(current_url)
 
 def test_connection() -> bool:
     """测试当前数据库连接是否成功"""
