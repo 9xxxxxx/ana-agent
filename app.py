@@ -80,8 +80,30 @@ async def main(message: cl.Message):
             tc_id = chunk.tool_call_id
             if tc_id and tc_id in tool_steps:
                 step = tool_steps[tc_id]
-                # 截断过长的工具输出，保持 UI 整洁
                 output_text = str(chunk.content)
+                
+                # 检测图表标记：在工具一次性返回的完整结果中解析
+                if "[PLOTLY_CHART]" in output_text:
+                    parts = output_text.split("[PLOTLY_CHART]")
+                    json_part = parts[1].strip()
+                    try:
+                        import json
+                        import plotly.io as pio
+                        fig_dict = json.loads(json_part)
+                        fig = pio.from_json(json.dumps(fig_dict))
+                        
+                        chart = cl.Plotly(name="chart", figure=fig, display="inline")
+                        await cl.Message(
+                            content="✨ **数据图表已生成**", 
+                            elements=[chart]
+                        ).send()
+                        
+                        output_text = "✅ 图表工具执行成功，可视化结果已呈现在聊天界面中。"
+                    except Exception as e:
+                        print(f"Failed to render chart from tool: {e}")
+                        output_text = f"❌ 图表渲染失败: {str(e)}"
+
+                # 截断过长的工具输出，保持 UI 整洁
                 if len(output_text) > 500:
                     output_text = output_text[:500] + "\n... (已截断)"
                 step.output = output_text
