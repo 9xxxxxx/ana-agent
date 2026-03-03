@@ -1,6 +1,6 @@
 # Chainlit 应用入口：接入 LangGraph Agent 实现流式对话
 import chainlit as cl
-from langchain_core.messages import HumanMessage, AIMessageChunk
+from langchain_core.messages import HumanMessage, AIMessageChunk, ToolMessage
 from langchain_core.runnables import RunnableConfig
 from core.database import test_connection
 from core.agent import create_agent_graph
@@ -32,15 +32,17 @@ async def main(message: cl.Message):
     # 从 session 获取 Agent 图
     graph = cl.user_session.get("graph")
 
-    # 配置 Chainlit 回调处理器，用于可视化工具调用步骤
-    cb = cl.LangchainCallbackHandler()
+    # 不使用 LangchainCallbackHandler，避免 TracerException 兼容性问题
+    # 改为手动通过 cl.Step 展示工具调用步骤
     config = RunnableConfig(
-        callbacks=[cb],
         configurable={"thread_id": cl.context.session.id},
     )
 
     # 创建最终回复消息容器
     final_answer = cl.Message(content="")
+
+    # 用于追踪当前活跃的工具调用步骤
+    tool_steps: dict[str, cl.Step] = {}
 
     # 使用 stream_mode="messages" 流式接收 Agent 输出的每个 Token
     for chunk, metadata in graph.stream(
@@ -48,15 +50,46 @@ async def main(message: cl.Message):
         stream_mode="messages",
         config=config,
     ):
-        # 仅流式渲染 AI 模型在最终回复节点产出的 Token
-        # 过滤掉 HumanMessage 和工具调用中间步骤
-        if (
-            isinstance(chunk, AIMessageChunk)
-            and chunk.content
-            and metadata.get("langgraph_node") == "agent"
-            and not chunk.tool_calls
-            and not chunk.tool_call_chunks
-        ):
-            await final_answer.stream_token(chunk.content)
+        node = metadata.get("langgraph_node", "")
+
+        # 处理 AI 模型产出的 chunk
+        if isinstance(chunk, AIMessageChunk):
+            # 如果包含工具调用，在 Chainlit 中创建对应的 Step 展示
+            if chunk.tool_call_chunks:
+                for tc_chunk in chunk.tool_call_chunks:
+                    tc_id = tc_chunk.get("id")
+                    tc_name = tc_chunk.get("name")
+                    if tc_id and tc_name and tc_id not in tool_steps:
+                        # 创建一个新的工具调用步骤展示框
+                        step = cl.Step(name=f"🔧 {tc_name}", type="tool")
+                        step.input = ""
+                        tool_steps[tc_id] = step
+                        await step.__aenter__()
+                    # 累积工具调用参数到 step.input
+                    if tc_id and tc_id in tool_steps:
+                        args_chunk = tc_chunk.get("args", "")
+                        if args_chunk:
+                            tool_steps[tc_id].input += args_chunk
+
+            # 流式渲染 AI 最终回复的 Token（过滤掉工具调用中间步骤）
+            elif chunk.content and node == "agent":
+                await final_answer.stream_token(chunk.content)
+
+        # 处理工具返回的结果消息
+        elif isinstance(chunk, ToolMessage):
+            tc_id = chunk.tool_call_id
+            if tc_id and tc_id in tool_steps:
+                step = tool_steps[tc_id]
+                # 截断过长的工具输出，保持 UI 整洁
+                output_text = str(chunk.content)
+                if len(output_text) > 500:
+                    output_text = output_text[:500] + "\n... (已截断)"
+                step.output = output_text
+                await step.__aexit__(None, None, None)
+                del tool_steps[tc_id]
+
+    # 关闭任何未正常退出的 step
+    for step in tool_steps.values():
+        await step.__aexit__(None, None, None)
 
     await final_answer.send()
