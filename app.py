@@ -103,15 +103,19 @@ async def main(message: cl.Message):
                         print(f"Failed to render chart from tool: {e}")
                         output_text = f"❌ 图表渲染失败: {str(e)}"
 
-                # 截断过长的工具输出，保持 UI 整洁
+                # 特殊展示：报告导出和通知发送的系统反馈
+                elif output_text.startswith("报告已成功导出") or "已成功推送" in output_text or "已成功发送邮箱" in output_text:
+                    await cl.Message(content=f"📝 **系统通知**: {output_text}").send()
+
+                # 截断过长的常规数据库提取输出，保持 UI 整洁
                 if len(output_text) > 500:
-                    output_text = output_text[:500] + "\n... (已截断)"
+                    output_text = output_text[:500] + "\n... (已截断更长的数据内容)"
                 step.output = output_text
                 await step.__aexit__(None, None, None)
                 del tool_steps[tc_id]
 
     # 关闭任何未正常退出的 step
-    for step in tool_steps.values():
+    for step in list(tool_steps.values()):
         await step.__aexit__(None, None, None)
 
     await final_answer.send()
