@@ -133,8 +133,8 @@ def export_data_tool(sql_query: str, filename: str = None, export_format: str = 
 
 
 @tool
-def send_feishu_notification_tool(content: str, chart_configs_json: str = None, table_configs_json: str = None) -> str:
-    """向飞书群组发送带原生图表和表格的业务分析卡片（基于飞书 JSON 2.0 规范）。
+def send_feishu_notification_tool(content: str, chart_configs_json: str = None, table_configs_json: str = None, image_paths_json: str = None) -> str:
+    """向飞书群组发送带原生图表、表格或本地图片的业务分析卡片（基于飞书 JSON 2.0 规范）。
     当用户说"发给飞书"、"通知团队"、"推送到群"时调用。
     你必须使用之前对话中已有的分析结论，提炼核心要点后发送，禁止重新执行 SQL 查询。
 
@@ -142,7 +142,7 @@ def send_feishu_notification_tool(content: str, chart_configs_json: str = None, 
     如果分析中生成了图表或你想展示明细数据，可以传入配置：
 
     参数:
-        content: 要发送的核心分析结论（飞书 Markdown 格式）。需精练概括，避免过长。
+        content: 要发送的核心分析结论（飞书 Markdown/RichText 格式）。需精练概括，避免过长。支持加粗、颜色、链接等。
         chart_configs_json: （可选）图表配置的 JSON 字符串。格式为数组，每个元素包含:
             - sql_query: 获取数据的 SQL
             - chart_type: 图表类型 (bar/line/pie/scatter/area/horizontal_bar)
@@ -153,6 +153,7 @@ def send_feishu_notification_tool(content: str, chart_configs_json: str = None, 
         table_configs_json: （可选）表格配置的 JSON 字符串。格式为数组，每个元素包含:
             - sql_query: 获取数据的 SQL
             - title: 表格标题
+        image_paths_json: （可选）想要附带发送的本地图片绝对路径列表 JSON 字符串。格式为 `["/path/to/img1.png", "/path/to/img2.jpg"]`。将使用 V2 img_combination 多图混排展示。
     """
     webhook_url = settings.FEISHU_WEBHOOK_URL
     if not webhook_url:
@@ -165,7 +166,7 @@ def send_feishu_notification_tool(content: str, chart_configs_json: str = None, 
     card_elements = []
     generation_notes = []
 
-    # 1. 主体 Markdown 文本内容
+    # 1. 主体 Markdown 文本内容 (V2 中 markdown 组件支持基础富文本)
     card_elements.append({
         "tag": "markdown",
         "content": content
@@ -292,6 +293,58 @@ def send_feishu_notification_tool(content: str, chart_configs_json: str = None, 
 
                 except Exception as e:
                     generation_notes.append(f"表格 '{cfg.get('title', i)}' 构建失败: {str(e)}")
+
+    # 4. 如果有本地图片，构建 image / multi-image 组件
+    if image_paths_json:
+        try:
+            image_paths = json.loads(image_paths_json)
+            if not isinstance(image_paths, list):
+                image_paths = []
+        except json.JSONDecodeError:
+            image_paths = []
+            generation_notes.append("⚠️ 图片路径 JSON 解析失败。")
+
+        if image_paths:
+            has_app_credentials = bool(settings.FEISHU_APP_ID and settings.FEISHU_APP_SECRET)
+            if not has_app_credentials:
+                generation_notes.append("⚠️ 未配置 FEISHU_APP_ID / FEISHU_APP_SECRET，无法上传本地图片。如需图片，请在 .env 中配置飞书应用凭证。")
+            else:
+                from core.feishu_api import feishu_client
+                import os
+                
+                uploaded_img_keys = []
+                for path in image_paths:
+                    try:
+                        if not os.path.exists(path):
+                            generation_notes.append(f"图片 '{path}' 不存在，已跳过。")
+                            continue
+                        with open(path, "rb") as f:
+                            img_data = f.read()
+                        img_key = feishu_client.upload_image(img_data)
+                        uploaded_img_keys.append(img_key)
+                    except Exception as e:
+                        generation_notes.append(f"图片 '{path}' 上传失败: {str(e)}")
+
+                if uploaded_img_keys:
+                    card_elements.append({"tag": "hr"})
+                    card_elements.append({
+                        "tag": "markdown",
+                        "content": "🖼️ **附加图片**"
+                    })
+                    
+                    if len(uploaded_img_keys) == 1:
+                        card_elements.append({
+                            "tag": "img",
+                            "img_key": uploaded_img_keys[0],
+                            "scale_type": "crop_center"
+                        })
+                    else:
+                        # V2 多图混排
+                        card_elements.append({
+                            "tag": "img_combination",
+                            "combination_mode": "double" if len(uploaded_img_keys) == 2 else "triple",
+                            "img_list": [{"img_key": key} for key in uploaded_img_keys]
+                        })
 
     # 追加报错/警告提示
     if generation_notes:

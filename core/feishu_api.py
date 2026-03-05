@@ -5,8 +5,77 @@
 """
 
 import json
-from datetime import datetime
+import urllib.request
+import io
+import os
+from datetime import datetime, timedelta
 from core.config import settings
+
+class FeishuClient:
+    """飞书 API 客户端，负责 token 管理和图片上传"""
+    BASE_URL = "https://open.feishu.cn/open-apis"
+
+    def __init__(self):
+        self._token = None
+        self._token_expires_at = None
+
+    def _get_tenant_access_token(self) -> str:
+        if self._token and self._token_expires_at and datetime.now() < self._token_expires_at:
+            return self._token
+
+        app_id = settings.FEISHU_APP_ID
+        app_secret = settings.FEISHU_APP_SECRET
+        if not app_id or not app_secret:
+            raise ValueError("未配置飞书应用凭证(FEISHU_APP_ID/FEISHU_APP_SECRET)，无法上传图片。")
+
+        url = f"{self.BASE_URL}/auth/v3/tenant_access_token/internal"
+        payload = json.dumps({"app_id": app_id, "app_secret": app_secret}).encode("utf-8")
+        req = urllib.request.Request(url, data=payload)
+        req.add_header("Content-Type", "application/json; charset=utf-8")
+
+        with urllib.request.urlopen(req) as response:
+            result = json.loads(response.read().decode("utf-8"))
+
+        if result.get("code") != 0:
+            raise RuntimeError(f"获取飞书 token 失败: {result.get('msg', '未知错误')}")
+
+        self._token = result["tenant_access_token"]
+        expire_seconds = result.get("expire", 7200)
+        self._token_expires_at = datetime.now() + timedelta(seconds=expire_seconds - 300)
+        return self._token
+
+    def upload_image(self, image_data: bytes) -> str:
+        """上传图片到飞书，返回 image_key。"""
+        token = self._get_tenant_access_token()
+        url = f"{self.BASE_URL}/im/v1/images"
+        boundary = "----FeishuImageUploadBoundary"
+        body = io.BytesIO()
+
+        # image_type
+        body.write(f"--{boundary}\r\n".encode())
+        body.write(b'Content-Disposition: form-data; name="image_type"\r\n\r\n')
+        body.write(b"message\r\n")
+
+        # image
+        body.write(f"--{boundary}\r\n".encode())
+        body.write(b'Content-Disposition: form-data; name="image"; filename="upload.png"\r\n')
+        body.write(b"Content-Type: application/octet-stream\r\n\r\n")
+        body.write(image_data)
+        body.write(b"\r\n")
+        body.write(f"--{boundary}--\r\n".encode())
+
+        req = urllib.request.Request(url, data=body.getvalue())
+        req.add_header("Authorization", f"Bearer {token}")
+        req.add_header("Content-Type", f"multipart/form-data; boundary={boundary}")
+
+        with urllib.request.urlopen(req) as response:
+            result = json.loads(response.read().decode("utf-8"))
+
+        if result.get("code") != 0:
+            raise RuntimeError(f"图片上传失败: {result.get('msg', '未知错误')}")
+        return result["data"]["image_key"]
+
+feishu_client = FeishuClient()
 
 
 def _build_vchart_spec(chart_type: str, data_records: list[dict], x_col: str, y_col: str,
