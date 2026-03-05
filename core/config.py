@@ -14,6 +14,8 @@ class Settings:
     OPENAI_API_BASE: str = os.getenv("OPENAI_API_BASE", "")
     # 第三方通知配置
     FEISHU_WEBHOOK_URL: str = os.getenv("FEISHU_WEBHOOK_URL", "")
+    FEISHU_APP_ID: str = os.getenv("FEISHU_APP_ID", "")
+    FEISHU_APP_SECRET: str = os.getenv("FEISHU_APP_SECRET", "")
     
     # 邮件通知配置
     SMTP_SERVER: str = os.getenv("SMTP_SERVER", "")

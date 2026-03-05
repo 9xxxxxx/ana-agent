@@ -133,13 +133,24 @@ def export_data_tool(sql_query: str, filename: str = None, export_format: str = 
 
 
 @tool
-def send_feishu_notification_tool(content: str) -> str:
-    """向飞书群组发送业务分析报告或通知。
+def send_feishu_notification_tool(content: str, chart_configs_json: str = None) -> str:
+    """向飞书群组发送带图表的业务分析卡片。
     当用户说"发给飞书"、"通知团队"、"推送到群"时调用。
     你必须使用之前对话中已有的分析结论，提炼核心要点后发送，禁止重新执行 SQL 查询。
 
+    如果之前的分析中生成了图表，你应该把图表的配置信息一并传入 chart_configs_json，
+    这样飞书卡片中就会嵌入可视化图表图片。
+
     参数:
-        content: 要发送的核心分析结论。需精练概括，避免过长。
+        content: 要发送的核心分析结论（飞书 Markdown 格式）。需精练概括，避免过长。
+        chart_configs_json: （可选）图表配置的 JSON 字符串。格式为数组，每个元素包含:
+            - sql_query: 获取数据的 SQL
+            - chart_type: 图表类型 (bar/line/pie/scatter 等)
+            - title: 图表标题
+            - x_col: X 轴列名
+            - y_col: Y 轴列名
+            - color_col: (可选) 分组列名
+            示例: [{"sql_query":"SELECT ...","chart_type":"bar","title":"销售Top10","x_col":"name","y_col":"amount"}]
     """
     webhook_url = settings.FEISHU_WEBHOOK_URL
     if not webhook_url:
@@ -149,41 +160,98 @@ def send_feishu_notification_tool(content: str) -> str:
             "获取方式: 飞书群 → 设置 → 群机器人 → 添加自定义机器人 → 复制 Webhook 地址"
         )
 
+    image_keys = []
+    chart_generation_notes = []
+
+    # 如果有图表配置，尝试生成图片并上传到飞书
+    if chart_configs_json:
+        try:
+            chart_configs = json.loads(chart_configs_json)
+        except json.JSONDecodeError:
+            chart_configs = []
+            chart_generation_notes.append("⚠️ 图表配置 JSON 解析失败，将仅发送文本内容。")
+
+        if chart_configs:
+            # 检查飞书 App 凭证是否已配置（上传图片需要）
+            has_app_credentials = bool(settings.FEISHU_APP_ID and settings.FEISHU_APP_SECRET)
+
+            if not has_app_credentials:
+                chart_generation_notes.append(
+                    "⚠️ 未配置 FEISHU_APP_ID / FEISHU_APP_SECRET，无法上传图表图片。"
+                    "卡片将仅包含文本。如需图表，请在 .env 中配置飞书应用凭证。"
+                )
+            else:
+                from core.feishu_api import feishu_client, plotly_fig_to_png
+                from core.database import run_query_to_dataframe
+                import plotly.express as px
+
+                for i, cfg in enumerate(chart_configs):
+                    try:
+                        sql = cfg.get("sql_query", "")
+                        chart_type = cfg.get("chart_type", "bar")
+                        title = cfg.get("title", f"图表 {i+1}")
+                        x_col = cfg.get("x_col", "")
+                        y_col = cfg.get("y_col", "")
+                        color_col = cfg.get("color_col")
+
+                        # 执行查询获取数据
+                        df = run_query_to_dataframe(sql)
+                        if df.empty:
+                            chart_generation_notes.append(f"图表 '{title}' 查询无数据，已跳过。")
+                            continue
+
+                        # 限制数据量
+                        if len(df) > 200:
+                            df = df.head(200)
+
+                        # 构建通用参数
+                        template = "plotly_white"  # 飞书卡片背景为白色
+                        color_args = {"color": color_col} if color_col and color_col in df.columns else {}
+
+                        # 生成 Plotly 图表
+                        if chart_type == "pie":
+                            fig = px.pie(df, names=x_col, values=y_col, title=title, template=template)
+                        elif chart_type == "line":
+                            fig = px.line(df, x=x_col, y=y_col, title=title, template=template, markers=True, **color_args)
+                        elif chart_type == "scatter":
+                            fig = px.scatter(df, x=x_col, y=y_col, title=title, template=template, **color_args)
+                        elif chart_type == "area":
+                            fig = px.area(df, x=x_col, y=y_col, title=title, template=template, **color_args)
+                        elif chart_type == "horizontal_bar":
+                            fig = px.bar(df, x=y_col, y=x_col, title=title, template=template, orientation="h", **color_args)
+                        else:  # 默认 bar
+                            fig = px.bar(df, x=x_col, y=y_col, title=title, template=template, **color_args)
+
+                        # 美化布局
+                        fig.update_layout(
+                            width=800, height=500,
+                            margin=dict(l=50, r=50, t=60, b=50),
+                            font=dict(size=14),
+                            title_x=0.5,
+                        )
+
+                        # 转 PNG 并上传
+                        png_bytes = fig.to_image(format="png", scale=2)
+                        image_key = feishu_client.upload_image(png_bytes)
+                        image_keys.append(image_key)
+
+                    except Exception as e:
+                        chart_generation_notes.append(f"图表 '{cfg.get('title', i)}' 生成失败: {str(e)}")
+
     try:
-        # 使用飞书交互式卡片消息，比纯文本更美观
-        payload = {
-            "msg_type": "interactive",
-            "card": {
-                "header": {
-                    "title": {
-                        "tag": "plain_text",
-                        "content": "📊 SQL Agent 数据分析通报"
-                    },
-                    "template": "blue"
-                },
-                "elements": [
-                    {
-                        "tag": "div",
-                        "text": {
-                            "tag": "lark_md",
-                            "content": content
-                        }
-                    },
-                    {
-                        "tag": "hr"
-                    },
-                    {
-                        "tag": "note",
-                        "elements": [
-                            {
-                                "tag": "plain_text",
-                                "content": f"由 SQL Agent 自动生成 | {datetime.now().strftime('%Y-%m-%d %H:%M')}"
-                            }
-                        ]
-                    }
-                ]
-            }
-        }
+        # 构建卡片
+        from core.feishu_api import build_feishu_card_with_charts
+
+        # 如果有图表生成备注，附加到内容末尾
+        full_content = content
+        if chart_generation_notes:
+            full_content += "\n\n---\n" + "\n".join(chart_generation_notes)
+
+        payload = build_feishu_card_with_charts(
+            title="📊 SQL Agent 数据分析通报",
+            content=full_content,
+            image_keys=image_keys if image_keys else None,
+        )
 
         data = json.dumps(payload).encode("utf-8")
         req = urllib.request.Request(webhook_url, data=data)
@@ -192,7 +260,8 @@ def send_feishu_notification_tool(content: str) -> str:
         with urllib.request.urlopen(req) as response:
             resp_body = json.loads(response.read().decode("utf-8"))
             if response.status == 200 and resp_body.get("code", -1) == 0:
-                return "✅ 已成功推送到飞书群组！"
+                chart_info = f"（含 {len(image_keys)} 张图表）" if image_keys else "（纯文本）"
+                return f"✅ 已成功推送到飞书群组！{chart_info}"
             else:
                 return f"推送可能失败，飞书返回: {resp_body}"
     except Exception as e:
