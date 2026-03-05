@@ -198,13 +198,8 @@ def build_feishu_card_v2(
     # 底部时间戳
     elements.append({"tag": "hr"})
     elements.append({
-        "tag": "note",
-        "elements": [
-            {
-                "tag": "plain_text",
-                "content": f"由 SQL Agent 自动生成 | {datetime.now().strftime('%Y-%m-%d %H:%M')}"
-            }
-        ]
+        "tag": "markdown",
+        "content": f"<font color='grey'>由 SQL Agent 自动生成 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</font>"
     })
 
     return {
