@@ -3,47 +3,47 @@
 ## 1. 项目概述
 
 本项目旨在搭建一个基于大语言模型（LLM）的自动化数据分析助手（SQL Agent）。
-该 Agent 可通过自然语言交互，连接关系型数据库（MySQL/PostgreSQL），自动完成**查数、数据分析、可视化作图、撰写报告及生成业务方案**的全流程。
+该 Agent 可通过自然语言交互，连接关系型数据库（PostgreSQL / MySQL / SQLite / DuckDB），自动完成**查数、数据分析、可视化作图、撰写报告及生成业务方案**的全流程。
 
-## 2. 核心架构与技术栈（初步设计）
+## 2. 核心架构与技术栈
 
 ### 2.1 后端服务 (Backend - Python)
 
 - **API 框架**: FastAPI (高性能异步 API 提供者)
-- **Agent 核心**: LangGraph / LangChain (负责复杂的状态流管理、ReAct / 计划执行逻辑)
-- **数据库交互**: SQLAlchemy + 对应的 DB Driver (如 `asyncpg` 或 `aiomysql`)
-- **数据处理与分析**: Pandas + Numpy (负责在内存中二次处理、清洗及分析结构化数据)
-- **可视化图表生成**: Plotly 或 Matplotlib (后端生成图表配置，前端渲染)
+- **Agent 核心**: LangGraph / LangChain (ReAct 循环 + MemorySaver checkpointer 实现跨轮对话记忆)
+- **数据库适配**: DatabaseAdapter 抽象层 + SQLAlchemy (支持 PostgreSQL / MySQL / SQLite / DuckDB)
+- **数据处理与分析**: Pandas + Numpy
+- **可视化图表生成**: Plotly (11 种图表类型)
 
-### 2.2 前端交互 (Frontend - 待确认)
+### 2.2 前端交互 (Frontend)
 
-由于要求“交互优美，是 Web 对话页面”，提供两种技术路线供选择：
-
-- **路线 A (纯后端/Python驱动)**: **Chainlit** 或 **Streamlit**。
-  - _优势_：无需写前端代码，内置精美的对话 UI，天然支持大模型流式输出、过程展示 (Thought Process) 及图表渲染。
-  - _劣势_：页面布局定制化程度有限。
-- **路线 B (独立前后端分离)**: **Vite + React / Vanilla JS + Tailwind CSS**。
-  - _优势_：极高的 UI 自由度，可以实现完全自定义的数据看板 (Dashboard)、报告预览页面及复杂的交互动画。
-  - _劣势_：开发成本相对较高，需要维护两套代码。
+- **路线 A (当前)**: Chainlit (内置精美对话 UI，支持流式输出、图表渲染、文件下载)
 
 ### 2.3 数据库 (Database)
 
-- 支持连接 MySQL 8.x 或 PostgreSQL 14+。
+- 支持 PostgreSQL 14+ / MySQL 8.x / SQLite / DuckDB
+- 支持多 Schema 探索（PostgreSQL 多 schema、MySQL 多 database）
+
+### 2.4 核心功能
+
+- **多 Schema 智能探索**: 自动发现并列出所有 schema 和表
+- **跨轮对话记忆**: 基于 LangGraph MemorySaver，分步提需求不丢上下文
+- **11 种图表**: bar, horizontal_bar, line, area, pie, scatter, histogram, box, heatmap, treemap, funnel
+- **报告导出**: Markdown / CSV / Excel，支持 Chainlit 文件下载
+- **消息推送**: 飞书群 Webhook (交互式卡片) / 邮件 SMTP
 
 ## 3. 开发规范 (必须严格遵守)
 
 - **包管理**: **必须**使用 `uv` 管理 Python 依赖及虚拟环境。
-- **版本控制**: 所有的开发、优化及 Bug 修复**必须**使用 Git 进行记录，严禁直接在主干进行不可逆的巨型修改。
-- **Git 提交规范**: 格式采用 `<类型>: <描述>` (中文说明)。如 `feat: 增加 FastAPI 基础路由` , `fix: 修复 SQL 注入风险`。
-- **语言约定**:
-  - 代码、变量名、函数、文件路径等代码范畴保持 **English**。
-  - 系统交互说明、代码内部注释、文档以及提交流水必须使用 **中文**。
-- **测试与回滚**: 开发工程化至关重要，引入基础设施前须确保功能独立且易于回滚。
+- **版本控制**: 所有的开发、优化及 Bug 修复**必须**使用 Git 进行记录。
+- **Git 提交规范**: 格式采用 `<类型>: <描述>` (中文说明)。
+- **语言约定**: 代码保持 English，注释和文档使用中文。
 
 ## 4. 阶段性目标 (Roadmap)
 
-1.  ~~**Phase 1**: 确定技术框架并初始化项目结构。~~ ✅
-2.  ~~**Phase 2**: 建立数据库连接层与安全查询机制 (Tool calls)。~~ ✅
-3.  ~~**Phase 3**: 搭建 Agent 核心思考与执行流 (LangGraph)。~~ ✅
-4.  ~~**Phase 4**: 实现前端 Web 对话界面与报表图表渲染机制。~~ ✅
-5.  **Phase 5**: 完善"生成业务报告"等深度逻辑，进行集成测试与体验优化（当前阶段）。
+1. ~~**Phase 1**: 确定技术框架并初始化项目结构。~~ ✅
+2. ~~**Phase 2**: 建立数据库连接层与安全查询机制 (Tool calls)。~~ ✅
+3. ~~**Phase 3**: 搭建 Agent 核心思考与执行流 (LangGraph)。~~ ✅
+4. ~~**Phase 4**: 实现前端 Web 对话界面与报表图表渲染机制。~~ ✅
+5. ~~**Phase 5**: 多 Schema 适配 / 对话记忆 / 导出修复 / 图表增强 / 通知升级。~~ ✅
+6. **Phase 6**: 完善深度业务报告生成，集成测试与用户体验优化（当前阶段）。
