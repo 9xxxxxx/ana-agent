@@ -23,7 +23,7 @@ async def on_chat_start():
     cl.user_session.set("graph", graph)
     
     # 固定为单用户的本地会话 ID
-    thread_id = "default_local_thread"
+    thread_id = "sql_agent_session_v1"
     cl.user_session.set("thread_id", thread_id)
     config = {"configurable": {"thread_id": thread_id}}
 
@@ -80,7 +80,7 @@ async def on_chat_start():
 async def main(message: cl.Message):
     """处理用户消息：调用 LangGraph Agent 并流式输出结果"""
     graph = cl.user_session.get("graph")
-    thread_id = cl.user_session.get("thread_id", "default_local_thread")
+    thread_id = cl.user_session.get("thread_id", "sql_agent_session_v1")
 
     config = RunnableConfig(
         configurable={"thread_id": thread_id},

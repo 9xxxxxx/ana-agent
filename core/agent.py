@@ -115,7 +115,7 @@ from langgraph.checkpoint.sqlite import SqliteSaver
 
 # 全局 checkpointer 实例，使用 SQLite 持久化保存跨轮对话记忆
 # check_same_thread=False 允许在 Chainlit 异步环境中多线程访问
-_conn = sqlite3.connect("chat_history.db", check_same_thread=False)
+_conn = sqlite3.connect("agent_memory.db", check_same_thread=False)
 memory = SqliteSaver(_conn)
 
 
