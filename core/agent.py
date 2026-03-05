@@ -6,7 +6,6 @@ LangGraph ReAct Agent 核心模块。
 
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
-from langgraph.checkpoint.memory import MemorySaver
 from core.config import settings
 from core.tools.db_tools import (
     list_schemas_tool,
@@ -111,8 +110,13 @@ agent_tools = [
     send_email_notification_tool,
 ]
 
-# 全局 checkpointer 实例，用于跨轮对话记忆持久化
-memory = MemorySaver()
+import sqlite3
+from langgraph.checkpoint.sqlite import SqliteSaver
+
+# 全局 checkpointer 实例，使用 SQLite 持久化保存跨轮对话记忆
+# check_same_thread=False 允许在 Chainlit 异步环境中多线程访问
+_conn = sqlite3.connect("chat_history.db", check_same_thread=False)
+memory = SqliteSaver(_conn)
 
 
 def create_agent_graph():

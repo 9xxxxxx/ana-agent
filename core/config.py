@@ -1,8 +1,8 @@
 import os
 from dotenv import load_dotenv
 
-# 加载 .env 文件
-load_dotenv()
+# 加载 .env 文件（使用 override 确保修改 .env 后能够正确覆盖旧的环境变量缓存）
+load_dotenv(override=True)
 
 class Settings:
     # 数据库连接 URI 
