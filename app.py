@@ -79,8 +79,8 @@ async def on_chat_start():
 
         # 发送快捷操作按钮
         actions = [
-            cl.Action(name="export_last_result", value="export", label="📂 导出最新数据", description="将最近一次分析结果导出为 Excel"),
-            cl.Action(name="clear_history", value="clear", label="🗑️ 清空当前对话", description="重置并清空此会话的记忆")
+            cl.Action(name="export_last_result", value="export", label="📂 导出最新数据", description="将最近一次分析结果导出为 Excel", payload={}),
+            cl.Action(name="clear_history", value="clear", label="🗑️ 清空当前对话", description="重置并清空此会话的记忆", payload={})
         ]
         await cl.Message(content="您可以点击下方按钮进行快捷操作：", actions=actions, author="System").send()
 
