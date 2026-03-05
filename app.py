@@ -48,11 +48,14 @@ async def on_chat_start():
         messages = state.values.get("messages", []) if state and hasattr(state, "values") else []
         for msg in messages:
             if isinstance(msg, HumanMessage):
+                # Chainlit 默认将 author="User" 的消息放在右侧
                 await cl.Message(content=msg.content, author="User").send()
             elif isinstance(msg, AIMessage) and msg.content:
+                # 只有 "SQL Agent" 命名的消息且内容非空才作为对话展示
                 await cl.Message(content=msg.content, author="SQL Agent").send()
             elif isinstance(msg, ToolMessage):
                 output_text = str(msg.content)
+                # 处理历史中的图表
                 if "[PLOTLY_CHART]" in output_text:
                     parts = output_text.split("[PLOTLY_CHART]")
                     if len(parts) > 1:
@@ -71,7 +74,16 @@ async def on_chat_start():
                         except Exception:
                             pass
                 elif any(kw in output_text for kw in ["报告已成功导出", "数据已成功导出", "已成功推送", "已成功发送邮件"]):
+                    # 历史通知展示为系统消息
                     await cl.Message(content=f"📝 **系统通知 (历史记录)**: {output_text}", author="System").send()
+
+        # 发送快捷操作按钮
+        actions = [
+            cl.Action(name="export_last_result", value="export", label="📂 导出最新数据", description="将最近一次分析结果导出为 Excel"),
+            cl.Action(name="clear_history", value="clear", label="🗑️ 清空当前对话", description="重置并清空此会话的记忆")
+        ]
+        await cl.Message(content="您可以点击下方按钮进行快捷操作：", actions=actions, author="System").send()
+
     except Exception as e:
         print(f"恢复历史记录失败: {e}")
 
@@ -182,3 +194,30 @@ async def main(message: cl.Message):
         await step.__aexit__(None, None, None)
 
     await final_answer.send()
+
+
+@cl.action_callback("export_last_result")
+async def on_export_action(action: cl.Action):
+    """快捷操作：触发导出"""
+    await cl.Message(content="正在为您准备导出最新的分析结果...", author="System").send()
+    # 模拟用户发送导出指令
+    await main(cl.Message(content="请将我刚才分析的数据导出为 Excel 文件并提供下载。"))
+
+
+@cl.action_callback("clear_history")
+async def on_clear_action(action: cl.Action):
+    """快捷操作：清除历史记忆"""
+    import os
+    import sqlite3
+    
+    # 获取当前配置
+    thread_id = cl.user_session.get("thread_id", "sql_agent_session_v1")
+    
+    # 简单的做法是模拟用户要求清理，或者直接操作 DB (这里我们直接从提示上引导用户重启可能更安全，但作为 Action 我们可以尝试直接清理 state)
+    graph = cl.user_session.get("graph")
+    config = {"configurable": {"thread_id": thread_id}}
+    
+    # 更新 state 将消息设为空列表
+    graph.update_state(config, {"messages": []})
+    
+    await cl.Message(content="🗑️ 本次会话的上下文记忆已重置清理。后续对话将不再携带旧的上下文。", author="System").send()
