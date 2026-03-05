@@ -89,6 +89,30 @@ async def main(message: cl.Message):
     final_answer = cl.Message(content="", author="SQL Agent")
     tool_steps: dict[str, cl.Step] = {}
 
+    # --- 修复 LangGraph 的中断悬挂状态 ---
+    # 如果用户在工具执行中途刷新页面，历史记录最后一条可能是带有 tool_calls 的 AIMessage，
+    # 而缺少对应的 ToolMessage，这会导致 LangGraph 报错。
+    current_state = graph.get_state(config)
+    messages = current_state.values.get("messages", []) if current_state and hasattr(current_state, "values") else []
+    
+    if messages:
+        last_msg = messages[-1]
+        if isinstance(last_msg, AIMessage) and hasattr(last_msg, "tool_calls") and last_msg.tool_calls:
+            # 最后一条消息停留在准备调用工具的状态，需要将其移除
+            # LangGraph 支持通过传入相同 ID 但内容为空的消息（或特定修改机制）来更新节点，
+            # 最简单的修复是退回到上一步之前的状态（如果支持的话），或者我们直接清空这些异常记录。
+            # 为了避免破坏已有成熟状态机，这里我们构造假的 fallback ToolMessage 给它闭环：
+            fallback_msgs = []
+            for tc in last_msg.tool_calls:
+                fallback_msgs.append(ToolMessage(
+                    content="[System] 用户中断或刷新了页面，操作未完成。",
+                    tool_call_id=tc["id"]
+                ))
+            if fallback_msgs:
+                graph.update_state(config, {"messages": fallback_msgs})
+
+    # =======================================
+
     for chunk, metadata in graph.stream(
         {"messages": [HumanMessage(content=message.content)]},
         stream_mode="messages",
