@@ -113,51 +113,19 @@ def _build_vchart_spec(chart_type: str, data_records: list[dict], x_col: str, y_
     return spec
 
 
-def build_feishu_card_with_charts(
+def build_feishu_card_v2(
     title: str,
-    content: str,
-    chart_elements: list[dict] = None,
+    elements: list[dict],
 ) -> dict:
     """
-    构建包含文本和原生 VChart 图表的飞书交互式卡片。
+    构建符合飞书卡片 JSON 2.0 规范的交互式卡片。
 
     参数:
         title: 卡片标题
-        content: 分析文本内容（支持飞书 lark_md 语法）
-        chart_elements: VChart 图表元素列表，每个元素为 {"chart_spec": {...}, "aspect_ratio": "16:9"} 格式
+        elements: 卡片 V2 组件列表（如 markdown, chart, table, note 等）
     返回:
         飞书卡片 JSON 结构（可直接作为 Webhook 的 payload）
     """
-    elements = []
-
-    # 分析文本
-    elements.append({
-        "tag": "div",
-        "text": {
-            "tag": "lark_md",
-            "content": content
-        }
-    })
-
-    # 如果有图表，逐个嵌入为原生 chart 组件
-    if chart_elements:
-        elements.append({"tag": "hr"})
-        elements.append({
-            "tag": "div",
-            "text": {
-                "tag": "lark_md",
-                "content": "📊 **数据可视化**"
-            }
-        })
-        for chart_el in chart_elements:
-            elements.append({
-                "tag": "chart",
-                "chart_spec": chart_el["chart_spec"],
-                "aspect_ratio": chart_el.get("aspect_ratio", "16:9"),
-                "color_theme": chart_el.get("color_theme", "brand"),
-                "height": "auto",
-            })
-
     # 底部时间戳
     elements.append({"tag": "hr"})
     elements.append({
@@ -173,6 +141,7 @@ def build_feishu_card_with_charts(
     return {
         "msg_type": "interactive",
         "card": {
+            "schema": "2.0",
             "header": {
                 "title": {
                     "tag": "plain_text",
@@ -180,6 +149,8 @@ def build_feishu_card_with_charts(
                 },
                 "template": "blue"
             },
-            "elements": elements
+            "body": {
+                "elements": elements
+            }
         }
     }

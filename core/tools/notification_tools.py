@@ -133,16 +133,16 @@ def export_data_tool(sql_query: str, filename: str = None, export_format: str = 
 
 
 @tool
-def send_feishu_notification_tool(content: str, chart_configs_json: str = None) -> str:
-    """向飞书群组发送带原生图表的业务分析卡片。
+def send_feishu_notification_tool(content: str, chart_configs_json: str = None, table_configs_json: str = None) -> str:
+    """向飞书群组发送带原生图表和表格的业务分析卡片（基于飞书 JSON 2.0 规范）。
     当用户说"发给飞书"、"通知团队"、"推送到群"时调用。
     你必须使用之前对话中已有的分析结论，提炼核心要点后发送，禁止重新执行 SQL 查询。
 
-    飞书卡片支持原生 VChart 图表组件，图表会在飞书中交互式渲染（非图片）。
-    如果之前的分析中生成了图表，你应该把图表的配置信息一并传入 chart_configs_json。
+    飞书卡片支持原生 VChart 图表组件和原生 Table 组件（非图片）。
+    如果分析中生成了图表或你想展示明细数据，可以传入配置：
 
     参数:
-        content: 要发送的核心分析结论（飞书 lark_md 格式）。需精练概括，避免过长。
+        content: 要发送的核心分析结论（飞书 Markdown 格式）。需精练概括，避免过长。
         chart_configs_json: （可选）图表配置的 JSON 字符串。格式为数组，每个元素包含:
             - sql_query: 获取数据的 SQL
             - chart_type: 图表类型 (bar/line/pie/scatter/area/horizontal_bar)
@@ -150,7 +150,9 @@ def send_feishu_notification_tool(content: str, chart_configs_json: str = None) 
             - x_col: X 轴列名（饼图中为分类列）
             - y_col: Y 轴列名（饼图中为数值列）
             - color_col: (可选) 分组/着色列名
-            示例: [{"sql_query":"SELECT ...","chart_type":"bar","title":"销售Top10","x_col":"name","y_col":"amount"}]
+        table_configs_json: （可选）表格配置的 JSON 字符串。格式为数组，每个元素包含:
+            - sql_query: 获取数据的 SQL
+            - title: 表格标题
     """
     webhook_url = settings.FEISHU_WEBHOOK_URL
     if not webhook_url:
@@ -160,20 +162,32 @@ def send_feishu_notification_tool(content: str, chart_configs_json: str = None) 
             "获取方式: 飞书群 → 设置 → 群机器人 → 添加自定义机器人 → 复制 Webhook 地址"
         )
 
-    chart_elements = []
-    chart_notes = []
+    card_elements = []
+    generation_notes = []
 
-    # 如果有图表配置，查询数据并构建 VChart spec
+    # 1. 主体 Markdown 文本内容
+    card_elements.append({
+        "tag": "markdown",
+        "content": content
+    })
+
+    # 2. 如果有图表配置，构建 VChart 组件
     if chart_configs_json:
         try:
             chart_configs = json.loads(chart_configs_json)
         except json.JSONDecodeError:
             chart_configs = []
-            chart_notes.append("⚠️ 图表配置 JSON 解析失败，将仅发送文本。")
+            generation_notes.append("⚠️ 图表配置 JSON 解析失败。")
 
         if chart_configs:
             from core.feishu_api import _build_vchart_spec
             from core.database import run_query_to_dataframe
+
+            card_elements.append({"tag": "hr"})
+            card_elements.append({
+                "tag": "markdown",
+                "content": "📊 **数据可视化**"
+            })
 
             for i, cfg in enumerate(chart_configs):
                 try:
@@ -184,20 +198,15 @@ def send_feishu_notification_tool(content: str, chart_configs_json: str = None) 
                     y_col = cfg.get("y_col", "")
                     color_col = cfg.get("color_col")
 
-                    # 执行查询获取数据
                     df = run_query_to_dataframe(sql)
                     if df.empty:
-                        chart_notes.append(f"图表 '{title}' 查询无数据，已跳过。")
+                        generation_notes.append(f"图表 '{title}' 查询无数据，已跳过。")
                         continue
 
-                    # 限制数据量（VChart 原生渲染，数据量适中即可）
                     if len(df) > 200:
                         df = df.head(200)
 
-                    # 将 DataFrame 转为字典列表（VChart data.values 格式）
                     data_records = df.to_dict(orient="records")
-
-                    # 构建 VChart spec
                     vchart_spec = _build_vchart_spec(
                         chart_type=chart_type,
                         data_records=data_records,
@@ -207,27 +216,97 @@ def send_feishu_notification_tool(content: str, chart_configs_json: str = None) 
                         color_col=color_col,
                     )
 
-                    chart_elements.append({
+                    card_elements.append({
+                        "tag": "chart",
                         "chart_spec": vchart_spec,
-                        "aspect_ratio": "16:9",
-                        "color_theme": "brand",
+                        "aspect_ratio": "16:9"
                     })
 
                 except Exception as e:
-                    chart_notes.append(f"图表 '{cfg.get('title', i)}' 构建失败: {str(e)}")
+                    generation_notes.append(f"图表 '{cfg.get('title', i)}' 构建失败: {str(e)}")
+
+    # 3. 如果有表格配置，构建原生 Table 组件
+    if table_configs_json:
+        try:
+            table_configs = json.loads(table_configs_json)
+        except json.JSONDecodeError:
+            table_configs = []
+            generation_notes.append("⚠️ 表格配置 JSON 解析失败。")
+
+        if table_configs:
+            from core.database import run_query_to_dataframe
+            
+            card_elements.append({"tag": "hr"})
+            card_elements.append({
+                "tag": "markdown",
+                "content": "📋 **数据明细**"
+            })
+
+            for i, cfg in enumerate(table_configs):
+                try:
+                    sql = cfg.get("sql_query", "")
+                    title = cfg.get("title", f"表格 {i+1}")
+
+                    df = run_query_to_dataframe(sql)
+                    if df.empty:
+                        generation_notes.append(f"表格 '{title}' 查询无数据，已跳过。")
+                        continue
+
+                    # 限制表格数据量，避免卡片过大
+                    if len(df) > 50:
+                        df = df.head(50)
+                        generation_notes.append(f"表格 '{title}' 数据量过大，仅截取前 50 行展示。")
+
+                    # 构建 v2 table 结构
+                    columns = []
+                    for col in df.columns:
+                        columns.append({
+                            "name": str(col),
+                            "display_name": str(col),
+                            "data_type": "text"
+                        })
+                    
+                    # 将 DataFrame 每列转换为 string 保证兼容性
+                    df_str = df.astype(str)
+                    rows = df_str.to_dict(orient="records")
+
+                    if title:
+                        card_elements.append({
+                            "tag": "markdown",
+                            "content": f"**{title}**"
+                        })
+                        
+                    card_elements.append({
+                        "tag": "table",
+                        "page_size": 10,  # 飞书原生表格支持翻页
+                        "row_height": "low",
+                        "header_style": {
+                            "text_size": "normal",
+                            "background_style": "grey",
+                            "text_color": "default",
+                            "bold": True
+                        },
+                        "columns": columns,
+                        "rows": rows
+                    })
+
+                except Exception as e:
+                    generation_notes.append(f"表格 '{cfg.get('title', i)}' 构建失败: {str(e)}")
+
+    # 追加报错/警告提示
+    if generation_notes:
+        card_elements.append({"tag": "hr"})
+        card_elements.append({
+            "tag": "markdown",
+            "content": "\n".join(generation_notes)
+        })
 
     try:
-        from core.feishu_api import build_feishu_card_with_charts
+        from core.feishu_api import build_feishu_card_v2
 
-        # 如果有备注，附加到内容末尾
-        full_content = content
-        if chart_notes:
-            full_content += "\n\n---\n" + "\n".join(chart_notes)
-
-        payload = build_feishu_card_with_charts(
-            title="📊 SQL Agent 数据分析通报",
-            content=full_content,
-            chart_elements=chart_elements if chart_elements else None,
+        payload = build_feishu_card_v2(
+            title="📊 SQL Agent 数据通报",
+            elements=card_elements
         )
 
         data = json.dumps(payload, ensure_ascii=False, default=str).encode("utf-8")
@@ -237,8 +316,11 @@ def send_feishu_notification_tool(content: str, chart_configs_json: str = None) 
         with urllib.request.urlopen(req) as response:
             resp_body = json.loads(response.read().decode("utf-8"))
             if response.status == 200 and resp_body.get("code", -1) == 0:
-                chart_info = f"（含 {len(chart_elements)} 个原生图表）" if chart_elements else "（纯文本）"
-                return f"✅ 已成功推送到飞书群组！{chart_info}"
+                visual_info = []
+                if chart_configs_json: visual_info.append("图表")
+                if table_configs_json: visual_info.append("表格")
+                visual_desc = f"（含 {'/'.join(visual_info)}）" if visual_info else "（纯文本）"
+                return f"✅ 已成功推送到飞书群组！{visual_desc}"
             else:
                 return f"推送可能失败，飞书返回: {resp_body}"
     except Exception as e:
