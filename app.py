@@ -1,6 +1,6 @@
 # Chainlit 应用入口：接入 LangGraph Agent 实现流式对话（带跨轮记忆）
 import chainlit as cl
-from langchain_core.messages import HumanMessage, AIMessageChunk, ToolMessage
+from langchain_core.messages import HumanMessage, AIMessageChunk, ToolMessage, AIMessage
 from langchain_core.runnables import RunnableConfig
 from core.database import test_connection
 from core.agent import create_agent_graph
