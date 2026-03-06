@@ -4,6 +4,12 @@ from langchain_core.messages import HumanMessage, AIMessageChunk, ToolMessage, A
 from langchain_core.runnables import RunnableConfig
 from core.database import test_connection
 from core.agent import create_agent_graph
+from chainlit.data.sql_alchemy import SQLAlchemyDataLayer
+import os
+
+# 绑定 Chainlit 数据层实现原生历史记录管理
+cl_data_layer = SQLAlchemyDataLayer(conninfo="sqlite:///chainlit_data.db")
+cl.data._data_layer = cl_data_layer
 
 
 @cl.on_chat_start
@@ -22,10 +28,24 @@ async def on_chat_start():
     graph = create_agent_graph()
     cl.user_session.set("graph", graph)
     
-    # 固定为单用户的本地会话 ID
-    thread_id = "sql_agent_session_v1"
+    # 动态获取当前 chainlit 为当前窗口分配的唯一 ID
+    # 彻底解耦，为每个新增聊天窗口创建全新的独立隔离环境
+    thread_id = cl.user_session.get("id")
     cl.user_session.set("thread_id", thread_id)
     config = {"configurable": {"thread_id": thread_id}}
+    
+    # 构建左侧边栏管理配置
+    settings = cl.ChatSettings(
+        [
+            cl.input_widget.Select(
+                id="bulk_delete",
+                label="🗑️ 清理本应用所有历史记忆",
+                values=["保持现状", "仅清空当前窗口", "清空今日记录", "清空全部数据（含隐藏历史）"],
+                initial_index=0,
+            )
+        ]
+    )
+    await settings.send()
 
     # 发送欢迎消息
     await cl.Message(
@@ -42,57 +62,31 @@ async def on_chat_start():
         )
     ).send()
 
-    # 恢复并渲染历史记录
-    try:
-        state = graph.get_state(config)
-        messages = state.values.get("messages", []) if state and hasattr(state, "values") else []
-        for msg in messages:
-            if isinstance(msg, HumanMessage):
-                # 强制标记为 user_message 靠右对齐
-                await cl.Message(content=msg.content, author="User", type="user_message").send()
-            elif isinstance(msg, AIMessage) and msg.content:
-                # 只有 "SQL Agent" 命名的消息且内容非空才作为对话展示
-                await cl.Message(content=msg.content, author="SQL Agent").send()
-            elif isinstance(msg, ToolMessage):
-                output_text = str(msg.content)
-                # 处理历史中的图表
-                if "[PLOTLY_CHART]" in output_text:
-                    parts = output_text.split("[PLOTLY_CHART]")
-                    if len(parts) > 1:
-                        json_part = parts[1].strip()
-                        try:
-                            import json
-                            import plotly.io as pio
-                            fig_dict = json.loads(json_part)
-                            fig = pio.from_json(json.dumps(fig_dict))
-                            chart = cl.Plotly(name="chart", figure=fig, display="inline")
-                            await cl.Message(
-                                content="✨ **(历史数据图表)**",
-                                elements=[chart],
-                                author="SQL Agent"
-                            ).send()
-                        except Exception:
-                            pass
-                elif any(kw in output_text for kw in ["报告已成功导出", "数据已成功导出", "已成功推送", "已成功发送邮件"]):
-                    # 历史通知展示为系统消息
-                    await cl.Message(content=f"📝 **系统通知 (历史记录)**: {output_text}", author="System").send()
+    # 移除手动回复历史记录逻辑。引入了 Data Layer 之后，Chainlit 前端原声接管了页面的历史加载，
+    # 我们不再需要主动查询 LangGraph memory 然后手工发 cl.Message()。
 
-        # 发送快捷操作按钮
-        actions = [
-            cl.Action(name="export_last_result", value="export", label="📂 导出最新数据", description="将最近一次分析结果导出为 Excel", payload={}),
-            cl.Action(name="clear_history", value="clear", label="🗑️ 清空当前对话", description="重置并清空此会话的记忆", payload={})
-        ]
-        await cl.Message(content="您可以点击下方按钮进行快捷操作：", actions=actions, author="System").send()
+    # 发送快捷操作按钮 (依然可以在当前对话保留导出按钮，移除底部的清空功能，因为移到了侧边栏)
+    actions = [
+        cl.Action(name="export_last_result", value="export", label="📂 导出最新数据", description="将最近一次分析结果导出为 Excel", payload={})
+    ]
+    await cl.Message(content="您可以点击下方按钮进行快捷操作：", actions=actions, author="System").send()
 
-    except Exception as e:
-        print(f"恢复历史记录失败: {e}")
+@cl.on_chat_resume
+async def on_chat_resume(thread: cl.ThreadDict):
+    """从左侧边栏点击历史记录恢复会话时触发"""
+    graph = create_agent_graph()
+    cl.user_session.set("graph", graph)
+    
+    # 极其重要：使用恢复的 Thread 的 ID 作为 LangGraph 的记忆锚点
+    thread_id = thread["id"]
+    cl.user_session.set("thread_id", thread_id)
 
 
 @cl.on_message
 async def main(message: cl.Message):
     """处理用户消息：调用 LangGraph Agent 并流式输出结果"""
     graph = cl.user_session.get("graph")
-    thread_id = cl.user_session.get("thread_id", "sql_agent_session_v1")
+    thread_id = cl.user_session.get("thread_id")
 
     config = RunnableConfig(
         configurable={"thread_id": thread_id},
@@ -215,30 +209,84 @@ def on_stop():
     cl.user_session.set("abort_task", True)
 
 
-@cl.action_callback("clear_history")
-async def on_clear_action(action: cl.Action):
-    """快捷操作：彻底清除当前线程及历史记忆"""
-    import sqlite3
+@cl.on_settings_update
+async def setup_agent(settings: dict):
+    """响应侧边栏的 Settings 更新，用于处理深度清理逻辑"""
+    bulk_delete = settings.get("bulk_delete")
     
-    # 获取当前配置
-    thread_id = cl.user_session.get("thread_id", "sql_agent_session_v1")
+    if bulk_delete == "保持现状":
+        return
+        
+    import sqlite3
+    from datetime import datetime
+    
+    current_thread_id = cl.user_session.get("thread_id")
+    graph = cl.user_session.get("graph")
     
     try:
-        # 直接清除底层的 sqlite3 Checkpoint 记录
-        conn = sqlite3.connect("agent_memory.db", check_same_thread=False)
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM checkpoints WHERE thread_id = ?", (thread_id,))
-        cursor.execute("DELETE FROM checkpoint_writes WHERE thread_id = ?", (thread_id,))
-        cursor.execute("DELETE FROM checkpoint_blobs WHERE thread_id = ?", (thread_id,)) # 稳妥起见，清空 blob 数据
-        conn.commit()
-        conn.close()
+        ag_conn = sqlite3.connect("agent_memory.db", check_same_thread=False)
+        ag_cur = ag_conn.cursor()
         
-        # 顺便重置当前内存状态图
-        graph = cl.user_session.get("graph")
-        if graph:
-            config = {"configurable": {"thread_id": thread_id}}
-            graph.update_state(config, {"messages": []})
+        cl_conn = sqlite3.connect("chainlit_data.db", check_same_thread=False)
+        cl_cur = cl_conn.cursor()
+        
+        if bulk_delete == "仅清空当前窗口":
+            if current_thread_id:
+                # 1. 删 LangGraph 记忆
+                ag_cur.execute("DELETE FROM checkpoints WHERE thread_id = ?", (current_thread_id,))
+                ag_cur.execute("DELETE FROM checkpoint_writes WHERE thread_id = ?", (current_thread_id,))
+                ag_cur.execute("DELETE FROM checkpoint_blobs WHERE thread_id = ?", (current_thread_id,))
+                
+                # 2. 删 Chainlit UI 展示数据
+                cl_cur.execute("DELETE FROM steps WHERE threadId = ?", (current_thread_id,))
+                cl_cur.execute("DELETE FROM threads WHERE id = ?", (current_thread_id,))
+                
+                # 重置当前内存
+                if graph:
+                    graph.update_state({"configurable": {"thread_id": current_thread_id}}, {"messages": []})
+                    
+                await cl.Message(content="✅ 本当前对话的历史记录已被清空。请**点击左上角 New Chat**开始新对话！", author="System").send()
+
+        elif bulk_delete == "清空今日记录":
+            today_str = datetime.now().strftime("%Y-%m-%d")
+            # 通过 chainlit_data.db 的 created_at 匹配今天
+            try:
+                cl_cur.execute("SELECT id FROM threads WHERE createdAt LIKE ?", (f"{today_str}%",))
+                target_ids = [r[0] for r in cl_cur.fetchall()]
+                
+                if target_ids:
+                    placeholders = ",".join("?" for _ in target_ids)
+                    cl_cur.execute(f"DELETE FROM steps WHERE threadId IN ({placeholders})", target_ids)
+                    cl_cur.execute(f"DELETE FROM threads WHERE id IN ({placeholders})", target_ids)
+                    
+                    ag_cur.execute(f"DELETE FROM checkpoints WHERE thread_id IN ({placeholders})", target_ids)
+                    ag_cur.execute(f"DELETE FROM checkpoint_writes WHERE thread_id IN ({placeholders})", target_ids)
+                    ag_cur.execute(f"DELETE FROM checkpoint_blobs WHERE thread_id IN ({placeholders})", target_ids)
+                    
+                await cl.Message(content=f"✅ 已清空 {len(target_ids)} 条今天的记录。请刷新页面或点击 New Chat。", author="System").send()
+            except Exception as e:
+                 await cl.Message(content=f"清理今日记录失败，可能是数据表尚不完善。 {e}", author="System").send()
+                 
+        elif bulk_delete == "清空全部数据（含隐藏历史）":
+            ag_cur.execute("DELETE FROM checkpoints")
+            ag_cur.execute("DELETE FROM checkpoint_writes")
+            ag_cur.execute("DELETE FROM checkpoint_blobs")
             
-        await cl.Message(content="🗑️ 数据库中的全部上下文历史记录已被彻底清空，后续对话将从白板开始。", author="System").send()
+            try:
+                cl_cur.execute("DELETE FROM steps")
+                cl_cur.execute("DELETE FROM threads")
+            except:
+                pass
+                
+            await cl.Message(content="🔥 已焚毁整库的所有记忆数据。一切重新开始！请**刷新页面**", author="System").send()
+            
+        ag_conn.commit()
+        ag_conn.close()
+        
+        cl_conn.commit()
+        cl_conn.close()
+        
     except Exception as e:
-        await cl.Message(content=f"清理记忆记录失败: {e}", author="System").send()
+        import traceback
+        traceback.print_exc()
+        await cl.Message(content=f"清理发生错误: {e}", author="System").send()
