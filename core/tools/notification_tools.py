@@ -15,7 +15,7 @@ from core.config import settings
 
 
 @tool
-def export_report_tool(report_content: str, filename: str = None, export_format: str = "md") -> str:
+def export_report_tool(report_content: str, filename: str = None, export_format: str = "md", save_directory: str = None) -> str:
     """导出分析报告为文件。
     当用户要求下载报告、保存分析结果时调用此工具。
     你必须将之前对话中已经生成的分析内容直接传入 report_content，禁止重新执行 SQL 查询。
@@ -24,6 +24,7 @@ def export_report_tool(report_content: str, filename: str = None, export_format:
         report_content: 欲导出的报告内容（Markdown 格式的完整报告正文）。
         filename: （可选）导出的文件名（不含扩展名），默认按时间自动生成。
         export_format: 导出格式，支持 'md'（Markdown，默认）/ 'txt'（纯文本）。
+        save_directory: （可选）如果用户指定了保存目录（如 "D:\\reports"），则保存至该绝对路径下，否则保存在默认 reports 目录。
 
     返回:
         导出结果和文件路径。
@@ -38,10 +39,14 @@ def export_report_tool(report_content: str, filename: str = None, export_format:
         ext = ext_map.get(export_format, ".md")
         full_filename = f"{filename}{ext}"
 
-        reports_dir = os.path.join(os.getcwd(), "reports")
-        os.makedirs(reports_dir, exist_ok=True)
-
-        file_path = os.path.join(reports_dir, full_filename)
+        if save_directory:
+            save_directory = save_directory.strip('"\'')
+            os.makedirs(save_directory, exist_ok=True)
+            file_path = os.path.join(save_directory, full_filename)
+        else:
+            reports_dir = os.path.join(os.getcwd(), "reports")
+            os.makedirs(reports_dir, exist_ok=True)
+            file_path = os.path.join(reports_dir, full_filename)
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(report_content)
 
@@ -70,7 +75,7 @@ def export_report_tool(report_content: str, filename: str = None, export_format:
 
 
 @tool
-def export_data_tool(sql_query: str, filename: str = None, export_format: str = "csv") -> str:
+def export_data_tool(sql_query: str, filename: str = None, export_format: str = "csv", save_directory: str = None) -> str:
     """将 SQL 查询结果直接导出为数据文件（CSV 或 Excel）。
     当用户要求"导出数据"、"下载查询结果"时调用此工具。
     与 export_report_tool 不同，此工具直接导出原始查询数据而非文字报告。
@@ -79,6 +84,7 @@ def export_data_tool(sql_query: str, filename: str = None, export_format: str = 
         sql_query: 用于获取数据的 SQL 查询语句。
         filename: （可选）导出的文件名（不含扩展名），默认按时间自动生成。
         export_format: 导出格式，支持 'csv'（默认）/ 'xlsx'（Excel）。
+        save_directory: （可选）如果用户指定了保存目录（如 "D:\\reports"），则保存至该绝对路径下，否则保存在默认 reports 目录。
 
     返回:
         导出结果和文件路径。
@@ -100,14 +106,20 @@ def export_data_tool(sql_query: str, filename: str = None, export_format: str = 
         if not filename:
             filename = f"data_export_{timestamp}"
 
-        reports_dir = os.path.join(os.getcwd(), "reports")
-        os.makedirs(reports_dir, exist_ok=True)
+        if save_directory:
+            save_directory = save_directory.strip('"\'')
+            os.makedirs(save_directory, exist_ok=True)
+            target_dir = save_directory
+        else:
+            reports_dir = os.path.join(os.getcwd(), "reports")
+            os.makedirs(reports_dir, exist_ok=True)
+            target_dir = reports_dir
 
         if export_format == "xlsx":
-            file_path = os.path.join(reports_dir, f"{filename}.xlsx")
+            file_path = os.path.join(target_dir, f"{filename}.xlsx")
             df.to_excel(file_path, index=False, engine="openpyxl")
         else:
-            file_path = os.path.join(reports_dir, f"{filename}.csv")
+            file_path = os.path.join(target_dir, f"{filename}.csv")
             df.to_csv(file_path, index=False, encoding="utf-8-sig")
 
         # 通过 Chainlit 发送文件下载链接

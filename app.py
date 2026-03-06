@@ -48,8 +48,8 @@ async def on_chat_start():
         messages = state.values.get("messages", []) if state and hasattr(state, "values") else []
         for msg in messages:
             if isinstance(msg, HumanMessage):
-                # Chainlit 默认将 author="User" 的消息放在右侧
-                await cl.Message(content=msg.content, author="User").send()
+                # 强制标记为 user_message 靠右对齐
+                await cl.Message(content=msg.content, author="User", type="user_message").send()
             elif isinstance(msg, AIMessage) and msg.content:
                 # 只有 "SQL Agent" 命名的消息且内容非空才作为对话展示
                 await cl.Message(content=msg.content, author="SQL Agent").send()
@@ -100,6 +100,7 @@ async def main(message: cl.Message):
 
     final_answer = cl.Message(content="", author="SQL Agent")
     tool_steps: dict[str, cl.Step] = {}
+    cl.user_session.set("abort_task", False)
 
     # --- 修复 LangGraph 的中断悬挂状态 ---
     # 如果用户在工具执行中途刷新页面（或之前的报错遗留），历史记录中可能会有
@@ -134,6 +135,10 @@ async def main(message: cl.Message):
         stream_mode="messages",
         config=config,
     ):
+        if cl.user_session.get("abort_task"):
+            await cl.Message(content="⚠️ **任务已被用户手动终止。**", author="System").send()
+            break
+        
         node = metadata.get("langgraph_node", "")
 
         if isinstance(chunk, AIMessageChunk):
@@ -204,20 +209,36 @@ async def on_export_action(action: cl.Action):
     await main(cl.Message(content="请将我刚才分析的数据导出为 Excel 文件并提供下载。"))
 
 
+@cl.on_stop
+def on_stop():
+    """捕获停止按钮事件，标记打断标志位并停止当前任务。"""
+    cl.user_session.set("abort_task", True)
+
+
 @cl.action_callback("clear_history")
 async def on_clear_action(action: cl.Action):
-    """快捷操作：清除历史记忆"""
-    import os
+    """快捷操作：彻底清除当前线程及历史记忆"""
     import sqlite3
     
     # 获取当前配置
     thread_id = cl.user_session.get("thread_id", "sql_agent_session_v1")
     
-    # 简单的做法是模拟用户要求清理，或者直接操作 DB (这里我们直接从提示上引导用户重启可能更安全，但作为 Action 我们可以尝试直接清理 state)
-    graph = cl.user_session.get("graph")
-    config = {"configurable": {"thread_id": thread_id}}
-    
-    # 更新 state 将消息设为空列表
-    graph.update_state(config, {"messages": []})
-    
-    await cl.Message(content="🗑️ 本次会话的上下文记忆已重置清理。后续对话将不再携带旧的上下文。", author="System").send()
+    try:
+        # 直接清除底层的 sqlite3 Checkpoint 记录
+        conn = sqlite3.connect("agent_memory.db", check_same_thread=False)
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM checkpoints WHERE thread_id = ?", (thread_id,))
+        cursor.execute("DELETE FROM checkpoint_writes WHERE thread_id = ?", (thread_id,))
+        cursor.execute("DELETE FROM checkpoint_blobs WHERE thread_id = ?", (thread_id,)) # 稳妥起见，清空 blob 数据
+        conn.commit()
+        conn.close()
+        
+        # 顺便重置当前内存状态图
+        graph = cl.user_session.get("graph")
+        if graph:
+            config = {"configurable": {"thread_id": thread_id}}
+            graph.update_state(config, {"messages": []})
+            
+        await cl.Message(content="🗑️ 数据库中的全部上下文历史记录已被彻底清空，后续对话将从白板开始。", author="System").send()
+    except Exception as e:
+        await cl.Message(content=f"清理记忆记录失败: {e}", author="System").send()
