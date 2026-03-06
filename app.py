@@ -9,7 +9,10 @@ import os
 
 # 绑定 Chainlit 数据层实现原生历史记录管理
 cl_data_layer = SQLAlchemyDataLayer(conninfo="sqlite+aiosqlite:///chainlit_data.db")
-cl.data._data_layer = cl_data_layer
+
+@cl.data_layer
+def get_data_layer():
+    return cl_data_layer
 
 # 强制开启本地历史记录（必须有认证用户才能激活 SideBar）
 @cl.header_auth_callback
