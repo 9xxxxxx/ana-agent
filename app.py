@@ -11,6 +11,12 @@ import os
 cl_data_layer = SQLAlchemyDataLayer(conninfo="sqlite+aiosqlite:///chainlit_data.db")
 cl.data._data_layer = cl_data_layer
 
+# 强制开启本地历史记录（必须有认证用户才能激活 SideBar）
+@cl.header_auth_callback
+def header_auth_callback(headers: dict):
+    # 构建一个虚拟的本地用户标识，用于在数据库中隔离记录
+    return cl.User(identifier="local_admin", metadata={"role": "admin", "provider": "local"})
+
 
 @cl.on_chat_start
 async def on_chat_start():
