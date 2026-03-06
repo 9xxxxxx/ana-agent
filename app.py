@@ -71,8 +71,10 @@ async def on_chat_start():
     ]
     await cl.Message(content="您可以点击下方按钮进行快捷操作：", actions=actions, author="System").send()
 
+from chainlit.types import ThreadDict
+
 @cl.on_chat_resume
-async def on_chat_resume(thread: cl.ThreadDict):
+async def on_chat_resume(thread: ThreadDict):
     """从左侧边栏点击历史记录恢复会话时触发"""
     graph = create_agent_graph()
     cl.user_session.set("graph", graph)
