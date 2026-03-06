@@ -8,7 +8,7 @@ from chainlit.data.sql_alchemy import SQLAlchemyDataLayer
 import os
 
 # 绑定 Chainlit 数据层实现原生历史记录管理
-cl_data_layer = SQLAlchemyDataLayer(conninfo="sqlite:///chainlit_data.db")
+cl_data_layer = SQLAlchemyDataLayer(conninfo="sqlite+aiosqlite:///chainlit_data.db")
 cl.data._data_layer = cl_data_layer
 
 
