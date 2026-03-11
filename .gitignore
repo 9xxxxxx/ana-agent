@@ -20,3 +20,14 @@ __pycache__/
 
 # Project
 .chainlit/
+
+# Databases
+*.db
+*.db-shm
+*.db-wal
+
+# Reports
+reports/
+
+# Generated
+feishu_v2_snippets.txt
