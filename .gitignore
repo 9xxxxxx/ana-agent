@@ -31,3 +31,6 @@ reports/
 
 # Generated
 feishu_v2_snippets.txt
+
+# Large full DB backups
+/db_backup/demo_backup.sql
