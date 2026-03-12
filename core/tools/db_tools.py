@@ -17,7 +17,7 @@ def switch_database_tool(database_url: str) -> str:
     参数:
         database_url: 完整的数据库连接字符串（例如：sqlite:///test.db 或 postgresql+psycopg2://...）
     """
-    import chainlit as cl
+    from core.database import set_session_db_url
     try:
         # 测试新连接是否有效
         eng = get_engine_by_url(database_url)
@@ -27,8 +27,8 @@ def switch_database_tool(database_url: str) -> str:
         # 获取适配器以验证数据库类型
         adapter = get_adapter(eng)
 
-        # 将合法的 URL 写入当前用户 session
-        cl.user_session.set("db_url", database_url)
+        # 将合法的 URL 写入当前会话存储
+        set_session_db_url(database_url)
         return (
             f"数据库已成功切换！\n"
             f"- 连接地址: {database_url}\n"

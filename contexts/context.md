@@ -9,15 +9,19 @@
 
 ### 2.1 后端服务 (Backend - Python)
 
-- **API 框架**: FastAPI (高性能异步 API 提供者)
-- **Agent 核心**: LangGraph / LangChain (ReAct 循环 + MemorySaver checkpointer 实现跨轮对话记忆)
+- **API 框架**: FastAPI + SSE 流式推送（sse-starlette）
+- **Agent 核心**: LangGraph / LangChain (ReAct 循环 + SqliteSaver checkpointer 实现跨轮对话记忆)
 - **数据库适配**: DatabaseAdapter 抽象层 + SQLAlchemy (支持 PostgreSQL / MySQL / SQLite / DuckDB)
 - **数据处理与分析**: Pandas + Numpy
 - **可视化图表生成**: Plotly (11 种图表类型)
 
 ### 2.2 前端交互 (Frontend)
 
-- **路线 A (当前)**: Chainlit (内置精美对话 UI，支持流式输出、图表渲染、文件下载)
+- **框架**: Next.js (App Router) + React
+- **样式**: Vanilla CSS 暗色主题设计系统
+- **图表渲染**: react-plotly.js
+- **Markdown 渲染**: react-markdown + remark-gfm
+- **通信**: SSE (Server-Sent Events) 流式对话
 
 ### 2.3 数据库 (Database)
 
@@ -27,9 +31,9 @@
 ### 2.4 核心功能
 
 - **多 Schema 智能探索**: 自动发现并列出所有 schema 和表
-- **跨轮对话记忆**: 基于 LangGraph MemorySaver，分步提需求不丢上下文
+- **跨轮对话记忆**: 基于 LangGraph SqliteSaver，分步提需求不丢上下文
 - **11 种图表**: bar, horizontal_bar, line, area, pie, scatter, histogram, box, heatmap, treemap, funnel
-- **报告导出**: Markdown / CSV / Excel，支持 Chainlit 文件下载
+- **报告导出**: Markdown / CSV / Excel，前端文件下载
 - **消息推送**: 飞书群 Webhook (交互式卡片) / 邮件 SMTP
 
 ## 3. 开发规范 (必须严格遵守)
@@ -46,4 +50,5 @@
 3. ~~**Phase 3**: 搭建 Agent 核心思考与执行流 (LangGraph)。~~ ✅
 4. ~~**Phase 4**: 实现前端 Web 对话界面与报表图表渲染机制。~~ ✅
 5. ~~**Phase 5**: 多 Schema 适配 / 对话记忆 / 导出修复 / 图表增强 / 通知升级。~~ ✅
-6. **Phase 6**: 完善深度业务报告生成，集成测试与用户体验优化（当前阶段）。
+6. ~~**Phase 6**: 前端迁移：Chainlit → Next.js + FastAPI 前后端分离。~~ ✅
+7. **Phase 7**: 深度业务报告、权限管理与 UI 精打磨（下一阶段）。

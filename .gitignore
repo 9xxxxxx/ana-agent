@@ -21,6 +21,11 @@ __pycache__/
 # Project
 .chainlit/
 
+# Frontend (Next.js)
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
 # Databases
 *.db
 *.db-shm

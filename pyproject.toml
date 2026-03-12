@@ -22,5 +22,6 @@ dependencies = [
     "psycopg2-binary>=2.9.11",
     "python-dotenv>=1.2.2",
     "sqlalchemy>=2.0.48",
+    "sse-starlette>=2.0.0",
     "uvicorn>=0.41.0",
 ]

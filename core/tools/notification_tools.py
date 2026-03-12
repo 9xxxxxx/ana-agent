@@ -50,24 +50,7 @@ def export_report_tool(report_content: str, filename: str = None, export_format:
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(report_content)
 
-        # 通过 Chainlit 的文件元素发送给用户下载
-        try:
-            import chainlit as cl
-            elements = [
-                cl.File(name=full_filename, path=file_path, display="inline")
-            ]
-            # 使用异步方式发送文件消息
-            import asyncio
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                asyncio.ensure_future(
-                    cl.Message(
-                        content=f"📄 报告已生成，点击下方文件即可下载：",
-                        elements=elements
-                    ).send()
-                )
-        except Exception:
-            pass  # 非 Chainlit 环境下静默跳过
+        # 文件下载由前端通过 /api/files/{filename} 端点处理
 
         return f"报告已成功导出至: {file_path}"
     except Exception as e:
@@ -122,22 +105,7 @@ def export_data_tool(sql_query: str, filename: str = None, export_format: str = 
             file_path = os.path.join(target_dir, f"{filename}.csv")
             df.to_csv(file_path, index=False, encoding="utf-8-sig")
 
-        # 通过 Chainlit 发送文件下载链接
-        try:
-            import chainlit as cl
-            import asyncio
-            actual_filename = os.path.basename(file_path)
-            elements = [cl.File(name=actual_filename, path=file_path, display="inline")]
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                asyncio.ensure_future(
-                    cl.Message(
-                        content=f"📊 数据已导出（{len(df)} 行），点击下方文件即可下载：",
-                        elements=elements
-                    ).send()
-                )
-        except Exception:
-            pass
+        # 文件下载由前端通过 /api/files/{filename} 端点处理
 
         return f"数据已成功导出至: {file_path}（共 {len(df)} 行 x {len(df.columns)} 列）"
     except Exception as e:
