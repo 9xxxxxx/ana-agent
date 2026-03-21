@@ -88,7 +88,7 @@ const chartLibraries = [
     supportedTypes: [
       'bar', 'horizontal_bar', 'line', 'area', 'pie', 'scatter', 'radar',
       'funnel', 'gauge', 'heatmap', 'treemap', 'sunburst', 'boxplot',
-      'wordcloud', 'polar_bar', 'waterfall'
+      'wordcloud', 'polar_bar', 'waterfall', 'sankey'
     ],
   },
   {
@@ -129,6 +129,14 @@ const chartTypes = [
   { value: 'polar_bar', label: '极坐标柱状图', icon: '🌀', category: 'advanced' },
   { value: 'waterfall', label: '瀑布图', icon: '💧', category: 'advanced' },
   { value: 'bullet', label: '子弹图', icon: '🎯', category: 'advanced' },
+  { value: 'sankey', label: '桑基图', icon: '〰️', category: 'advanced' },
+];
+
+const colorThemesList = [
+  { value: 'default', label: '默认配色', color: '#3b82f6' },
+  { value: 'warm', label: '温润柔和', color: '#f46d43' },
+  { value: 'cool', label: '酷炫科技', color: '#0ad59e' },
+  { value: 'fresh', label: '清新简洁', color: '#a8e6cf' },
 ];
 
 /**
@@ -151,6 +159,7 @@ export default function SmartChart({
 }) {
   const [selectedType, setSelectedType] = useState(explicitType);
   const [selectedLibrary, setSelectedLibrary] = useState(defaultLibrary);
+  const [selectedTheme, setSelectedTheme] = useState('default');
 
   const data = useMemo(() => parseChartData(rawData), [rawData]);
 
@@ -236,6 +245,7 @@ export default function SmartChart({
     title: chartConfig?.title || title,
     colorCol: chartConfig?.colorCol || colorCol,
     sizeCol: chartConfig?.sizeCol || sizeCol,
+    colorTheme: selectedTheme,
   };
 
   // 获取当前库支持的图表类型
@@ -254,7 +264,7 @@ export default function SmartChart({
       height,
     };
 
-    switch (selectedLibrary) {
+    switch (effectiveLibrary) {
       case 'nivo':
         return <NivoRenderer {...chartProps} />;
       case 'visx':
@@ -286,6 +296,24 @@ export default function SmartChart({
                 <span>{lib.icon}</span>
                 <span>{lib.name}</span>
               </button>
+            ))}
+          </div>
+          
+          {/* 配色方案选择器 */}
+          <div className="flex items-center gap-1 border-l border-gray-100 pl-3 ml-1 shrink-0">
+            {colorThemesList.map((theme) => (
+              <button
+                key={theme.value}
+                className={`w-5 h-5 rounded-full border-2 transition-transform ${
+                  selectedTheme === theme.value ? 'scale-110 shadow-sm' : 'scale-90 opacity-70 hover:opacity-100 hover:scale-100'
+                }`}
+                style={{
+                  backgroundColor: theme.color,
+                  borderColor: selectedTheme === theme.value ? '#374151' : 'transparent'
+                }}
+                onClick={() => setSelectedTheme(theme.value)}
+                title={theme.label}
+              />
             ))}
           </div>
         </div>

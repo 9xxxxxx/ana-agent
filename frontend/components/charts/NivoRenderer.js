@@ -78,22 +78,19 @@ const nivoTheme = {
   },
 };
 
-// 渐变色
-const nivoColors = [
-  '#3b82f6',
-  '#8b5cf6',
-  '#10b981',
-  '#f59e0b',
-  '#ef4444',
-  '#06b6d4',
-  '#ec4899',
-  '#14b8a6',
-];
+// 内置多套图表配色方案 (Color Themes) 对应 ECharts
+const colorThemesList = {
+  default: ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#14b8a6'],
+  warm: ['#fc8d62', '#e78ac3', '#ffd92f', '#e5c494', '#f46d43', '#fdae61', '#fee08b', '#abdda4'],
+  cool: ['#00b8a9', '#f6416c', '#3fc1c9', '#364f6b', '#7a42f4', '#00d2fc', '#0ad59e', '#fc5185'],
+  fresh: ['#a8e6cf', '#dcedc1', '#ffd3b6', '#ffaaa5', '#76b4bd', '#5c969e', '#f3e8cb', '#c5e3f6']
+};
 
 /**
  * 柱状图
  */
-function NivoBarChart({ data, xCol, yCol, title, colorCol }) {
+function NivoBarChart({ data, xCol, yCol, title, colorCol, colorTheme = 'default' }) {
+  const colors = colorThemesList[colorTheme] || colorThemesList.default;
   const chartData = useMemo(() => {
     if (colorCol) {
       const grouped = {};
@@ -125,7 +122,7 @@ function NivoBarChart({ data, xCol, yCol, title, colorCol }) {
         indexBy="category"
         margin={{ top: 50, right: 130, bottom: 50, left: 60 }}
         padding={0.3}
-        colors={nivoColors}
+        colors={colors}
         theme={nivoTheme}
         borderColor={{ from: 'color', modifiers: [['darker', 1.6]] }}
         axisTop={null}
@@ -175,7 +172,8 @@ function NivoBarChart({ data, xCol, yCol, title, colorCol }) {
 /**
  * 折线图
  */
-function NivoLineChart({ data, xCol, yCol, title, colorCol }) {
+function NivoLineChart({ data, xCol, yCol, title, colorCol, colorTheme = 'default' }) {
+  const colors = colorThemesList[colorTheme] || colorThemesList.default;
   const chartData = useMemo(() => {
     if (colorCol) {
       const grouped = {};
@@ -239,7 +237,7 @@ function NivoLineChart({ data, xCol, yCol, title, colorCol }) {
           legendOffset: -40,
           legendPosition: 'middle',
         }}
-        colors={nivoColors}
+        colors={colors}
         theme={nivoTheme}
         pointSize={8}
         pointColor={{ theme: 'background' }}
@@ -273,15 +271,16 @@ function NivoLineChart({ data, xCol, yCol, title, colorCol }) {
 /**
  * 饼图
  */
-function NivoPieChart({ data, xCol, yCol, title }) {
+function NivoPieChart({ data, xCol, yCol, title, colorTheme = 'default' }) {
+  const colors = colorThemesList[colorTheme] || colorThemesList.default;
   const chartData = useMemo(() => {
     return data.map((d, i) => ({
       id: d[xCol],
       label: d[xCol],
       value: d[yCol],
-      color: nivoColors[i % nivoColors.length],
+      color: colors[i % colors.length],
     }));
-  }, [data, xCol, yCol]);
+  }, [data, xCol, yCol, colors]);
 
   return (
     <div className="nivo-chart-container">
@@ -292,7 +291,7 @@ function NivoPieChart({ data, xCol, yCol, title }) {
         innerRadius={0.5}
         padAngle={0.7}
         cornerRadius={3}
-        colors={nivoColors}
+        colors={colors}
         borderWidth={1}
         borderColor={{ from: 'color', modifiers: [['darker', 0.2]] }}
         radialLabelsSkipAngle={10}
@@ -328,7 +327,8 @@ function NivoPieChart({ data, xCol, yCol, title }) {
 /**
  * 散点图
  */
-function NivoScatterChart({ data, xCol, yCol, title, colorCol }) {
+function NivoScatterChart({ data, xCol, yCol, title, colorCol, colorTheme = 'default' }) {
+  const colors = colorThemesList[colorTheme] || colorThemesList.default;
   const chartData = useMemo(() => {
     if (colorCol) {
       const grouped = {};
@@ -367,7 +367,7 @@ function NivoScatterChart({ data, xCol, yCol, title, colorCol }) {
         margin={{ top: 60, right: 140, bottom: 70, left: 90 }}
         xScale={{ type: 'linear', min: 'auto', max: 'auto' }}
         yScale={{ type: 'linear', min: 'auto', max: 'auto' }}
-        colors={nivoColors}
+        colors={colors}
         theme={nivoTheme}
         blendMode="multiply"
         nodeSize={8}
@@ -417,7 +417,8 @@ function NivoScatterChart({ data, xCol, yCol, title, colorCol }) {
 /**
  * 雷达图
  */
-function NivoRadarChart({ data, xCol, yCol, title }) {
+function NivoRadarChart({ data, xCol, yCol, title, colorTheme = 'default' }) {
+  const colors = colorThemesList[colorTheme] || colorThemesList.default;
   const chartData = useMemo(() => {
     return data.map((d) => ({
       category: d[xCol],
@@ -442,7 +443,7 @@ function NivoRadarChart({ data, xCol, yCol, title }) {
         gridLevels={5}
         gridShape="circular"
         gridLabelOffset={36}
-        colors={nivoColors}
+        colors={colors}
         theme={nivoTheme}
         fillOpacity={0.25}
         blendMode="multiply"
@@ -469,7 +470,8 @@ function NivoRadarChart({ data, xCol, yCol, title }) {
 /**
  * 漏斗图
  */
-function NivoFunnelChart({ data, xCol, yCol, title }) {
+function NivoFunnelChart({ data, xCol, yCol, title, colorTheme = 'default' }) {
+  const colors = colorThemesList[colorTheme] || colorThemesList.default;
   const chartData = useMemo(() => {
     return data.map((d) => ({
       id: d[xCol],
@@ -485,7 +487,7 @@ function NivoFunnelChart({ data, xCol, yCol, title }) {
         data={chartData}
         margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
         valueFormat=">-.4s"
-        colors={nivoColors}
+        colors={colors}
         borderWidth={20}
         borderColor={{ from: 'color', modifiers: [] }}
         labelColor={{
@@ -510,7 +512,8 @@ function NivoFunnelChart({ data, xCol, yCol, title }) {
 /**
  * 树图
  */
-function NivoTreemapChart({ data, xCol, yCol, title }) {
+function NivoTreemapChart({ data, xCol, yCol, title, colorTheme = 'default' }) {
+  const colors = colorThemesList[colorTheme] || colorThemesList.default;
   const chartData = useMemo(() => {
     return {
       name: 'root',
@@ -533,7 +536,7 @@ function NivoTreemapChart({ data, xCol, yCol, title }) {
         labelTextColor={{ from: 'color', modifiers: [['darker', 1.2]] }}
         parentLabelTextColor={{ from: 'color', modifiers: [['darker', 2]] }}
         borderColor={{ from: 'color', modifiers: [['darker', 0.1]] }}
-        colors={nivoColors}
+        colors={colors}
         theme={nivoTheme}
         animate={true}
         motionStiffness={90}
@@ -546,7 +549,8 @@ function NivoTreemapChart({ data, xCol, yCol, title }) {
 /**
  * 热力图
  */
-function NivoHeatmapChart({ data, xCol, yCol, title, colorCol }) {
+function NivoHeatmapChart({ data, xCol, yCol, title, colorCol, colorTheme = 'default' }) {
+  const colors = colorThemesList[colorTheme] || colorThemesList.default;
   const chartData = useMemo(() => {
     const keys = colorCol ? [...new Set(data.map((d) => d[colorCol]))] : [yCol];
     const xValues = [...new Set(data.map((d) => d[xCol]))];
@@ -598,6 +602,12 @@ function NivoHeatmapChart({ data, xCol, yCol, title, colorCol }) {
         hoverTarget="cell"
         cellHoverOthersOpacity={0.25}
         theme={nivoTheme}
+        colors={{
+          type: 'sequential',
+          scheme: colorTheme === 'default' ? 'blues' : (colorTheme === 'warm' ? 'oranges' : (colorTheme === 'fresh' ? 'greens' : 'purples')),
+          minValue: 0,
+          maxValue: Math.max(...chartData.flatMap(d => Object.values(d).filter(v => typeof v === 'number'))) * 1.2
+        }}
       />
     </div>
   );
@@ -606,7 +616,8 @@ function NivoHeatmapChart({ data, xCol, yCol, title, colorCol }) {
 /**
  * 旭日图
  */
-function NivoSunburstChart({ data, xCol, yCol, title }) {
+function NivoSunburstChart({ data, xCol, yCol, title, colorTheme = 'default' }) {
+  const colors = colorThemesList[colorTheme] || colorThemesList.default;
   const chartData = useMemo(() => {
     return {
       name: 'root',
@@ -627,7 +638,7 @@ function NivoSunburstChart({ data, xCol, yCol, title }) {
         value="value"
         cornerRadius={2}
         borderColor={{ theme: 'background' }}
-        colors={nivoColors}
+        colors={colors}
         childColor={{ from: 'color', modifiers: [['brighter', 0.2]] }}
         animate={true}
         motionStiffness={90}
@@ -642,7 +653,8 @@ function NivoSunburstChart({ data, xCol, yCol, title }) {
 /**
  * 子弹图
  */
-function NivoBulletChart({ data, xCol, yCol, title }) {
+function NivoBulletChart({ data, xCol, yCol, title, colorTheme = 'default' }) {
+  const colors = colorThemesList[colorTheme] || colorThemesList.default;
   const chartData = useMemo(() => {
     return data.map((d) => ({
       id: d[xCol],
@@ -683,7 +695,7 @@ export default function NivoRenderer({
   config,
   height = 400,
 }) {
-  const { chartType, xCol, yCol, title, colorCol } = config;
+  const { chartType, xCol, yCol, title, colorCol, colorTheme } = config;
 
   if (!data || data.length === 0) {
     return (
@@ -699,6 +711,7 @@ export default function NivoRenderer({
     yCol,
     title,
     colorCol,
+    colorTheme,
   };
 
   switch (chartType) {
@@ -785,5 +798,5 @@ export {
   NivoSunburstChart,
   NivoBulletChart,
   nivoTheme,
-  nivoColors,
+  colorThemesList as nivoColors,
 };

@@ -8,6 +8,14 @@
 import { useEffect, useRef } from 'react';
 import * as echarts from 'echarts';
 
+// 内置多套图表配色方案 (Color Themes)
+const colorThemes = {
+  default: ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#14b8a6'],
+  warm: ['#fc8d62', '#e78ac3', '#ffd92f', '#e5c494', '#f46d43', '#fdae61', '#fee08b', '#abdda4'], // 温润柔和
+  cool: ['#00b8a9', '#f6416c', '#3fc1c9', '#364f6b', '#7a42f4', '#00d2fc', '#0ad59e', '#fc5185'],  // 酷炫科技
+  fresh: ['#a8e6cf', '#dcedc1', '#ffd3b6', '#ffaaa5', '#76b4bd', '#5c969e', '#f3e8cb', '#c5e3f6'] // 清新简洁
+};
+
 // 亮色主题配置（适配白色背景）
 const chartTheme = {
   backgroundColor: 'transparent',
@@ -95,8 +103,13 @@ const animationConfig = {
 /**
  * 智能推断图表类型
  */
-function inferChartType(data, xCol, yCol) {
+export function inferChartType(data, xCol, yCol) {
   if (!data || data.length === 0) return 'bar';
+
+  // 检测是否为特定的图表格式（如桑基图的节点-连线特性）
+  if (data[0].source && data[0].target && data[0].value !== undefined) {
+    return 'sankey';
+  }
 
   const xValues = data.map((d) => d[xCol]);
   const yValues = data.map((d) => d[yCol]);
@@ -133,7 +146,7 @@ function inferChartType(data, xCol, yCol) {
 /**
  * 生成柱状图配置
  */
-function generateBarOption(data, xCol, yCol, title, colorCol) {
+function generateBarOption(data, xCol, yCol, title, colorCol, defaultColors) {
   const grouped = colorCol
     ? data.reduce((acc, d) => {
         const key = d[colorCol];
@@ -151,8 +164,8 @@ function generateBarOption(data, xCol, yCol, title, colorCol) {
     itemStyle: {
       borderRadius: [6, 6, 0, 0],
       color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-        { offset: 0, color: gradientColors[idx % gradientColors.length][0] },
-        { offset: 1, color: gradientColors[idx % gradientColors.length][1] },
+        { offset: 0, color: defaultColors[idx % defaultColors.length] },
+        { offset: 1, color: defaultColors[idx % defaultColors.length] + '80' },
       ]),
     },
     emphasis: {
@@ -199,7 +212,7 @@ function generateBarOption(data, xCol, yCol, title, colorCol) {
 /**
  * 生成折线图配置
  */
-function generateLineOption(data, xCol, yCol, title, colorCol) {
+function generateLineOption(data, xCol, yCol, title, colorCol, defaultColors) {
   const grouped = colorCol
     ? data.reduce((acc, d) => {
         const key = d[colorCol];
@@ -218,24 +231,24 @@ function generateLineOption(data, xCol, yCol, title, colorCol) {
     symbolSize: 8,
     lineStyle: {
       width: 3,
-      color: gradientColors[idx % gradientColors.length][0],
+      color: defaultColors[idx % defaultColors.length],
     },
     itemStyle: {
-      color: gradientColors[idx % gradientColors.length][0],
+      color: defaultColors[idx % defaultColors.length],
       borderWidth: 2,
       borderColor: '#fff',
     },
     areaStyle: {
       color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-        { offset: 0, color: `${gradientColors[idx % gradientColors.length][0]}40` },
-        { offset: 1, color: `${gradientColors[idx % gradientColors.length][0]}05` },
+        { offset: 0, color: `${defaultColors[idx % defaultColors.length]}40` },
+        { offset: 1, color: `${defaultColors[idx % defaultColors.length]}05` },
       ]),
     },
     emphasis: {
       focus: 'series',
       itemStyle: {
         shadowBlur: 10,
-        shadowColor: gradientColors[idx % gradientColors.length][0],
+        shadowColor: defaultColors[idx % defaultColors.length],
       },
     },
     ...animationConfig,
@@ -274,14 +287,14 @@ function generateLineOption(data, xCol, yCol, title, colorCol) {
 /**
  * 生成饼图配置
  */
-function generatePieOption(data, xCol, yCol, title) {
+function generatePieOption(data, xCol, yCol, title, defaultColors) {
   const pieData = data.map((d, idx) => ({
     name: d[xCol],
     value: d[yCol],
     itemStyle: {
       color: new echarts.graphic.LinearGradient(0, 0, 1, 1, [
-        { offset: 0, color: gradientColors[idx % gradientColors.length][0] },
-        { offset: 1, color: gradientColors[idx % gradientColors.length][1] },
+        { offset: 0, color: defaultColors[idx % defaultColors.length] },
+        { offset: 1, color: defaultColors[idx % defaultColors.length] + '80' },
       ]),
     },
   }));
@@ -346,7 +359,7 @@ function generatePieOption(data, xCol, yCol, title) {
 /**
  * 生成散点图配置
  */
-function generateScatterOption(data, xCol, yCol, title, colorCol, sizeCol) {
+function generateScatterOption(data, xCol, yCol, title, colorCol, sizeCol, defaultColors) {
   const grouped = colorCol
     ? data.reduce((acc, d) => {
         const key = d[colorCol];
@@ -362,13 +375,13 @@ function generateScatterOption(data, xCol, yCol, title, colorCol, sizeCol) {
     data: items.map((d) => [d[xCol], d[yCol], sizeCol ? d[sizeCol] : 20]),
     symbolSize: sizeCol ? (val) => Math.sqrt(val[2]) * 2 : 15,
     itemStyle: {
-      color: gradientColors[idx % gradientColors.length][0],
+      color: defaultColors[idx % defaultColors.length],
       opacity: 0.8,
     },
     emphasis: {
       itemStyle: {
         shadowBlur: 15,
-        shadowColor: gradientColors[idx % gradientColors.length][0],
+        shadowColor: defaultColors[idx % defaultColors.length],
       },
     },
     ...animationConfig,
@@ -402,7 +415,7 @@ function generateScatterOption(data, xCol, yCol, title, colorCol, sizeCol) {
 /**
  * 生成雷达图配置
  */
-function generateRadarOption(data, xCol, yCol, title) {
+function generateRadarOption(data, xCol, yCol, title, defaultColors) {
   const indicators = data.map((d) => ({
     name: d[xCol],
     max: Math.max(...data.map((item) => item[yCol])) * 1.2,
@@ -445,16 +458,16 @@ function generateRadarOption(data, xCol, yCol, title) {
             name: title,
             areaStyle: {
               color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                { offset: 0, color: 'rgba(59, 130, 246, 0.6)' },
-                { offset: 1, color: 'rgba(139, 92, 246, 0.2)' },
+                { offset: 0, color: `${defaultColors[0]}60` },
+                { offset: 1, color: `${defaultColors[0]}20` },
               ]),
             },
             lineStyle: {
-              color: '#3b82f6',
+              color: defaultColors[0],
               width: 2,
             },
             itemStyle: {
-              color: '#3b82f6',
+              color: defaultColors[0],
             },
           },
         ],
@@ -467,14 +480,14 @@ function generateRadarOption(data, xCol, yCol, title) {
 /**
  * 生成漏斗图配置
  */
-function generateFunnelOption(data, xCol, yCol, title) {
+function generateFunnelOption(data, xCol, yCol, title, defaultColors) {
   const funnelData = data.map((d, idx) => ({
     name: d[xCol],
     value: d[yCol],
     itemStyle: {
       color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
-        { offset: 0, color: gradientColors[idx % gradientColors.length][0] },
-        { offset: 1, color: gradientColors[idx % gradientColors.length][1] },
+        { offset: 0, color: defaultColors[idx % defaultColors.length] },
+        { offset: 1, color: defaultColors[idx % defaultColors.length] + '80' },
       ]),
     },
   }));
@@ -533,7 +546,7 @@ function generateFunnelOption(data, xCol, yCol, title) {
 /**
  * 生成仪表盘配置
  */
-function generateGaugeOption(data, xCol, yCol, title) {
+function generateGaugeOption(data, xCol, yCol, title, defaultColors) {
   const value = data[0]?.[yCol] || 0;
 
   return {
@@ -551,9 +564,9 @@ function generateGaugeOption(data, xCol, yCol, title) {
         splitNumber: 10,
         itemStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
-            { offset: 0, color: '#10b981' },
-            { offset: 0.5, color: '#f59e0b' },
-            { offset: 1, color: '#ef4444' },
+            { offset: 0, color: defaultColors[2] },
+            { offset: 0.5, color: defaultColors[3] },
+            { offset: 1, color: defaultColors[4] },
           ]),
         },
         progress: {
@@ -565,7 +578,7 @@ function generateGaugeOption(data, xCol, yCol, title) {
           length: '60%',
           width: 8,
           itemStyle: {
-            color: '#3b82f6',
+            color: defaultColors[0],
           },
         },
         axisLine: {
@@ -595,7 +608,7 @@ function generateGaugeOption(data, xCol, yCol, title) {
           size: 20,
           itemStyle: {
             borderWidth: 8,
-            borderColor: '#3b82f6',
+            borderColor: defaultColors[0],
             color: '#e5e7eb',
           },
         },
@@ -623,7 +636,7 @@ function generateGaugeOption(data, xCol, yCol, title) {
 /**
  * 生成热力图配置
  */
-function generateHeatmapOption(data, xCol, yCol, title, colorCol) {
+function generateHeatmapOption(data, xCol, yCol, title, colorCol, defaultColors) {
   const xCategories = [...new Set(data.map((d) => d[xCol]))];
   const yCategories = colorCol ? [...new Set(data.map((d) => d[colorCol]))] : [yCol];
   
@@ -666,7 +679,7 @@ function generateHeatmapOption(data, xCol, yCol, title, colorCol) {
       right: 10,
       top: 'center',
       inRange: {
-        color: ['#1e3a5f', '#3b82f6', '#10b981', '#f59e0b', '#ef4444'],
+        color: defaultColors,
       },
       textStyle: {
         color: '#6b7280',
@@ -697,12 +710,12 @@ function generateHeatmapOption(data, xCol, yCol, title, colorCol) {
 /**
  * 生成树图配置
  */
-function generateTreemapOption(data, xCol, yCol, title) {
+function generateTreemapOption(data, xCol, yCol, title, defaultColors) {
   const treemapData = data.map((d, idx) => ({
     name: d[xCol],
     value: d[yCol],
     itemStyle: {
-      color: gradientColors[idx % gradientColors.length][0],
+      color: defaultColors[idx % defaultColors.length],
     },
   }));
 
@@ -726,8 +739,8 @@ function generateTreemapOption(data, xCol, yCol, title) {
         breadcrumb: {
           show: true,
           itemStyle: {
-            color: '#3b82f6',
-            borderColor: '#3b82f6',
+            color: defaultColors[0],
+            borderColor: defaultColors[0],
           },
         },
         label: {
@@ -771,12 +784,12 @@ function generateTreemapOption(data, xCol, yCol, title) {
 /**
  * 生成旭日图配置
  */
-function generateSunburstOption(data, xCol, yCol, title) {
+function generateSunburstOption(data, xCol, yCol, title, defaultColors) {
   const sunburstData = data.map((d, idx) => ({
     name: d[xCol],
     value: d[yCol],
     itemStyle: {
-      color: gradientColors[idx % gradientColors.length][0],
+      color: defaultColors[idx % defaultColors.length],
     },
   }));
 
@@ -840,7 +853,7 @@ function generateSunburstOption(data, xCol, yCol, title) {
 /**
  * 生成箱线图配置
  */
-function generateBoxplotOption(data, xCol, yCol, title, colorCol) {
+function generateBoxplotOption(data, xCol, yCol, title, colorCol, defaultColors) {
   const grouped = colorCol
     ? data.reduce((acc, d) => {
         const key = d[colorCol];
@@ -892,16 +905,16 @@ function generateBoxplotOption(data, xCol, yCol, title, colorCol) {
         data: boxplotData,
         itemStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: '#3b82f6' },
-            { offset: 1, color: '#8b5cf6' },
+            { offset: 0, color: defaultColors[0] },
+            { offset: 1, color: defaultColors[1] },
           ]),
-          borderColor: '#3b82f6',
+          borderColor: defaultColors[0],
           borderWidth: 2,
         },
         emphasis: {
           itemStyle: {
             shadowBlur: 10,
-            shadowColor: 'rgba(59, 130, 246, 0.5)',
+            shadowColor: `${defaultColors[0]}80`,
           },
         },
         ...animationConfig,
@@ -913,7 +926,7 @@ function generateBoxplotOption(data, xCol, yCol, title, colorCol) {
 /**
  * 生成词云图配置 (简化版 - 使用气泡图模拟)
  */
-function generateWordcloudOption(data, xCol, yCol, title) {
+function generateWordcloudOption(data, xCol, yCol, title, defaultColors) {
   const maxValue = Math.max(...data.map((d) => d[yCol]));
   
   const wordcloudData = data.map((d, idx) => ({
@@ -921,7 +934,7 @@ function generateWordcloudOption(data, xCol, yCol, title) {
     value: d[yCol],
     symbolSize: (d[yCol] / maxValue) * 60 + 20,
     itemStyle: {
-      color: gradientColors[idx % gradientColors.length][0],
+      color: defaultColors[idx % defaultColors.length],
     },
     x: (idx % 5) * 150 + 100,
     y: Math.floor(idx / 5) * 80 + 50,
@@ -967,7 +980,7 @@ function generateWordcloudOption(data, xCol, yCol, title) {
 /**
  * 生成极坐标柱状图配置
  */
-function generatePolarBarOption(data, xCol, yCol, title) {
+function generatePolarBarOption(data, xCol, yCol, title, defaultColors) {
   return {
     ...chartTheme,
     title: { ...chartTheme.title, text: title },
@@ -1008,8 +1021,8 @@ function generatePolarBarOption(data, xCol, yCol, title) {
           value: d[yCol],
           itemStyle: {
             color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
-              { offset: 0, color: gradientColors[idx % gradientColors.length][0] },
-              { offset: 1, color: gradientColors[idx % gradientColors.length][1] },
+              { offset: 0, color: defaultColors[idx % defaultColors.length] },
+              { offset: 1, color: defaultColors[idx % defaultColors.length] + '80' },
             ]),
             borderRadius: 4,
           },
@@ -1025,7 +1038,7 @@ function generatePolarBarOption(data, xCol, yCol, title) {
 /**
  * 生成面积图配置
  */
-function generateAreaOption(data, xCol, yCol, title, colorCol) {
+function generateAreaOption(data, xCol, yCol, title, colorCol, defaultColors) {
   const grouped = colorCol
     ? data.reduce((acc, d) => {
         const key = d[colorCol];
@@ -1042,11 +1055,11 @@ function generateAreaOption(data, xCol, yCol, title, colorCol) {
     smooth: true,
     symbol: 'circle',
     symbolSize: 6,
-    lineStyle: { width: 2, color: gradientColors[idx % gradientColors.length][0] },
+    lineStyle: { width: 2, color: defaultColors[idx % defaultColors.length] },
     areaStyle: {
       color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-        { offset: 0, color: `${gradientColors[idx % gradientColors.length][0]}80` },
-        { offset: 1, color: `${gradientColors[idx % gradientColors.length][0]}10` },
+        { offset: 0, color: `${defaultColors[idx % defaultColors.length]}80` },
+        { offset: 1, color: `${defaultColors[idx % defaultColors.length]}10` },
       ]),
     },
     emphasis: { focus: 'series' },
@@ -1073,7 +1086,7 @@ function generateAreaOption(data, xCol, yCol, title, colorCol) {
 /**
  * 生成瀑布图配置
  */
-function generateWaterfallOption(data, xCol, yCol, title) {
+function generateWaterfallOption(data, xCol, yCol, title, defaultColors) {
   let cumulative = 0;
   const waterfallData = data.map((d) => {
     const start = cumulative;
@@ -1085,7 +1098,7 @@ function generateWaterfallOption(data, xCol, yCol, title) {
       start,
       end,
       itemStyle: {
-        color: d[yCol] >= 0 ? gradientColors[0][0] : gradientColors[3][0],
+        color: d[yCol] >= 0 ? defaultColors[0] : defaultColors[3],
       },
     };
   });
@@ -1129,20 +1142,111 @@ function generateWaterfallOption(data, xCol, yCol, title) {
 }
 
 /**
- * 主图表生成函数（含智能轴检测）
+ * 生成桑基图配置
  */
-function generateChartOption(data, config) {
-  let { chartType, xCol, yCol, title, colorCol, sizeCol } = config;
+function generateSankeyOption(data, xCol, yCol, title, colorCol, defaultColors) {
+  const nodesMap = new Set();
+  const links = [];
+  const hasExplicitLinks = data.length > 0 && 'source' in data[0] && 'target' in data[0];
 
-  // 智能轴检测：如果 xCol 是纯数字列而 yCol 是字符串列，自动交换
-  if (data && data.length > 0 && xCol && yCol) {
+  if (hasExplicitLinks) {
+    data.forEach(d => {
+      nodesMap.add(String(d.source));
+      nodesMap.add(String(d.target));
+      links.push({
+        source: String(d.source),
+        target: String(d.target),
+        value: Number(d.value || d[yCol] || 1)
+      });
+    });
+  } else {
+    // 退化推测：xCol -> colorCol -> yCol
+    const targetCol = colorCol || (Object.keys(data[0] || {}).find(k => k !== xCol && k !== yCol));
+    if (xCol && targetCol && yCol) {
+      data.forEach(d => {
+        if (d[xCol] && d[targetCol]) {
+          nodesMap.add(String(d[xCol]));
+          nodesMap.add(String(d[targetCol]));
+          links.push({
+            source: String(d[xCol]),
+            target: String(d[targetCol]),
+            value: Number(d[yCol]) || 0
+          });
+        }
+      });
+    }
+  }
+
+  const sankeyNodes = Array.from(nodesMap).map(name => ({ name }));
+
+  return {
+    ...chartTheme,
+    title: { ...chartTheme.title, text: title },
+    tooltip: {
+      ...chartTheme.tooltip,
+      trigger: 'item',
+      triggerOn: 'mousemove',
+    },
+    series: [
+      {
+        type: 'sankey',
+        data: sankeyNodes,
+        links: links,
+        emphasis: { focus: 'adjacency' },
+        nodeAlign: 'justify',
+        lineStyle: {
+          color: 'gradient',
+          curveness: 0.5,
+          opacity: 0.2
+        },
+        label: {
+          position: 'right',
+          color: chartTheme.textStyle.color
+        },
+        itemStyle: {
+          color: (params) => defaultColors[params.dataIndex % defaultColors.length],
+          borderColor: '#e5e7eb',
+          borderWidth: 1,
+        },
+        ...animationConfig,
+      }
+    ]
+  };
+}
+
+/**
+ * 核心调度器：根据类型分发对应的 ECharts Option 生成逻辑
+ */
+export function generateChartOption(data, config) {
+  const { chartType, xCol: rawXCol, yCol: rawYCol, title, colorCol, sizeCol, colorTheme = 'default' } = config;
+
+  const defaultColors = colorThemes[colorTheme] || colorThemes.default;
+
+  // 通用基础配置
+  const baseOption = {
+    color: defaultColors,
+    backgroundColor: chartTheme.backgroundColor,
+    textStyle: chartTheme.textStyle,
+    title: { ...chartTheme.title, text: title },
+    legend: chartTheme.legend,
+    tooltip: chartTheme.tooltip,
+    grid: chartTheme.grid,
+    xAxis: chartTheme.xAxis,
+    yAxis: chartTheme.yAxis,
+  };
+
+  let xCol = rawXCol;
+  let yCol = rawYCol;
+
+  // 自动修正坐标轴: 对于常规二维图表，x通常是分类维度，y通常是数值维度
+  if (chartType !== 'pie' && chartType !== 'radar' && chartType !== 'scatter' && chartType !== 'sankey' && data && data.length > 0 && xCol && yCol) {
     const xValues = data.map((d) => d[xCol]);
     const yValues = data.map((d) => d[yCol]);
     const xIsNumeric = xValues.every((v) => typeof v === 'number' || (!isNaN(parseFloat(v)) && typeof v !== 'string'));
     const yIsString = yValues.every((v) => typeof v === 'string' && isNaN(parseFloat(v)));
 
     // 对于 bar/line/area 等需要类别轴的图表，确保 xCol 是类别列
-    const needsCategoryX = ['bar', 'horizontal_bar', 'line', 'area', 'radar', 'funnel', 'polar_bar', 'waterfall'];
+    const needsCategoryX = ['bar', 'horizontal_bar', 'line', 'area', 'polar_bar', 'waterfall'];
     if (xIsNumeric && yIsString && needsCategoryX.includes(chartType || 'bar')) {
       [xCol, yCol] = [yCol, xCol];
     }
@@ -1152,10 +1256,10 @@ function generateChartOption(data, config) {
 
   switch (type) {
     case 'bar':
-      return generateBarOption(data, xCol, yCol, title, colorCol);
+      return generateBarOption(data, xCol, yCol, title, colorCol, defaultColors);
     case 'horizontal_bar': {
       // 横向柱状图：交换 X/Y 轴
-      const opt = generateBarOption(data, xCol, yCol, title, colorCol);
+      const opt = generateBarOption(data, xCol, yCol, title, colorCol, defaultColors);
       // 将柱状图转为横向：类别在 Y 轴，数值在 X 轴
       const categories = [...new Set(data.map((d) => d[xCol]))];
       opt.xAxis = { ...chartTheme.xAxis, type: 'value' };
@@ -1171,35 +1275,37 @@ function generateChartOption(data, config) {
       return opt;
     }
     case 'line':
-      return generateLineOption(data, xCol, yCol, title, colorCol);
+      return generateLineOption(data, xCol, yCol, title, colorCol, defaultColors);
     case 'area':
-      return generateAreaOption(data, xCol, yCol, title, colorCol);
+      return generateAreaOption(data, xCol, yCol, title, colorCol, defaultColors);
     case 'pie':
-      return generatePieOption(data, xCol, yCol, title);
+      return generatePieOption(data, xCol, yCol, title, defaultColors);
     case 'scatter':
-      return generateScatterOption(data, xCol, yCol, title, colorCol, sizeCol);
+      return generateScatterOption(data, xCol, yCol, title, colorCol, sizeCol, defaultColors);
     case 'radar':
-      return generateRadarOption(data, xCol, yCol, title);
+      return generateRadarOption(data, xCol, yCol, title, defaultColors);
     case 'funnel':
-      return generateFunnelOption(data, xCol, yCol, title);
+      return generateFunnelOption(data, xCol, yCol, title, defaultColors);
     case 'gauge':
-      return generateGaugeOption(data, xCol, yCol, title);
+      return generateGaugeOption(data, xCol, yCol, title, defaultColors);
     case 'heatmap':
-      return generateHeatmapOption(data, xCol, yCol, title, colorCol);
+      return generateHeatmapOption(data, xCol, yCol, title, colorCol, defaultColors);
     case 'treemap':
-      return generateTreemapOption(data, xCol, yCol, title);
+      return generateTreemapOption(data, xCol, yCol, title, defaultColors);
     case 'sunburst':
-      return generateSunburstOption(data, xCol, yCol, title, colorCol);
+      return generateSunburstOption(data, xCol, yCol, title, defaultColors);
     case 'boxplot':
-      return generateBoxplotOption(data, xCol, yCol, title, colorCol);
+      return generateBoxplotOption(data, xCol, yCol, title, colorCol, defaultColors);
     case 'wordcloud':
-      return generateWordcloudOption(data, xCol, yCol, title);
+      return generateWordcloudOption(data, xCol, yCol, title, defaultColors);
     case 'polar_bar':
-      return generatePolarBarOption(data, xCol, yCol, title);
+      return generatePolarBarOption(data, xCol, yCol, title, defaultColors);
     case 'waterfall':
-      return generateWaterfallOption(data, xCol, yCol, title);
+      return generateWaterfallOption(data, xCol, yCol, title, defaultColors);
+    case 'sankey':
+      return generateSankeyOption(data, xCol, yCol, title, colorCol, defaultColors);
     default:
-      return generateBarOption(data, xCol, yCol, title, colorCol);
+      return generateBarOption(data, xCol, yCol, title, colorCol, defaultColors);
   }
 }
 
@@ -1210,10 +1316,28 @@ export default function EChartsRenderer({
   data,
   config,
   height = 400,
-  onChartReady,
 }) {
   const chartRef = useRef(null);
   const chartInstance = useRef(null);
+
+  // 内部保存 base64 图像供外部导出
+  useEffect(() => {
+    if (chartInstance.current && !chartInstance.current.isDisposed()) {
+      try {
+        const base64 = chartInstance.current.getDataURL({
+          type: 'png',
+          pixelRatio: 2,
+          backgroundColor: '#ffffff'
+        });
+        // 将 base64 存入 DOM 属性供 ReportViewer 提取
+        if (chartRef.current) {
+          chartRef.current.setAttribute('data-echarts-base64', base64);
+        }
+      } catch (e) {
+        console.warn('ECharts export to base64 failed', e);
+      }
+    }
+  });
 
   // 单一 useEffect 处理初始化、更新和清理
   useEffect(() => {
@@ -1239,9 +1363,6 @@ export default function EChartsRenderer({
       console.error('[EChartsRenderer] 生成图表配置失败:', err);
     }
 
-    // 回调
-    onChartReady?.(chartInstance.current);
-
     // 响应式调整
     const handleResize = () => {
       if (chartInstance.current && !chartInstance.current.isDisposed()) {
@@ -1258,7 +1379,7 @@ export default function EChartsRenderer({
         chartInstance.current = null;
       }
     };
-  }, [data, config, onChartReady]);
+  }, [data, config]);
 
   if (!data || !config) {
     return (
@@ -1277,13 +1398,6 @@ export default function EChartsRenderer({
 export {
   inferChartType,
   generateChartOption,
-  generateBarOption,
-  generateLineOption,
-  generatePieOption,
-  generateScatterOption,
-  generateRadarOption,
-  generateFunnelOption,
-  generateGaugeOption,
   generateHeatmapOption,
   generateTreemapOption,
   generateSunburstOption,

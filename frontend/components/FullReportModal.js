@@ -71,11 +71,45 @@ export default function FullReportModal({ isOpen, onClose, message }) {
 
   // 导出为 Markdown 文件
   const handleExportMarkdown = () => {
-    const blob = new Blob([reportText], { type: 'text/markdown;charset=utf-8' });
+    let finalMarkdown = reportText;
+
+    if (charts.length > 0) {
+      finalMarkdown += '\n\n---\n\n## 附录：数据图表概览\n\n';
+      
+      charts.forEach((c, idx) => {
+        const el = document.getElementById(`chart-${c.id}`);
+        if (el) {
+          const titleText = c.data?.layout?.title?.text || `图表 ${idx + 1}`;
+          
+          // 查找是否有 ECharts 提取的 Base64 图片
+          const echartsNode = el.querySelector('[data-echarts-base64]');
+          if (echartsNode) {
+            const base64 = echartsNode.getAttribute('data-echarts-base64');
+            if (base64) {
+              finalMarkdown += `### ${titleText}\n\n![${titleText}](${base64})\n\n`;
+            }
+          } else {
+            // 退化处理：如果是 Nivo 或 Visx (生成的是 inline SVG)
+            const svgNode = el.querySelector('svg');
+            if (svgNode) {
+              try {
+                const svgData = new XMLSerializer().serializeToString(svgNode);
+                const svgBase64 = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+                finalMarkdown += `### ${titleText}\n\n![${titleText}](${svgBase64})\n\n`;
+              } catch (e) {
+                console.error('SVG 转 Base64 失败', e);
+              }
+            }
+          }
+        }
+      });
+    }
+
+    const blob = new Blob([finalMarkdown], { type: 'text/markdown;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `report-${Date.now()}.md`;
+    a.download = `SQL-Agent-Report-${Date.now()}.md`;
     a.click();
     URL.revokeObjectURL(url);
   };
