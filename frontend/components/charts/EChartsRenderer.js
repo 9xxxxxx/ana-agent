@@ -5,19 +5,19 @@
  * 支持智能图表类型推断、酷炫动画和精美主题
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import * as echarts from 'echarts';
 
-// 暗色主题配置
-const darkTheme = {
+// 亮色主题配置（适配白色背景）
+const chartTheme = {
   backgroundColor: 'transparent',
   textStyle: {
-    color: '#94a3b8',
-    fontFamily: 'Inter, sans-serif',
+    color: '#374151',
+    fontFamily: 'Inter, system-ui, sans-serif',
   },
   title: {
     textStyle: {
-      color: '#e2e8f0',
+      color: '#111827',
       fontSize: 16,
       fontWeight: 600,
     },
@@ -26,20 +26,20 @@ const darkTheme = {
   },
   legend: {
     textStyle: {
-      color: '#94a3b8',
+      color: '#6b7280',
     },
     pageTextStyle: {
-      color: '#94a3b8',
+      color: '#6b7280',
     },
   },
   tooltip: {
-    backgroundColor: 'rgba(17, 24, 39, 0.95)',
-    borderColor: '#334155',
+    backgroundColor: 'rgba(255, 255, 255, 0.96)',
+    borderColor: '#e5e7eb',
     borderWidth: 1,
     textStyle: {
-      color: '#e2e8f0',
+      color: '#374151',
     },
-    extraCssText: 'box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5); border-radius: 8px;',
+    extraCssText: 'box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12); border-radius: 8px;',
   },
   grid: {
     left: '3%',
@@ -50,24 +50,24 @@ const darkTheme = {
   },
   xAxis: {
     axisLine: {
-      lineStyle: { color: '#334155' },
+      lineStyle: { color: '#d1d5db' },
     },
     axisLabel: {
-      color: '#94a3b8',
+      color: '#6b7280',
     },
     splitLine: {
-      lineStyle: { color: '#1e293b' },
+      lineStyle: { color: '#f3f4f6' },
     },
   },
   yAxis: {
     axisLine: {
-      lineStyle: { color: '#334155' },
+      lineStyle: { color: '#d1d5db' },
     },
     axisLabel: {
-      color: '#94a3b8',
+      color: '#6b7280',
     },
     splitLine: {
-      lineStyle: { color: '#1e293b' },
+      lineStyle: { color: '#f3f4f6' },
     },
   },
 };
@@ -165,10 +165,10 @@ function generateBarOption(data, xCol, yCol, title, colorCol) {
   }));
 
   return {
-    ...darkTheme,
-    title: { ...darkTheme.title, text: title },
+    ...chartTheme,
+    title: { ...chartTheme.title, text: title },
     tooltip: {
-      ...darkTheme.tooltip,
+      ...chartTheme.tooltip,
       trigger: 'axis',
       axisPointer: {
         type: 'shadow',
@@ -177,22 +177,22 @@ function generateBarOption(data, xCol, yCol, title, colorCol) {
         },
       },
     },
-    legend: { ...darkTheme.legend, top: 35 },
+    legend: { ...chartTheme.legend, top: 35 },
     xAxis: {
-      ...darkTheme.xAxis,
+      ...chartTheme.xAxis,
       type: 'category',
       data: [...new Set(data.map((d) => d[xCol]))],
       axisLabel: {
-        ...darkTheme.xAxis.axisLabel,
+        ...chartTheme.xAxis.axisLabel,
         rotate: data.length > 8 ? 30 : 0,
       },
     },
     yAxis: {
-      ...darkTheme.yAxis,
+      ...chartTheme.yAxis,
       type: 'value',
     },
     series,
-    grid: { ...darkTheme.grid, bottom: data.length > 8 ? 60 : 40 },
+    grid: { ...chartTheme.grid, bottom: data.length > 8 ? 60 : 40 },
   };
 }
 
@@ -242,10 +242,10 @@ function generateLineOption(data, xCol, yCol, title, colorCol) {
   }));
 
   return {
-    ...darkTheme,
-    title: { ...darkTheme.title, text: title },
+    ...chartTheme,
+    title: { ...chartTheme.title, text: title },
     tooltip: {
-      ...darkTheme.tooltip,
+      ...chartTheme.tooltip,
       trigger: 'axis',
       axisPointer: {
         type: 'cross',
@@ -256,15 +256,15 @@ function generateLineOption(data, xCol, yCol, title, colorCol) {
         },
       },
     },
-    legend: { ...darkTheme.legend, top: 35 },
+    legend: { ...chartTheme.legend, top: 35 },
     xAxis: {
-      ...darkTheme.xAxis,
+      ...chartTheme.xAxis,
       type: 'category',
       data: [...new Set(data.map((d) => d[xCol]))],
       boundaryGap: false,
     },
     yAxis: {
-      ...darkTheme.yAxis,
+      ...chartTheme.yAxis,
       type: 'value',
     },
     series,
@@ -287,15 +287,15 @@ function generatePieOption(data, xCol, yCol, title) {
   }));
 
   return {
-    ...darkTheme,
-    title: { ...darkTheme.title, text: title },
+    ...chartTheme,
+    title: { ...chartTheme.title, text: title },
     tooltip: {
-      ...darkTheme.tooltip,
+      ...chartTheme.tooltip,
       trigger: 'item',
       formatter: '{b}: {c} ({d}%)',
     },
     legend: {
-      ...darkTheme.legend,
+      ...chartTheme.legend,
       orient: 'vertical',
       right: 20,
       top: 'center',
@@ -309,19 +309,19 @@ function generatePieOption(data, xCol, yCol, title) {
         avoidLabelOverlap: true,
         itemStyle: {
           borderRadius: 8,
-          borderColor: '#1a2236',
+          borderColor: '#e5e7eb',
           borderWidth: 2,
         },
         label: {
           show: true,
           position: 'outside',
           formatter: '{b}\n{d}%',
-          color: '#94a3b8',
+          color: '#6b7280',
         },
         labelLine: {
           show: true,
           lineStyle: {
-            color: '#475569',
+            color: '#9ca3af',
           },
         },
         emphasis: {
@@ -375,25 +375,25 @@ function generateScatterOption(data, xCol, yCol, title, colorCol, sizeCol) {
   }));
 
   return {
-    ...darkTheme,
-    title: { ...darkTheme.title, text: title },
+    ...chartTheme,
+    title: { ...chartTheme.title, text: title },
     tooltip: {
-      ...darkTheme.tooltip,
+      ...chartTheme.tooltip,
       trigger: 'item',
       formatter: (params) => `${xCol}: ${params.data[0]}<br/>${yCol}: ${params.data[1]}`,
     },
-    legend: { ...darkTheme.legend, top: 35 },
+    legend: { ...chartTheme.legend, top: 35 },
     xAxis: {
-      ...darkTheme.xAxis,
+      ...chartTheme.xAxis,
       type: 'value',
       name: xCol,
-      nameTextStyle: { color: '#94a3b8' },
+      nameTextStyle: { color: '#6b7280' },
     },
     yAxis: {
-      ...darkTheme.yAxis,
+      ...chartTheme.yAxis,
       type: 'value',
       name: yCol,
-      nameTextStyle: { color: '#94a3b8' },
+      nameTextStyle: { color: '#6b7280' },
     },
     series,
   };
@@ -409,15 +409,15 @@ function generateRadarOption(data, xCol, yCol, title) {
   }));
 
   return {
-    ...darkTheme,
-    title: { ...darkTheme.title, text: title },
-    tooltip: { ...darkTheme.tooltip },
+    ...chartTheme,
+    title: { ...chartTheme.title, text: title },
+    tooltip: { ...chartTheme.tooltip },
     radar: {
       indicator: indicators,
       shape: 'polygon',
       splitNumber: 5,
       axisName: {
-        color: '#94a3b8',
+        color: '#6b7280',
       },
       splitLine: {
         lineStyle: {
@@ -480,10 +480,10 @@ function generateFunnelOption(data, xCol, yCol, title) {
   }));
 
   return {
-    ...darkTheme,
-    title: { ...darkTheme.title, text: title },
+    ...chartTheme,
+    title: { ...chartTheme.title, text: title },
     tooltip: {
-      ...darkTheme.tooltip,
+      ...chartTheme.tooltip,
       trigger: 'item',
       formatter: '{b}: {c}',
     },
@@ -515,7 +515,7 @@ function generateFunnelOption(data, xCol, yCol, title) {
           },
         },
         itemStyle: {
-          borderColor: '#1a2236',
+          borderColor: '#e5e7eb',
           borderWidth: 1,
         },
         emphasis: {
@@ -537,8 +537,8 @@ function generateGaugeOption(data, xCol, yCol, title) {
   const value = data[0]?.[yCol] || 0;
 
   return {
-    ...darkTheme,
-    title: { ...darkTheme.title, text: title },
+    ...chartTheme,
+    title: { ...chartTheme.title, text: title },
     series: [
       {
         type: 'gauge',
@@ -581,12 +581,12 @@ function generateGaugeOption(data, xCol, yCol, title) {
           length: 12,
           lineStyle: {
             width: 2,
-            color: '#475569',
+            color: '#9ca3af',
           },
         },
         axisLabel: {
           distance: 30,
-          color: '#94a3b8',
+          color: '#6b7280',
           fontSize: 12,
         },
         anchor: {
@@ -596,13 +596,13 @@ function generateGaugeOption(data, xCol, yCol, title) {
           itemStyle: {
             borderWidth: 8,
             borderColor: '#3b82f6',
-            color: '#1a2236',
+            color: '#e5e7eb',
           },
         },
         title: {
           show: true,
           offsetCenter: [0, '80%'],
-          color: '#94a3b8',
+          color: '#6b7280',
           fontSize: 14,
         },
         detail: {
@@ -610,7 +610,7 @@ function generateGaugeOption(data, xCol, yCol, title) {
           fontSize: 36,
           fontWeight: 'bold',
           offsetCenter: [0, '50%'],
-          color: '#e2e8f0',
+          color: '#374151',
           formatter: '{value}',
         },
         data: [{ value: Math.round(value), name: data[0]?.[xCol] || '' }],
@@ -636,24 +636,24 @@ function generateHeatmapOption(data, xCol, yCol, title, colorCol) {
   const maxValue = Math.max(...data.map((d) => d[yCol]));
 
   return {
-    ...darkTheme,
-    title: { ...darkTheme.title, text: title },
+    ...chartTheme,
+    title: { ...chartTheme.title, text: title },
     tooltip: {
-      ...darkTheme.tooltip,
+      ...chartTheme.tooltip,
       position: 'top',
       formatter: (params) => {
         return `${xCategories[params.data[0]]}<br/>${yCategories[params.data[1]]}: ${params.data[2]}`;
       },
     },
-    grid: { ...darkTheme.grid, top: 60, right: 80 },
+    grid: { ...chartTheme.grid, top: 60, right: 80 },
     xAxis: {
-      ...darkTheme.xAxis,
+      ...chartTheme.xAxis,
       type: 'category',
       data: xCategories,
       splitArea: { show: true },
     },
     yAxis: {
-      ...darkTheme.yAxis,
+      ...chartTheme.yAxis,
       type: 'category',
       data: yCategories,
       splitArea: { show: true },
@@ -669,7 +669,7 @@ function generateHeatmapOption(data, xCol, yCol, title, colorCol) {
         color: ['#1e3a5f', '#3b82f6', '#10b981', '#f59e0b', '#ef4444'],
       },
       textStyle: {
-        color: '#94a3b8',
+        color: '#6b7280',
       },
     },
     series: [
@@ -679,7 +679,7 @@ function generateHeatmapOption(data, xCol, yCol, title, colorCol) {
         data: heatmapData,
         label: {
           show: true,
-          color: '#e2e8f0',
+          color: '#374151',
           fontSize: 10,
         },
         emphasis: {
@@ -707,10 +707,10 @@ function generateTreemapOption(data, xCol, yCol, title) {
   }));
 
   return {
-    ...darkTheme,
-    title: { ...darkTheme.title, text: title },
+    ...chartTheme,
+    title: { ...chartTheme.title, text: title },
     tooltip: {
-      ...darkTheme.tooltip,
+      ...chartTheme.tooltip,
       trigger: 'item',
       formatter: '{b}: {c}',
     },
@@ -742,7 +742,7 @@ function generateTreemapOption(data, xCol, yCol, title) {
           color: '#fff',
         },
         itemStyle: {
-          borderColor: '#1a2236',
+          borderColor: '#e5e7eb',
           borderWidth: 2,
           gapWidth: 2,
         },
@@ -781,10 +781,10 @@ function generateSunburstOption(data, xCol, yCol, title) {
   }));
 
   return {
-    ...darkTheme,
-    title: { ...darkTheme.title, text: title },
+    ...chartTheme,
+    title: { ...chartTheme.title, text: title },
     tooltip: {
-      ...darkTheme.tooltip,
+      ...chartTheme.tooltip,
       trigger: 'item',
       formatter: '{b}: {c} ({d}%)',
     },
@@ -809,7 +809,7 @@ function generateSunburstOption(data, xCol, yCol, title) {
             r: '45%',
             itemStyle: {
               borderWidth: 2,
-              borderColor: '#1a2236',
+              borderColor: '#e5e7eb',
             },
             label: {
               rotate: 'tangential',
@@ -821,13 +821,13 @@ function generateSunburstOption(data, xCol, yCol, title) {
             r: '90%',
             itemStyle: {
               borderWidth: 2,
-              borderColor: '#1a2236',
+              borderColor: '#e5e7eb',
             },
             label: {
               position: 'outside',
               padding: 3,
               silent: false,
-              color: '#94a3b8',
+              color: '#6b7280',
             },
           },
         ],
@@ -861,28 +861,28 @@ function generateBoxplotOption(data, xCol, yCol, title, colorCol) {
   });
 
   return {
-    ...darkTheme,
-    title: { ...darkTheme.title, text: title },
+    ...chartTheme,
+    title: { ...chartTheme.title, text: title },
     tooltip: {
-      ...darkTheme.tooltip,
+      ...chartTheme.tooltip,
       trigger: 'item',
       formatter: (params) => {
         return `${params.name}<br/>最小: ${params.data[1]}<br/>Q1: ${params.data[2]}<br/>中位数: ${params.data[3]}<br/>Q3: ${params.data[4]}<br/>最大: ${params.data[5]}`;
       },
     },
-    grid: { ...darkTheme.grid, bottom: 60 },
+    grid: { ...chartTheme.grid, bottom: 60 },
     xAxis: {
-      ...darkTheme.xAxis,
+      ...chartTheme.xAxis,
       type: 'category',
       data: Object.keys(grouped),
       boundaryGap: true,
       axisLabel: {
-        ...darkTheme.xAxis.axisLabel,
+        ...chartTheme.xAxis.axisLabel,
         rotate: Object.keys(grouped).length > 5 ? 30 : 0,
       },
     },
     yAxis: {
-      ...darkTheme.yAxis,
+      ...chartTheme.yAxis,
       type: 'value',
     },
     series: [
@@ -928,16 +928,16 @@ function generateWordcloudOption(data, xCol, yCol, title) {
   }));
 
   return {
-    ...darkTheme,
-    title: { ...darkTheme.title, text: title },
+    ...chartTheme,
+    title: { ...chartTheme.title, text: title },
     tooltip: {
-      ...darkTheme.tooltip,
+      ...chartTheme.tooltip,
       trigger: 'item',
       formatter: '{b}: {c}',
     },
     xAxis: { show: false, type: 'value' },
     yAxis: { show: false, type: 'value' },
-    grid: { ...darkTheme.grid, left: 0, right: 0, top: 60, bottom: 0 },
+    grid: { ...chartTheme.grid, left: 0, right: 0, top: 60, bottom: 0 },
     series: [
       {
         type: 'scatter',
@@ -969,10 +969,10 @@ function generateWordcloudOption(data, xCol, yCol, title) {
  */
 function generatePolarBarOption(data, xCol, yCol, title) {
   return {
-    ...darkTheme,
-    title: { ...darkTheme.title, text: title },
+    ...chartTheme,
+    title: { ...chartTheme.title, text: title },
     tooltip: {
-      ...darkTheme.tooltip,
+      ...chartTheme.tooltip,
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
     },
@@ -988,18 +988,18 @@ function generatePolarBarOption(data, xCol, yCol, title) {
       axisLine: {
         lineStyle: { color: '#334155' },
       },
-      axisLabel: { color: '#94a3b8' },
+      axisLabel: { color: '#6b7280' },
     },
     radiusAxis: {
       type: 'category',
       data: data.map((d) => d[xCol]),
       splitLine: {
-        lineStyle: { color: '#1e293b' },
+        lineStyle: { color: '#f3f4f6' },
       },
       axisLine: {
         lineStyle: { color: '#334155' },
       },
-      axisLabel: { color: '#94a3b8' },
+      axisLabel: { color: '#6b7280' },
     },
     series: [
       {
@@ -1054,19 +1054,19 @@ function generateAreaOption(data, xCol, yCol, title, colorCol) {
   }));
 
   return {
-    ...darkTheme,
-    title: { ...darkTheme.title, text: title },
-    tooltip: { ...darkTheme.tooltip, trigger: 'axis' },
-    legend: { ...darkTheme.legend, top: 35 },
+    ...chartTheme,
+    title: { ...chartTheme.title, text: title },
+    tooltip: { ...chartTheme.tooltip, trigger: 'axis' },
+    legend: { ...chartTheme.legend, top: 35 },
     xAxis: {
-      ...darkTheme.xAxis,
+      ...chartTheme.xAxis,
       type: 'category',
       boundaryGap: false,
       data: [...new Set(data.map((d) => d[xCol]))],
     },
-    yAxis: { ...darkTheme.yAxis, type: 'value' },
+    yAxis: { ...chartTheme.yAxis, type: 'value' },
     series,
-    grid: { ...darkTheme.grid, top: 80 },
+    grid: { ...chartTheme.grid, top: 80 },
   };
 }
 
@@ -1091,10 +1091,10 @@ function generateWaterfallOption(data, xCol, yCol, title) {
   });
 
   return {
-    ...darkTheme,
-    title: { ...darkTheme.title, text: title },
+    ...chartTheme,
+    title: { ...chartTheme.title, text: title },
     tooltip: {
-      ...darkTheme.tooltip,
+      ...chartTheme.tooltip,
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
       formatter: (params) => {
@@ -1102,17 +1102,17 @@ function generateWaterfallOption(data, xCol, yCol, title) {
         return `${d.name}<br/>值: ${d.value}<br/>累计: ${d.end}`;
       },
     },
-    grid: { ...darkTheme.grid, bottom: 60 },
+    grid: { ...chartTheme.grid, bottom: 60 },
     xAxis: {
-      ...darkTheme.xAxis,
+      ...chartTheme.xAxis,
       type: 'category',
       data: data.map((d) => d[xCol]),
       axisLabel: {
-        ...darkTheme.xAxis.axisLabel,
+        ...chartTheme.xAxis.axisLabel,
         rotate: data.length > 8 ? 30 : 0,
       },
     },
-    yAxis: { ...darkTheme.yAxis, type: 'value' },
+    yAxis: { ...chartTheme.yAxis, type: 'value' },
     series: [
       {
         name: title,
@@ -1129,18 +1129,47 @@ function generateWaterfallOption(data, xCol, yCol, title) {
 }
 
 /**
- * 主图表生成函数
+ * 主图表生成函数（含智能轴检测）
  */
 function generateChartOption(data, config) {
-  const { chartType, xCol, yCol, title, colorCol, sizeCol } = config;
+  let { chartType, xCol, yCol, title, colorCol, sizeCol } = config;
+
+  // 智能轴检测：如果 xCol 是纯数字列而 yCol 是字符串列，自动交换
+  if (data && data.length > 0 && xCol && yCol) {
+    const xValues = data.map((d) => d[xCol]);
+    const yValues = data.map((d) => d[yCol]);
+    const xIsNumeric = xValues.every((v) => typeof v === 'number' || (!isNaN(parseFloat(v)) && typeof v !== 'string'));
+    const yIsString = yValues.every((v) => typeof v === 'string' && isNaN(parseFloat(v)));
+
+    // 对于 bar/line/area 等需要类别轴的图表，确保 xCol 是类别列
+    const needsCategoryX = ['bar', 'horizontal_bar', 'line', 'area', 'radar', 'funnel', 'polar_bar', 'waterfall'];
+    if (xIsNumeric && yIsString && needsCategoryX.includes(chartType || 'bar')) {
+      [xCol, yCol] = [yCol, xCol];
+    }
+  }
 
   const type = chartType || inferChartType(data, xCol, yCol);
 
   switch (type) {
     case 'bar':
       return generateBarOption(data, xCol, yCol, title, colorCol);
-    case 'horizontal_bar':
-      return generateBarOption(data, xCol, yCol, title, colorCol);
+    case 'horizontal_bar': {
+      // 横向柱状图：交换 X/Y 轴
+      const opt = generateBarOption(data, xCol, yCol, title, colorCol);
+      // 将柱状图转为横向：类别在 Y 轴，数值在 X 轴
+      const categories = [...new Set(data.map((d) => d[xCol]))];
+      opt.xAxis = { ...chartTheme.xAxis, type: 'value' };
+      opt.yAxis = { ...chartTheme.yAxis, type: 'category', data: categories, inverse: true };
+      opt.grid = { ...chartTheme.grid, left: '15%', bottom: 40 };
+      // 柱子圆角改为水平方向
+      if (opt.series) {
+        opt.series = opt.series.map(s => ({
+          ...s,
+          itemStyle: { ...s.itemStyle, borderRadius: [0, 6, 6, 0] },
+        }));
+      }
+      return opt;
+    }
     case 'line':
       return generateLineOption(data, xCol, yCol, title, colorCol);
     case 'area':
@@ -1185,63 +1214,62 @@ export default function EChartsRenderer({
 }) {
   const chartRef = useRef(null);
   const chartInstance = useRef(null);
-  const [isLoading, setIsLoading] = useState(true);
 
+  // 单一 useEffect 处理初始化、更新和清理
   useEffect(() => {
     if (!chartRef.current || !data || !config) return;
 
-    // 初始化图表
+    // 如果实例已被 dispose（React Strict Mode 二次渲染），重新创建
+    if (chartInstance.current && chartInstance.current.isDisposed()) {
+      chartInstance.current = null;
+    }
+
+    // 初始化图表实例
     if (!chartInstance.current) {
       chartInstance.current = echarts.init(chartRef.current, null, {
         renderer: 'canvas',
       });
     }
 
-    // 生成配置
-    const option = generateChartOption(data, config);
-
-    // 设置配置
-    chartInstance.current.setOption(option, true);
-    setIsLoading(false);
+    // 生成配置并渲染
+    try {
+      const option = generateChartOption(data, config);
+      chartInstance.current.setOption(option, true);
+    } catch (err) {
+      console.error('[EChartsRenderer] 生成图表配置失败:', err);
+    }
 
     // 回调
     onChartReady?.(chartInstance.current);
 
-    // 响应式
+    // 响应式调整
     const handleResize = () => {
-      chartInstance.current?.resize();
+      if (chartInstance.current && !chartInstance.current.isDisposed()) {
+        chartInstance.current.resize();
+      }
     };
     window.addEventListener('resize', handleResize);
 
+    // 清理
     return () => {
       window.removeEventListener('resize', handleResize);
+      if (chartInstance.current && !chartInstance.current.isDisposed()) {
+        chartInstance.current.dispose();
+        chartInstance.current = null;
+      }
     };
   }, [data, config, onChartReady]);
 
-  // 清理
-  useEffect(() => {
-    return () => {
-      chartInstance.current?.dispose();
-    };
-  }, []);
-
   if (!data || !config) {
     return (
-      <div className="chart-container" style={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ color: 'var(--text-tertiary)' }}>暂无数据</span>
+      <div style={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <span style={{ color: '#9ca3af' }}>暂无图表数据</span>
       </div>
     );
   }
 
   return (
-    <div className="chart-container echarts-container" style={{ height, position: 'relative' }}>
-      {isLoading && (
-        <div className="chart-loading">
-          <div className="loading-spinner"></div>
-        </div>
-      )}
-      <div ref={chartRef} style={{ width: '100%', height: '100%' }} />
-    </div>
+    <div ref={chartRef} style={{ width: '100%', height }} />
   );
 }
 
@@ -1264,6 +1292,7 @@ export {
   generatePolarBarOption,
   generateAreaOption,
   generateWaterfallOption,
-  darkTheme,
+  chartTheme as darkTheme,
+  chartTheme,
   gradientColors,
 };

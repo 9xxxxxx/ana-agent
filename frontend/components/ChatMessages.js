@@ -312,11 +312,7 @@ const ChartWrapper = memo(({ chartJson }) => {
     );
   };
 
-  return (
-    <div className="w-full bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden p-4">
-       {renderSmartChart()}
-    </div>
-  );
+  return renderSmartChart();
 });
 
 ChartWrapper.displayName = 'ChartWrapper';
