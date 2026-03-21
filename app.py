@@ -80,6 +80,45 @@ async def health_check():
     }
 
 
+# ==================== 文件上传 API ====================
+
+UPLOAD_DIR = os.path.join(os.getcwd(), "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+from fastapi import UploadFile, File
+
+@app.post("/api/upload")
+async def upload_file(file: UploadFile = File(...)):
+    """上传文件（图片/文档），返回文件 URL 和元数据"""
+    import uuid
+    # 生成唯一文件名，避免冲突
+    ext = os.path.splitext(file.filename)[1] if file.filename else ""
+    unique_name = f"{uuid.uuid4().hex[:8]}_{file.filename}"
+    save_path = os.path.join(UPLOAD_DIR, unique_name)
+
+    content = await file.read()
+    with open(save_path, "wb") as f:
+        f.write(content)
+
+    return {
+        "success": True,
+        "filename": unique_name,
+        "original_name": file.filename,
+        "size": len(content),
+        "url": f"/api/uploads/{unique_name}",
+        "content_type": file.content_type,
+    }
+
+
+@app.get("/api/uploads/{filename}")
+async def serve_upload(filename: str):
+    """提供上传文件的访问"""
+    file_path = os.path.join(UPLOAD_DIR, filename)
+    if not os.path.exists(file_path):
+        return JSONResponse({"error": "文件不存在"}, status_code=404)
+    return FileResponse(file_path)
+
+
 # ==================== 核心对话 API（SSE 流式） ====================
 
 @app.post("/api/chat")

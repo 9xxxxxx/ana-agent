@@ -53,6 +53,26 @@ export function getFileUrl(filename) {
 }
 
 /**
+ * 获取上传文件的访问 URL
+ */
+export function getUploadUrl(filename) {
+  return `${API_BASE}/api/uploads/${filename}`;
+}
+
+/**
+ * 上传文件
+ */
+export async function uploadFile(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await fetch(`${API_BASE}/api/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+  return res.json();
+}
+
+/**
  * SSE 流式对话
  * 返回一个 EventSource 包装对象
  */

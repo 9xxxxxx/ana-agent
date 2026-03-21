@@ -61,6 +61,16 @@ export function useChat(threadId) {
   // 发送消息
   const sendMessage = useCallback(
     (content) => {
+      // 提取文件附件，格式：[附件: xxx](url)
+      const attachRegex = /\[附件:\s*(.+?)\]\((.+?)\)/g;
+      const initialFiles = [];
+      let match;
+      while ((match = attachRegex.exec(content)) !== null) {
+        initialFiles.push({ filename: match[1], url: match[2], message: '已上传附件' });
+      }
+
+      // 我们仍然将整个 content（包含文本和附件链接）发送给后端，
+      // 因为这是后端的文本处理模式，但前端气泡渲染时会正确解析它。
       if (!content.trim() || isStreaming) return;
 
       // 添加用户消息
@@ -70,7 +80,7 @@ export function useChat(threadId) {
         content,
         toolSteps: [],
         charts: [],
-        files: [],
+        files: initialFiles,
       };
 
       // 添加空的 AI 响应占位
