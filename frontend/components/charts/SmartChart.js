@@ -222,9 +222,9 @@ export default function SmartChart({
 
   if (!chartData || (Array.isArray(chartData) && chartData.length === 0)) {
     return (
-      <div className="smart-chart-empty">
-        <span className="empty-icon">📊</span>
-        <span className="empty-text">暂无图表数据</span>
+      <div className="flex flex-col items-center justify-center h-[200px] text-gray-400 bg-gray-50 border border-gray-100 rounded-xl my-4">
+        <span className="text-4xl mb-2 opacity-50">📊</span>
+        <span className="text-sm">暂无图表数据</span>
       </div>
     );
   }
@@ -266,21 +266,25 @@ export default function SmartChart({
   };
 
   return (
-    <div className="smart-chart-wrapper">
+    <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm w-full">
       {/* 图表库选择器 */}
       {showLibrarySelector && (
-        <div className="chart-library-selector">
-          <span className="selector-label">图表库:</span>
-          <div className="library-buttons">
+        <div className="flex items-center gap-3 mb-4 pb-4 border-b border-gray-100 overflow-x-auto">
+          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider shrink-0">引擎</span>
+          <div className="flex gap-2 shrink-0">
             {chartLibraries.map((lib) => (
               <button
                 key={lib.id}
-                className={`library-btn ${selectedLibrary === lib.id ? 'active' : ''}`}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                  selectedLibrary === lib.id 
+                    ? 'bg-brand-50 border-brand-200 text-brand-700' 
+                    : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                }`}
                 onClick={() => handleLibraryChange(lib.id)}
                 title={lib.description}
               >
-                <span className="library-icon">{lib.icon}</span>
-                <span className="library-name">{lib.name}</span>
+                <span>{lib.icon}</span>
+                <span>{lib.name}</span>
               </button>
             ))}
           </div>
@@ -289,42 +293,55 @@ export default function SmartChart({
 
       {/* 图表类型选择器 */}
       {showTypeSelector && (
-        <div className="chart-type-selector-wrapper">
-          <div className="chart-type-category">
-            <span className="category-label">基础图表</span>
-            <div className="chart-type-selector">
+        <div className="flex flex-col gap-3 mb-5">
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[0.65rem] text-gray-400 uppercase tracking-widest font-semibold px-1">基础图表</span>
+            <div className="flex flex-wrap gap-1.5">
               {chartTypes.filter(t => t.category === 'basic').map((type) => {
                 const isSupported = currentLibrary?.supportedTypes.includes(type.value);
                 return (
                   <button
                     key={type.value}
-                    className={`chart-type-btn ${inferredType === type.value ? 'active' : ''} ${!isSupported ? 'disabled' : ''}`}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs transition-colors border ${
+                      inferredType === type.value 
+                        ? 'bg-brand-500 border-brand-500 text-white shadow-sm' 
+                        : isSupported 
+                          ? 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300' 
+                          : 'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed hidden'
+                    }`}
                     onClick={() => isSupported && handleTypeChange(type.value)}
                     title={isSupported ? type.label : `${type.label} (当前库不支持)`}
                     disabled={!isSupported}
                   >
-                    <span className="type-icon">{type.icon}</span>
-                    <span className="type-label">{type.label}</span>
+                    <span>{type.icon}</span>
+                    <span>{type.label}</span>
                   </button>
                 );
               })}
             </div>
           </div>
-          <div className="chart-type-category">
-            <span className="category-label">高级图表</span>
-            <div className="chart-type-selector">
+          
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[0.65rem] text-gray-400 uppercase tracking-widest font-semibold px-1">高级图表</span>
+            <div className="flex flex-wrap gap-1.5">
               {chartTypes.filter(t => t.category === 'advanced').map((type) => {
                 const isSupported = currentLibrary?.supportedTypes.includes(type.value);
                 return (
                   <button
                     key={type.value}
-                    className={`chart-type-btn ${inferredType === type.value ? 'active' : ''} ${!isSupported ? 'disabled' : ''}`}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs transition-colors border ${
+                      inferredType === type.value 
+                        ? 'bg-brand-500 border-brand-500 text-white shadow-sm' 
+                        : isSupported 
+                          ? 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300' 
+                          : 'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed hidden'
+                    }`}
                     onClick={() => isSupported && handleTypeChange(type.value)}
                     title={isSupported ? type.label : `${type.label} (当前库不支持)`}
                     disabled={!isSupported}
                   >
-                    <span className="type-icon">{type.icon}</span>
-                    <span className="type-label">{type.label}</span>
+                    <span>{type.icon}</span>
+                    <span>{type.label}</span>
                   </button>
                 );
               })}
@@ -334,202 +351,33 @@ export default function SmartChart({
       )}
 
       {/* 当前配置显示 */}
-      <div className="chart-info-bar">
-        <span className="info-item library-info">
+      <div className="flex items-center gap-2 mb-4 px-3 py-2 bg-gray-50 rounded-lg text-xs border border-gray-100">
+        <span className="font-semibold text-brand-600 flex items-center gap-1">
           {currentLibrary?.icon} {currentLibrary?.name}
         </span>
-        <span className="info-divider">•</span>
-        <span className="info-item">{chartTypes.find((t) => t.value === inferredType)?.label}</span>
+        <span className="text-gray-300">•</span>
+        <span className="text-gray-600">{chartTypes.find((t) => t.value === inferredType)?.label}</span>
       </div>
 
       {/* 图表渲染 */}
-      {renderChart()}
-
-      {/* 数据统计 */}
-      <div className="chart-stats">
-        <span className="stat-item">共 {Array.isArray(chartData) ? chartData.length : 0} 条数据</span>
-        <span className="stat-divider">|</span>
-        <span className="stat-item">X轴: {inferredColumns.xCol}</span>
-        <span className="stat-divider">|</span>
-        <span className="stat-item">Y轴: {inferredColumns.yCol}</span>
+      <div className="w-full relative z-0">
+        {renderChart()}
       </div>
 
-      <style jsx>{`
-        .smart-chart-wrapper {
-          background: var(--bg-secondary);
-          border: 1px solid var(--border);
-          border-radius: var(--radius-lg);
-          padding: var(--space-md);
-        }
-
-        .chart-library-selector {
-          display: flex;
-          align-items: center;
-          gap: var(--space-sm);
-          margin-bottom: var(--space-md);
-          padding-bottom: var(--space-md);
-          border-bottom: 1px solid var(--border);
-        }
-
-        .selector-label {
-          font-size: 0.85rem;
-          color: var(--text-secondary);
-        }
-
-        .library-buttons {
-          display: flex;
-          gap: var(--space-xs);
-        }
-
-        .library-btn {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          padding: 6px 12px;
-          background: var(--bg-tertiary);
-          border: 1px solid var(--border);
-          border-radius: var(--radius-md);
-          color: var(--text-secondary);
-          font-size: 0.8rem;
-          transition: all var(--transition-fast);
-        }
-
-        .library-btn:hover {
-          background: var(--bg-hover);
-          border-color: var(--accent);
-          color: var(--text-primary);
-        }
-
-        .library-btn.active {
-          background: var(--accent-glow);
-          border-color: var(--accent);
-          color: var(--accent);
-        }
-
-        .library-icon {
-          font-size: 1rem;
-        }
-
-        .library-name {
-          font-weight: 500;
-        }
-
-        .chart-type-selector-wrapper {
-          display: flex;
-          flex-direction: column;
-          gap: var(--space-sm);
-          margin-bottom: var(--space-md);
-        }
-
-        .chart-type-category {
-          display: flex;
-          flex-direction: column;
-          gap: var(--space-xs);
-        }
-
-        .category-label {
-          font-size: 0.75rem;
-          color: var(--text-tertiary);
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-        }
-
-        .chart-type-selector {
-          display: flex;
-          flex-wrap: wrap;
-          gap: var(--space-xs);
-        }
-
-        .chart-type-btn {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          padding: 6px 10px;
-          background: var(--bg-tertiary);
-          border: 1px solid var(--border);
-          border-radius: var(--radius-md);
-          color: var(--text-secondary);
-          font-size: 0.75rem;
-          transition: all var(--transition-fast);
-        }
-
-        .chart-type-btn:hover:not(.disabled) {
-          background: var(--bg-hover);
-          border-color: var(--accent);
-          color: var(--text-primary);
-        }
-
-        .chart-type-btn.active {
-          background: var(--accent-glow);
-          border-color: var(--accent);
-          color: var(--accent);
-        }
-
-        .chart-type-btn.disabled {
-          opacity: 0.4;
-          cursor: not-allowed;
-        }
-
-        .chart-info-bar {
-          display: flex;
-          align-items: center;
-          gap: var(--space-sm);
-          margin-bottom: var(--space-sm);
-          padding: var(--space-xs) var(--space-sm);
-          background: var(--bg-tertiary);
-          border-radius: var(--radius-sm);
-          font-size: 0.8rem;
-        }
-
-        .info-item {
-          color: var(--text-secondary);
-        }
-
-        .library-info {
-          color: var(--accent);
-          font-weight: 500;
-        }
-
-        .info-divider {
-          color: var(--text-tertiary);
-        }
-
-        .chart-stats {
-          display: flex;
-          align-items: center;
-          gap: var(--space-sm);
-          margin-top: var(--space-md);
-          padding-top: var(--space-md);
-          border-top: 1px solid var(--border);
-          font-size: 0.8rem;
-          color: var(--text-tertiary);
-        }
-
-        .stat-divider {
-          color: var(--border);
-        }
-
-        .smart-chart-empty {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          height: 200px;
-          color: var(--text-tertiary);
-        }
-
-        .empty-icon {
-          font-size: 3rem;
-          margin-bottom: var(--space-sm);
-        }
-
-        .chart-loading {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          height: 200px;
-        }
-      `}</style>
+      {/* 数据统计 */}
+      <div className="flex flex-wrap items-center gap-3 mt-5 pt-4 border-t border-gray-100 text-[0.7rem] text-gray-400">
+        <span>共 <span className="font-medium text-gray-600">{Array.isArray(chartData) ? chartData.length : 0}</span> 条记录</span>
+        <span className="text-gray-200">|</span>
+        <span className="flex items-center gap-1">
+          <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">X轴</span>
+          <span className="truncate max-w-[100px]" title={inferredColumns.xCol}>{inferredColumns.xCol || '未定'}</span>
+        </span>
+        <span className="text-gray-200">|</span>
+        <span className="flex items-center gap-1">
+          <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">Y轴</span>
+          <span className="truncate max-w-[100px]" title={inferredColumns.yCol}>{inferredColumns.yCol || '未定'}</span>
+        </span>
+      </div>
     </div>
   );
 }

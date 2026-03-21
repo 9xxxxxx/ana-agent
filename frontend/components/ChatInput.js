@@ -1,32 +1,12 @@
 'use client';
 
 /**
- * 聊天输入组件 — 支持文件/图片上传
+ * 聊天输入组件 — 纯 Tailwind 实现
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { SendIcon, StopIcon, CloseIcon } from './Icons';
+import { SendIcon, StopIcon, CloseIcon, PaperclipIcon, ImageIcon } from './Icons';
 import { uploadFile, getUploadUrl } from '@/lib/api';
-
-// 附件图标
-function PaperclipIcon({ size = 20 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-    </svg>
-  );
-}
-
-// 图片图标
-function ImageIcon({ size = 20 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-      <circle cx="8.5" cy="8.5" r="1.5" />
-      <polyline points="21 15 16 10 5 21" />
-    </svg>
-  );
-}
 
 export default function ChatInput({ onSend, isStreaming, onStop }) {
   const [text, setText] = useState('');
@@ -45,7 +25,6 @@ export default function ChatInput({ onSend, isStreaming, onStop }) {
     }
   }, [text]);
 
-  // 处理文件上传
   const handleFileSelect = useCallback(async (files) => {
     if (!files || files.length === 0) return;
     setUploading(true);
@@ -74,12 +53,10 @@ export default function ChatInput({ onSend, isStreaming, onStop }) {
     }
   }, []);
 
-  // 删除附件
   const removeAttachment = useCallback((id) => {
     setAttachments(prev => prev.filter(a => a.id !== id));
   }, []);
 
-  // 拖拽上传
   const handleDragOver = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -91,11 +68,9 @@ export default function ChatInput({ onSend, isStreaming, onStop }) {
     handleFileSelect(e.dataTransfer.files);
   };
 
-  // 发送消息
   const handleSend = useCallback(() => {
     if ((!text.trim() && attachments.length === 0) || isStreaming) return;
 
-    // 构建消息内容
     let content = text.trim();
     if (attachments.length > 0) {
       const fileInfo = attachments.map(a =>
@@ -119,7 +94,6 @@ export default function ChatInput({ onSend, isStreaming, onStop }) {
     }
   };
 
-  // 格式化文件大小
   const formatSize = (bytes) => {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
@@ -127,58 +101,65 @@ export default function ChatInput({ onSend, isStreaming, onStop }) {
   };
 
   return (
-    <div className="chat-input-wrapper" onDragOver={handleDragOver} onDrop={handleDrop}>
+    <div className="w-full max-w-3xl mx-auto px-6" onDragOver={handleDragOver} onDrop={handleDrop}>
       {/* 附件预览区 */}
       {attachments.length > 0 && (
-        <div className="attachments-preview">
+        <div className="flex flex-wrap gap-2 mb-2">
           {attachments.map(att => (
-            <div key={att.id} className={`attachment-item ${att.isImage ? 'image' : 'file'}`}>
+            <div key={att.id} className={`relative flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg max-w-[200px] ${att.isImage ? 'p-1 h-16 w-16 justify-center' : 'p-2'}`}>
               {att.isImage && att.previewUrl ? (
-                <img src={att.previewUrl} alt={att.originalName} className="attachment-thumb" />
+                <img src={att.previewUrl} alt={att.originalName} className="w-full h-full object-cover rounded-md" />
               ) : (
-                <div className="attachment-file-icon">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                <div className="flex items-center justify-center text-gray-400 p-1">
+                  <PaperclipIcon size={18} />
                 </div>
               )}
-              <div className="attachment-info">
-                <span className="attachment-name">{att.originalName}</span>
-                <span className="attachment-size">{formatSize(att.size)}</span>
-              </div>
-              <button className="attachment-remove" onClick={() => removeAttachment(att.id)}>
-                <CloseIcon size={14} />
+              {!att.isImage && (
+                <div className="flex flex-col min-w-0 pr-4">
+                  <span className="text-[0.75rem] font-medium text-gray-700 truncate">{att.originalName}</span>
+                  <span className="text-[0.65rem] text-gray-400">{formatSize(att.size)}</span>
+                </div>
+              )}
+              <button 
+                className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-white border border-gray-200 rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-colors shadow-sm"
+                onClick={() => removeAttachment(att.id)}
+              >
+                <CloseIcon size={12} />
               </button>
             </div>
           ))}
         </div>
       )}
 
-      <div className="chat-input-container">
-        {/* 附件按钮 */}
-        <button
-          className="input-tool-btn"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={isStreaming || uploading}
-          title="上传文件"
-        >
-          <PaperclipIcon size={18} />
-        </button>
+      {/* 核心输入框容器 */}
+      <div className="flex items-end gap-2 bg-white border border-gray-200 rounded-2xl shadow-sm focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/20 transition-all p-2 pl-3">
+        
+        {/* 工具按钮栏 */}
+        <div className="flex items-center gap-1 pb-1 shrink-0">
+          <button
+            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg overflow-hidden transition-colors"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isStreaming || uploading}
+            title="上传文件"
+          >
+            <PaperclipIcon size={18} />
+          </button>
+          <button
+            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg overflow-hidden transition-colors"
+            onClick={() => imageInputRef.current?.click()}
+            disabled={isStreaming || uploading}
+            title="上传图片"
+          >
+            <ImageIcon size={18} />
+          </button>
+        </div>
 
-        {/* 图片按钮 */}
-        <button
-          className="input-tool-btn"
-          onClick={() => imageInputRef.current?.click()}
-          disabled={isStreaming || uploading}
-          title="上传图片"
-        >
-          <ImageIcon size={18} />
-        </button>
-
-        {/* 隐藏的文件输入 */}
+        {/* 隐藏输入框 */}
         <input
           ref={fileInputRef}
           type="file"
           multiple
-          style={{ display: 'none' }}
+          className="hidden"
           onChange={(e) => handleFileSelect(e.target.files)}
         />
         <input
@@ -186,14 +167,14 @@ export default function ChatInput({ onSend, isStreaming, onStop }) {
           type="file"
           accept="image/*"
           multiple
-          style={{ display: 'none' }}
+          className="hidden"
           onChange={(e) => handleFileSelect(e.target.files)}
         />
 
-        {/* 文本输入 */}
+        {/* 核心输入区 */}
         <textarea
           ref={textareaRef}
-          className="chat-input-textarea"
+          className="flex-1 max-h-[200px] min-h-[24px] bg-transparent border-0 outline-none resize-none py-1.5 text-[0.95rem] text-gray-900 placeholder:text-gray-400 leading-relaxed"
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -202,24 +183,30 @@ export default function ChatInput({ onSend, isStreaming, onStop }) {
           disabled={uploading}
         />
 
-        {/* 发送/停止按钮 */}
-        {isStreaming ? (
-          <button className="chat-action-btn stop-btn" onClick={onStop} title="停止生成">
-            <StopIcon size={18} />
-          </button>
-        ) : (
-          <button
-            className="chat-action-btn send-btn"
-            onClick={handleSend}
-            disabled={(!text.trim() && attachments.length === 0) || uploading}
-            title="发送"
-          >
-            <SendIcon size={18} />
-          </button>
-        )}
+        {/* 发送与停止控制 */}
+        <div className="pb-0.5 shrink-0 pl-1">
+          {isStreaming ? (
+            <button 
+              className="flex items-center justify-center w-8 h-8 bg-red-500 text-white rounded-full hover:bg-red-600 hover:scale-105 transition-all shadow-sm animate-pulse" 
+              onClick={onStop} 
+              title="停止生成"
+            >
+              <StopIcon size={14} fill="currentColor" />
+            </button>
+          ) : (
+            <button
+              className="flex items-center justify-center w-8 h-8 rounded-full transition-all shadow-sm disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed disabled:shadow-none bg-brand-600 text-white hover:bg-brand-700 hover:scale-105"
+              onClick={handleSend}
+              disabled={(!text.trim() && attachments.length === 0) || uploading}
+              title="发送"
+            >
+              <SendIcon size={14} className={(!text.trim() && attachments.length === 0) || uploading ? "opacity-50" : "opacity-100"} />
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="chat-input-hint">
+      <div className="text-center text-[0.7rem] text-gray-400 mt-2">
         按 Enter 发送，Shift+Enter 换行，支持拖拽上传文件
       </div>
     </div>

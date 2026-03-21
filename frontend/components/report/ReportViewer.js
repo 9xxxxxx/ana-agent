@@ -53,20 +53,20 @@ export default function ReportViewer({ report, onExport, onClose }) {
   if (!report) return null;
 
   return (
-    <div className={`report-viewer ${isFullscreen ? 'fullscreen' : ''}`}>
+    <div className={`flex flex-col h-full w-full bg-white text-gray-800 relative ${isFullscreen ? 'fixed inset-0 z-[100]' : ''}`}>
       {/* 报告头部 */}
-      <header className="report-header">
-        <div className="report-header-content">
-          <div className="report-meta">
-            <span className="report-badge">{report.type || '业务报告'}</span>
-            <span className="report-date">{report.createdAt}</span>
+      <header className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 p-5 sm:p-6 lg:px-8 border-b border-gray-200 bg-white shrink-0 z-10 shadow-sm relative">
+        <div className="flex-1 min-w-0 flex flex-col gap-2">
+          <div className="flex items-center gap-3 text-sm">
+            <span className="px-2.5 py-0.5 rounded-md bg-brand-50 text-brand-700 font-medium border border-brand-200/50">{report.type || '业务报告'}</span>
+            <span className="text-gray-400 font-mono text-xs">{report.createdAt}</span>
           </div>
-          <h1 className="report-title">{report.title}</h1>
-          {report.subtitle && <p className="report-subtitle">{report.subtitle}</p>}
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight leading-snug">{report.title}</h1>
+          {report.subtitle && <p className="text-gray-500 text-base">{report.subtitle}</p>}
           
           {/* 指标概览 */}
           {report.metrics && (
-            <div className="report-metrics">
+            <div className="flex flex-wrap gap-4 mt-3">
               {report.metrics.map((metric, i) => (
                 <MetricCard key={i} {...metric} />
               ))}
@@ -74,17 +74,17 @@ export default function ReportViewer({ report, onExport, onClose }) {
           )}
         </div>
         
-        <div className="report-actions">
-          <button className="btn-icon" onClick={() => setIsFullscreen(!isFullscreen)} title={isFullscreen ? '退出全屏' : '全屏查看'}>
+        <div className="flex items-center gap-2 shrink-0 self-end sm:self-start mt-2 sm:mt-0">
+          <button className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors" onClick={() => setIsFullscreen(!isFullscreen)} title={isFullscreen ? '退出全屏' : '全屏查看'}>
             {isFullscreen ? '⛶' : '⛶'}
           </button>
-          <button className="btn-secondary" onClick={() => onExport?.('pdf')}>导出 PDF</button>
-          <button className="btn-secondary" onClick={() => onExport?.('markdown')}>导出 Markdown</button>
-          {onClose && <button className="btn-icon" onClick={onClose}>✕</button>}
+          <button className="px-3 py-1.5 text-sm font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 hover:text-brand-600 rounded-lg shadow-sm transition-all" onClick={() => onExport?.('pdf')}>导出 PDF</button>
+          <button className="px-3 py-1.5 text-sm font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 hover:text-brand-600 rounded-lg shadow-sm transition-all" onClick={() => onExport?.('markdown')}>导出 MD</button>
+          {onClose && <button className="p-2 ml-1 text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors" onClick={onClose}>✕</button>}
         </div>
       </header>
 
-      <div className="report-body">
+      <div className="flex flex-1 overflow-hidden bg-white">
         {/* 章节导航 */}
         <SectionNavigator
           sections={report.sections}
@@ -93,70 +93,91 @@ export default function ReportViewer({ report, onExport, onClose }) {
         />
 
         {/* 报告内容 */}
-        <div className="report-content" ref={contentRef}>
-          {report.summary && (
-            <div className="report-summary">
-              <h2>执行摘要</h2>
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{report.summary}</ReactMarkdown>
-            </div>
-          )}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-8 lg:p-12 scroll-smooth bg-gray-50 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px]" ref={contentRef}>
+          <div className="max-w-4xl mx-auto flex flex-col gap-10 pb-20">
+            {report.summary && (
+              <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+                <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                  <span className="w-1.5 h-6 bg-brand-500 rounded-full inline-block"></span>
+                  执行摘要
+                </h2>
+                <div className="prose prose-slate max-w-none text-gray-600 leading-[1.8]">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{report.summary}</ReactMarkdown>
+                </div>
+              </div>
+            )}
 
-          {report.sections?.map((section, index) => (
-            <section
-              key={index}
-              className="report-section"
-              data-section-index={index}
-            >
-              <h2 className="section-title">
-                <span className="section-number">{index + 1}</span>
-                {section.title}
-              </h2>
-              
-              {section.content && (
-                <div className="section-content">
+            {report.sections?.map((section, index) => (
+              <section
+                key={index}
+                className="bg-white p-6 sm:p-10 rounded-3xl shadow-sm border border-gray-100 transition-all hover:shadow-md"
+                data-section-index={index}
+              >
+                <h2 className="text-2xl font-bold text-gray-900 mb-8 flex items-center gap-3 border-b border-gray-100 pb-5">
+                  <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-brand-50 text-brand-600 text-sm font-black">{index + 1}</span>
+                  {section.title}
+                </h2>
+                
+                {section.content && (
+                  <div className="prose prose-slate prose-lg max-w-none text-gray-700 leading-relaxed mb-10">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {section.content}
+                    </ReactMarkdown>
+                  </div>
+                )}
+
+                {/* 章节内的图表 */}
+                {section.charts?.length > 0 && (
+                  <div className="flex flex-col gap-8 mb-10">
+                    {section.charts.map((chart, chartIndex) => (
+                      <div key={chartIndex} className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100">
+                        {chart.title && <h4 className="text-sm font-bold tracking-wider text-gray-500 mb-5 text-center uppercase">{chart.title}</h4>}
+                        <div className="bg-white rounded-xl p-2 sm:p-4 shadow-sm ring-1 ring-gray-900/5">
+                          <ChartRenderer chartJson={chart.data} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* 章节内的数据表格 */}
+                {section.table && (
+                  <div className="mb-10 overflow-hidden rounded-2xl border border-gray-200 shadow-sm">
+                    <DataTable
+                      data={section.table.data}
+                      columns={section.table.columns}
+                      title={section.table.title}
+                    />
+                  </div>
+                )}
+
+                {/* 章节内的指标 */}
+                {section.metrics && (
+                  <div className="flex flex-wrap gap-4 mt-8 pt-6 border-t border-gray-50">
+                    {section.metrics.map((metric, i) => (
+                      <MetricCard key={i} {...metric} size="small" />
+                    ))}
+                  </div>
+                )}
+              </section>
+            ))}
+
+            {/* 结论与建议 */}
+            {report.conclusion && (
+              <div className="bg-gradient-to-br from-brand-50/80 to-white p-8 sm:p-10 rounded-3xl border border-brand-100 shadow-sm relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-8 opacity-10 text-8xl">💡</div>
+                <h2 className="text-2xl font-bold text-brand-900 mb-6 flex items-center gap-2 relative z-10">
+                  <span className="text-brand-500">💡</span>
+                  结论与建议
+                </h2>
+                <div className="prose prose-brand prose-lg max-w-none text-brand-800 leading-relaxed relative z-10">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {section.content}
+                    {report.conclusion}
                   </ReactMarkdown>
                 </div>
-              )}
-
-              {/* 章节内的图表 */}
-              {section.charts?.map((chart, chartIndex) => (
-                <div key={chartIndex} className="section-chart">
-                  <h4>{chart.title}</h4>
-                  <ChartRenderer chartJson={chart.data} />
-                </div>
-              ))}
-
-              {/* 章节内的数据表格 */}
-              {section.table && (
-                <DataTable
-                  data={section.table.data}
-                  columns={section.table.columns}
-                  title={section.table.title}
-                />
-              )}
-
-              {/* 章节内的指标 */}
-              {section.metrics && (
-                <div className="section-metrics">
-                  {section.metrics.map((metric, i) => (
-                    <MetricCard key={i} {...metric} size="small" />
-                  ))}
-                </div>
-              )}
-            </section>
-          ))}
-
-          {/* 结论与建议 */}
-          {report.conclusion && (
-            <div className="report-conclusion">
-              <h2>结论与建议</h2>
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {report.conclusion}
-              </ReactMarkdown>
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

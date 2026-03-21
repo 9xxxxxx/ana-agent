@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * 工具调用步骤折叠组件
+ * 工具调用步骤折叠组件 (纯 Tailwind 实现)
  */
 
 import { useState } from 'react';
@@ -20,167 +20,79 @@ export default function ToolStep({ step }) {
   const formatContent = (content) => {
     if (!content) return null;
 
-    // 尝试解析为 JSON 并格式化
     try {
       const parsed = JSON.parse(content);
       return (
-        <pre className="tool-step-code">
+        <pre className="p-3 bg-gray-900 text-gray-100 rounded-lg text-xs font-mono overflow-x-auto my-2">
           <code>{JSON.stringify(parsed, null, 2)}</code>
         </pre>
       );
     } catch {
-      // 检查是否包含表格格式
       if (content.includes('|') && content.includes('---')) {
-        return <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>;
+        return <div className="prose prose-sm max-w-none"><ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown></div>;
       }
-
-      // 检查是否包含 schema 信息
-      if (content.includes('📂') && (content.includes('schema') || content.includes('Schema'))) {
-        return formatSchemaContent(content);
-      }
-
-      // 检查是否包含表结构信息
-      if (content.includes('列信息') && content.includes('主键')) {
-        return formatTableStructure(content);
-      }
-
-      // 检查是否包含列表格式
       if (content.includes('\n- ') || content.includes('\n  - ')) {
-        return <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>;
+        return <div className="prose prose-sm max-w-none"><ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown></div>;
       }
 
-      // 普通文本，保留换行
       return (
-        <div className="tool-step-text">
-          {content.split('\n').map((line, i) => (
-            <div key={i}>{line || '\u00A0'}</div>
-          ))}
+        <div className="text-sm text-gray-700 font-mono leading-relaxed bg-gray-50 p-3 rounded-lg border border-gray-100 whitespace-pre-wrap word-break">
+          {content}
         </div>
       );
     }
   };
 
-  const formatSchemaContent = (content) => {
-    const lines = content.split('\n').map(line => line.trim()).filter(line => line);
-    let formatted = '# 数据库表结构\n\n';
-    let currentSchema = null;
-    let tables = [];
-
-    for (const line of lines) {
-      if (line.includes('📂') && (line.includes('schema') || line.includes('Schema'))) {
-        if (currentSchema) {
-          formatted += `## ${currentSchema}\n\n`;
-          if (tables.length > 0) {
-            formatted += '### 表列表\n\n';
-            tables.forEach(table => { formatted += `- ${table}\n`; });
-            formatted += '\n';
-          }
-          tables = [];
-        }
-        const match = line.match(/📂\s*(\w+)/);
-        currentSchema = match ? match[1] : 'Unknown';
-      } else if (line.includes('表') && !line.includes('共发现') && !line.includes('个表')) {
-        const tableMatch = line.match(/(📋|👁️)\s*(\S+)/);
-        if (tableMatch) tables.push(tableMatch[2]);
-      }
-    }
-
-    if (currentSchema) {
-      formatted += `## ${currentSchema}\n\n`;
-      if (tables.length > 0) {
-        formatted += '### 表列表\n\n';
-        tables.forEach(table => { formatted += `- ${table}\n`; });
-        formatted += '\n';
-      }
-    }
-
-    return <ReactMarkdown remarkPlugins={[remarkGfm]}>{formatted}</ReactMarkdown>;
-  };
-
-  const formatTableStructure = (content) => {
-    const lines = content.split('\n');
-    let formatted = '# 表结构\n\n';
-    let inColumns = false;
-
-    for (const line of lines) {
-      if (line.includes('表:')) {
-        formatted += `## ${line}\n\n`;
-      } else if (line.includes('列信息')) {
-        formatted += '### 列信息\n\n';
-        formatted += '| 列名 | 类型 | 可空 | 默认值 |\n';
-        formatted += '|------|------|------|--------|\n';
-        inColumns = true;
-      } else if (line.includes('主键:')) {
-        inColumns = false;
-        formatted += `\n### 主键\n${line.replace('主键:', '')}\n\n`;
-      } else if (line.includes('索引:')) {
-        formatted += `### 索引\n${line}\n\n`;
-      } else if (line.includes('示例数据:')) {
-        formatted += `### 示例数据\n${line}\n\n`;
-      } else if (inColumns && line.trim()) {
-        const match = line.match(/\s*-\s*(\S+)\s*\(([^)]+)\)\s*(NULL|NOT NULL)\s*(DEFAULT=.+)?/);
-        if (match) {
-          const [, name, type, nullable, defaultVal] = match;
-          formatted += `| ${name} | ${type} | ${nullable} | ${defaultVal ? defaultVal.replace('DEFAULT=', '') : ''} |\n`;
-        }
-      } else if (!inColumns && line.trim()) {
-        formatted += `${line}\n`;
-      }
-    }
-
-    return <ReactMarkdown remarkPlugins={[remarkGfm]}>{formatted}</ReactMarkdown>;
-  };
-
   return (
-    <div className={`tool-step ${isRunning ? 'running' : 'done'}`}>
-      <div className="tool-step-header" onClick={() => setExpanded(!expanded)}>
-        <div className="tool-step-left">
+    <div className={`mt-2 mb-2 w-full max-w-full rounded-xl border overflow-hidden transition-all duration-300 ${isRunning ? 'border-amber-300 bg-amber-50/30' : 'border-gray-200 bg-white'}`}>
+      <div 
+        className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50 transition-colors select-none"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <div className="flex items-center gap-2.5 flex-1 min-w-0">
           {isRunning ? (
-            <SpinnerIcon size={16} className="tool-status-icon spinning" />
+            <SpinnerIcon size={16} className="text-amber-500 animate-spin shrink-0" />
           ) : (
-            <CheckCircleIcon size={16} className="tool-status-icon success" />
+            <CheckCircleIcon size={16} className="text-green-500 shrink-0" />
           )}
-          <WrenchIcon size={14} className="tool-name-icon" />
-          <span className="tool-step-name">{step.name}</span>
+          <WrenchIcon size={14} className="text-gray-400 shrink-0" />
+          <span className="font-medium text-sm text-gray-700 truncate">{step.name}</span>
         </div>
-        <div className="tool-step-right">
-          <span className={`tool-step-status ${step.status}`}>
-            {isRunning ? '执行中' : '完成'}
+        <div className="flex items-center gap-3 shrink-0 pl-2">
+          <span className={`text-[0.65rem] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full ${isRunning ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'}`}>
+            {isRunning ? '执行中...' : '完成'}
           </span>
           <ChevronRightIcon
-            size={14}
-            className={`tool-step-chevron ${expanded ? 'expanded' : ''}`}
+            size={16}
+            className={`text-gray-400 transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`}
           />
         </div>
       </div>
+      
       {expanded && (
-        <div className="tool-step-body">
+        <div className="px-4 pb-4 pt-1 border-t border-gray-100 bg-white">
           {step.input && (
-            <div className="tool-step-section">
-              <div className="tool-step-section-title">
+            <div className="mt-3">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-brand-600 uppercase tracking-wide mb-2">
                 <InputIcon size={13} />
                 <span>输入参数</span>
               </div>
-              <div className="tool-step-section-content">
-                {formatContent(step.input)}
-              </div>
+              <div>{formatContent(step.input)}</div>
             </div>
           )}
           {step.output && (
-            <div className="tool-step-section">
-              <div className="tool-step-section-title">
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-brand-600 uppercase tracking-wide mb-2">
                 <OutputIcon size={13} />
                 <span>返回结果</span>
               </div>
-              <div className="tool-step-section-content">
-                {formatContent(step.output)}
-              </div>
+              <div>{formatContent(step.output)}</div>
             </div>
           )}
           {isRunning && !step.output && (
-            <div className="tool-step-loading">
-              <SpinnerIcon size={16} className="spinning" />
-              <span>正在执行...</span>
+            <div className="flex items-center gap-2 mt-4 pt-4 border-t border-gray-100 text-sm text-gray-500">
+              <SpinnerIcon size={14} className="animate-spin" />
+              <span>正在处理...</span>
             </div>
           )}
         </div>

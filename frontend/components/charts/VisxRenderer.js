@@ -375,10 +375,10 @@ export default function VisxRenderer({
 }) {
   const { chartType, xCol, yCol, title, colorCol } = config;
 
-  if (!data || data.length === 0) {
+  if (!data || data.length === 0 || !xCol || !yCol) {
     return (
-      <div className="chart-error">
-        暂无数据
+      <div className="flex items-center justify-center p-4 border border-red-200 bg-red-50 text-red-600 rounded-lg text-sm w-full h-[300px]">
+        图表所需坐标轴数据未正确识别，无法为您绘制图形。
       </div>
     );
   }

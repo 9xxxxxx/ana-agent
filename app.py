@@ -18,6 +18,7 @@ from langchain_core.messages import HumanMessage, AIMessageChunk, ToolMessage, A
 
 from core.database import test_connection, set_session_db_url
 from core.agent import create_agent_graph
+from core.scheduler import start_scheduler, stop_scheduler
 
 
 # ==================== 应用初始化 ====================
@@ -35,7 +36,14 @@ async def lifespan(app: FastAPI):
         print("✅ 数据库连接成功")
     else:
         print("⚠️ 数据库连接失败，请检查 .env 中的 AGENT_DATABASE_URL")
+    
+    # 挂载自动化定时调度引擎
+    start_scheduler()
+    
     yield
+    
+    # 安全释放调度资源
+    stop_scheduler()
     print("🛑 SQL Agent API 已关闭")
 
 
@@ -211,25 +219,22 @@ async def chat_endpoint(request: Request):
 
                     # 检测图表数据标记（chart_tools 返回 [CHART_DATA]）
                     is_chart = False
-                    if "[CHART_DATA]" in output_text:
-                        parts = output_text.split("[CHART_DATA]")
-                        chart_json = parts[1].strip()
-                        yield {
-                            "event": "chart",
-                            "data": json.dumps({"id": tc_id, "json": chart_json}, ensure_ascii=False)
-                        }
-                        output_text = "✅ 图表已生成"
-                        is_chart = True
-                    # 兼容旧的 Plotly 标记
-                    elif "[PLOTLY_CHART]" in output_text:
-                        parts = output_text.split("[PLOTLY_CHART]")
-                        chart_json = parts[1].strip()
-                        yield {
-                            "event": "chart",
-                            "data": json.dumps({"id": tc_id, "json": chart_json}, ensure_ascii=False)
-                        }
-                        output_text = "✅ 图表已生成"
-                        is_chart = True
+                    if "[CHART_DATA]" in output_text or "[PLOTLY_CHART]" in output_text:
+                        try:
+                            start_idx = output_text.find("{")
+                            end_idx = output_text.rfind("}")
+                            if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                                chart_json = output_text[start_idx:end_idx+1]
+                                # 验证 JSON 是否完整
+                                json.loads(chart_json)
+                                yield {
+                                    "event": "chart",
+                                    "data": json.dumps({"id": tc_id, "json": chart_json}, ensure_ascii=False)
+                                }
+                                output_text = "✅ 动态数据图表渲染完毕"
+                                is_chart = True
+                        except BaseException:
+                            pass
 
                     # 检测文件导出标记
                     elif any(kw in output_text for kw in ["报告已成功导出", "数据已成功导出"]):
@@ -355,18 +360,18 @@ def get_history(thread_id: str):
                 is_chart = False
                 
                 # 提取图表数据（优先检测新标记 [CHART_DATA]）
-                if "[CHART_DATA]" in output_text:
-                    parts = output_text.split("[CHART_DATA]")
-                    chart_json = parts[1].strip()
-                    last_msg["charts"].append({"id": tc_id, "json": chart_json})
-                    output_text = "✅ 图表生成完毕"
-                    is_chart = True
-                elif "[PLOTLY_CHART]" in output_text:
-                    parts = output_text.split("[PLOTLY_CHART]")
-                    chart_json = parts[1].strip()
-                    last_msg["charts"].append({"id": tc_id, "json": chart_json})
-                    output_text = "✅ 图表生成完毕"
-                    is_chart = True
+                if "[CHART_DATA]" in output_text or "[PLOTLY_CHART]" in output_text:
+                    try:
+                        start_idx = output_text.find("{")
+                        end_idx = output_text.rfind("}")
+                        if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                            chart_json = output_text[start_idx:end_idx+1]
+                            json.loads(chart_json)
+                            last_msg["charts"].append({"id": tc_id, "json": chart_json})
+                            output_text = "✅ 动态数据图表渲染完毕"
+                            is_chart = True
+                    except BaseException:
+                        pass
                 
                 # 提取文件下载
                 elif any(kw in output_text for kw in ["报告已成功导出", "数据已成功导出"]):
@@ -433,6 +438,59 @@ def clear_all_history():
     finally:
         if conn:
             conn.close()
+
+
+# ==================== 定时任务管理 API ====================
+
+from pydantic import BaseModel
+
+class JobCreateRequest(BaseModel):
+    crontab: str
+    query: str
+
+@app.get("/api/jobs")
+def api_get_jobs():
+    """获取所有后台自动调度任务"""
+    from core.scheduler import get_jobs
+    jobs = get_jobs()
+    result = []
+    for j in jobs:
+        query = j.args[0] if j.args else ""
+        result.append({
+            "id": j.id,
+            "next_run_time": j.next_run_time.isoformat() if j.next_run_time else None,
+            "crontab": str(j.trigger),
+            "query": query
+        })
+    return {"success": True, "jobs": result}
+
+@app.post("/api/jobs")
+def api_add_job(payload: JobCreateRequest):
+    """新增后台调度任务"""
+    from core.scheduler import add_cron_job
+    from core.tasks import execute_scheduled_task
+    import uuid
+    job_id = f"job_{uuid.uuid4().hex[:8]}"
+    try:
+        job = add_cron_job(
+            job_id=job_id,
+            func=execute_scheduled_task,
+            crontab=payload.crontab,
+            args=[payload.query]
+        )
+        return {"success": True, "job_id": job.id}
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)}, status_code=400)
+
+@app.delete("/api/jobs/{job_id}")
+def api_delete_job(job_id: str):
+    """删除指定的后台调度任务"""
+    from core.scheduler import remove_job
+    try:
+        remove_job(job_id)
+        return {"success": True, "message": "定时任务已撤销"}
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)}, status_code=400)
 
 
 # ==================== 文件下载 API ====================

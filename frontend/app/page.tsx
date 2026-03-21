@@ -85,7 +85,7 @@ export default function Home() {
   );
 
   return (
-    <div className="app-layout">
+    <div className="flex h-screen w-screen bg-white overflow-hidden text-gray-900">
       <Sidebar
         currentThreadId={threadId}
         onSelectThread={handleSelectThread}
@@ -93,31 +93,37 @@ export default function Home() {
         refreshKey={refreshKey}
       />
 
-      <main className="chat-main">
-        <header className="chat-header">
-          <div className="chat-header-title">
+      <main className="flex-1 flex flex-col min-w-0 bg-white relative">
+        <header className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-white/80 backdrop-blur-sm z-10 sticky top-0 shrink-0">
+          <div className="text-lg font-semibold text-gray-800">
             {messages.length > 0 ? '对话中' : '新对话'}
           </div>
-          <div className="chat-header-actions">
+          <div className="flex items-center">
             <button
-              className="db-connect-btn"
+              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-200 hover:bg-gray-50 transition-colors text-gray-600"
               onClick={() => setShowDbPanel(true)}
               title="配置数据库连接"
             >
               <DatabaseIcon size={16} />
-              <span className={`db-status-dot ${dbConnected ? '' : 'disconnected'}`} />
+              <span className={`w-2 h-2 rounded-full ${dbConnected ? 'bg-green-500' : 'bg-red-500'}`} />
               <span>{dbConnected ? '数据库已连接' : '连接数据库'}</span>
             </button>
           </div>
         </header>
 
-        <ChatMessages messages={messages} isStreaming={isStreaming} />
+        <div className="flex-1 overflow-hidden flex flex-col relative pb-32">
+          <ChatMessages messages={messages} isStreaming={isStreaming} />
+        </div>
 
-        <ChatInput
-          onSend={sendMessage}
-          isStreaming={isStreaming}
-          onStop={stopStreaming}
-        />
+        <div className="absolute bottom-0 left-0 right-0 w-full bg-gradient-to-t from-white via-white to-transparent pt-10 pb-6 pointer-events-none">
+          <div className="pointer-events-auto">
+            <ChatInput
+              onSend={sendMessage}
+              isStreaming={isStreaming}
+              onStop={stopStreaming}
+            />
+          </div>
+        </div>
       </main>
 
       <DbConnectionPanel

@@ -211,8 +211,8 @@ export default function ReportGenerator({ message, onClose }) {
 
   if (showReport) {
     return (
-      <div className="report-modal-overlay" onClick={onClose}>
-        <div className="report-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4 sm:p-6 md:p-12 transition-all" onClick={onClose}>
+        <div className="bg-white w-full max-w-6xl h-full max-h-[90vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col transform transition-all" onClick={(e) => e.stopPropagation()}>
           <ReportViewer
             report={report}
             onExport={handleExport}
@@ -225,11 +225,11 @@ export default function ReportGenerator({ message, onClose }) {
 
   return (
     <button
-      className="generate-report-btn"
+      className="flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-brand-600 bg-brand-50 hover:bg-brand-100 hover:text-brand-700 rounded-lg transition-colors border border-brand-200"
       onClick={() => setShowReport(true)}
     >
-      <span className="btn-icon">📊</span>
-      <span>查看完整报告</span>
+      <span className="text-base">📊</span>
+      <span>深度研报预览</span>
     </button>
   );
 }
