@@ -1175,46 +1175,6 @@ function generateChartOption(data, config) {
 }
 
 /**
- * 核心调度器：根据类型分发对应的 ECharts Option 生成逻辑
- */
-export function generateChartOption(data, config) {
-  const { chartType, xCol, yCol, title, colorCol, sizeCol } = config;
-  
-  switch (chartType) {
-    case 'bar':
-    case 'horizontal_bar':
-      return generateBarOption(data, xCol, yCol, title, colorCol);
-    case 'line':
-    case 'area':
-      return generateLineOption(data, xCol, yCol, title, colorCol);
-    case 'pie':
-      return generatePieOption(data, xCol, yCol, title);
-    case 'scatter':
-      return generateScatterOption(data, xCol, yCol, title, colorCol, sizeCol);
-    case 'radar':
-      return generateRadarOption(data, xCol, yCol, title);
-    case 'funnel':
-      return generateFunnelOption(data, xCol, yCol, title);
-    case 'gauge':
-      return generateGaugeOption(data, xCol, yCol, title);
-    case 'heatmap':
-      return generateHeatmapOption(data, xCol, yCol, title, colorCol);
-    case 'treemap':
-      return generateTreemapOption(data, xCol, yCol, title);
-    case 'sunburst':
-      return generateSunburstOption(data, xCol, yCol, title);
-    case 'boxplot':
-      return generateBarOption(data, xCol, yCol, title, colorCol); // 兜底处理
-    case 'wordcloud':
-      return generatePieOption(data, xCol, yCol, title); // 暂降级
-    case 'polar_bar':
-      return generateBarOption(data, xCol, yCol, title, colorCol); // 兜底处理
-    default:
-      return generateBarOption(data, xCol, yCol, title, colorCol);
-  }
-}
-
-/**
  * ECharts 图表渲染组件
  */
 export default function EChartsRenderer({
