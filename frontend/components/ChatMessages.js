@@ -193,26 +193,172 @@ const MessageItem = memo(({ msg, isStreaming, isLast }) => {
   );
 });
 
-// 图表包装器组件
+/**
+ * 图表包装器组件
+ */
 const ChartWrapper = memo(({ chartJson }) => {
-  return (
-    <div className="chart-container">
-      <div className="chart-content">
-        <SmartChart data={chartJson} height={400} />
+  const [chartData, setChartData] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!chartJson) {
+      setError('图表数据为空');
+      return;
+    }
+
+    try {
+      let parsed;
+      if (typeof chartJson === 'string') {
+        let cleanedJson = chartJson.trim();
+
+        // 移除标记前缀
+        if (cleanedJson.startsWith('[CHART_DATA]')) {
+          cleanedJson = cleanedJson.replace('[CHART_DATA]', '').trim();
+        }
+
+        // 移除截断标记
+        if (cleanedJson.includes('... (已截断)')) {
+          cleanedJson = cleanedJson.replace('... (已截断)', '');
+        }
+
+        try {
+          parsed = JSON.parse(cleanedJson);
+        } catch (parseError) {
+          // 尝试修复未闭合的括号
+          try {
+            let fixedJson = cleanedJson;
+            const openBraces = (fixedJson.match(/\{/g) || []).length;
+            const closeBraces = (fixedJson.match(/\}/g) || []).length;
+            const openBrackets = (fixedJson.match(/\[/g) || []).length;
+            const closeBrackets = (fixedJson.match(/\]/g) || []).length;
+
+            for (let i = 0; i < openBraces - closeBraces; i++) fixedJson += '}';
+            for (let i = 0; i < openBrackets - closeBrackets; i++) fixedJson += ']';
+
+            parsed = JSON.parse(fixedJson);
+          } catch {
+            throw new Error(`JSON 解析失败: ${parseError.message}`);
+          }
+        }
+      } else if (typeof chartJson === 'object') {
+        parsed = chartJson;
+      } else {
+        throw new Error('图表数据格式无效');
+      }
+
+      if (!parsed) throw new Error('图表数据为空');
+      setChartData(parsed);
+      setError(null);
+    } catch (e) {
+      setError(e.message);
+      setChartData(null);
+    }
+  }, [chartJson]);
+
+  // 渲染判断与错误显示
+  if (error) {
+    return (
+      <div className="chart-error">
+        <BarChartIcon size={24} />
+        <span>图表解析失败: {error}</span>
       </div>
+    );
+  }
+
+  if (!chartData) {
+    return (
+      <div className="chart-loading">
+        <div className="loading-spinner"></div>
+      </div>
+    );
+  }
+
+  // 新格式渲染
+  if (chartData.type === 'chart_data' && chartData.data && chartData.data.length > 0) {
+    return (
+      <div className="chart-container">
+        <div className="chart-content">
+          <SmartChart data={chartData} height={400} />
+        </div>
+      </div>
+    );
+  } else if (chartData.type === 'chart_data') {
+    return (
+      <div className="smart-chart-empty">
+        <BarChartIcon size={32} className="empty-icon" />
+        <span className="empty-text">图表数据为空</span>
+      </div>
+    );
+  }
+
+  // Plotly 旧格式兼容
+  if (chartData.data && chartData.layout) {
+    const trace = chartData.data[0];
+    const xData = trace.x || [];
+    const yData = trace.y || [];
+
+    const data = xData.map((x, i) => ({
+      [trace.name || 'category']: x,
+      [trace.name || 'value']: yData[i],
+    }));
+
+    let chartType = 'bar';
+    if (trace.type === 'scatter') chartType = 'line';
+    if (trace.type === 'pie') chartType = 'pie';
+
+    return (
+      <div className="chart-container">
+        <div className="chart-content">
+          <SmartChart
+            data={data}
+            chartType={chartType}
+            title={chartData.layout.title?.text || ''}
+            xCol={trace.name || 'category'}
+            yCol={trace.name || 'value'}
+            height={400}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // 纯数据数组兼容
+  if (Array.isArray(chartData)) {
+    return (
+      <div className="chart-container">
+        <div className="chart-content">
+          <SmartChart data={chartData} height={400} />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="chart-error">
+      <BarChartIcon size={24} />
+      <span>无法识别的图表数据格式</span>
     </div>
   );
 });
 
 export default function ChatMessages({ messages, isStreaming, onSendMessage }) {
   const bottomRef = useRef(null);
+  const containerRef = useRef(null);
+  const [isAtBottom, setIsAtBottom] = useState(true);
 
-  // 自动滚动到底部
+  // 监听滚动，允许用户自由往上滑
+  const handleScroll = (e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.target;
+    // 距离底部 100px 视为“在底部”
+    setIsAtBottom(scrollHeight - scrollTop - clientHeight < 100);
+  };
+
+  // 自动滚动到底部（仅当处于底部时）
   useEffect(() => {
-    if (bottomRef.current) {
+    if (isAtBottom && bottomRef.current) {
       bottomRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages, isStreaming]);
+  }, [messages, isStreaming, isAtBottom]);
 
   // 快捷问题提示
   const QUICK_QUESTIONS = [
@@ -260,7 +406,7 @@ export default function ChatMessages({ messages, isStreaming, onSendMessage }) {
   }
 
   return (
-    <div className="chat-messages-container">
+    <div className="chat-messages-container" ref={containerRef} onScroll={handleScroll}>
       <div className="chat-messages">
         {messages.map((msg, index) => (
           <MessageItem

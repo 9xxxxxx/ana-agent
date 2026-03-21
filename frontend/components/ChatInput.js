@@ -199,7 +199,7 @@ export default function ChatInput({ onSend, isStreaming, onStop }) {
           onKeyDown={handleKeyDown}
           placeholder={uploading ? '正在上传...' : '给 SQL Agent 发消息...'}
           rows={1}
-          disabled={isStreaming || uploading}
+          disabled={uploading}
         />
 
         {/* 发送/停止按钮 */}
