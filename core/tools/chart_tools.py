@@ -1,12 +1,10 @@
 """
 数据可视化图表工具。
-支持多种图表类型，通过 Plotly 生成交互式图表并返回 JSON 供前端渲染。
+支持多种图表类型，返回原始数据供前端 ECharts 渲染。
 """
 
 import json
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
 from langchain_core.tools import tool
 from core.database import run_query_to_dataframe
 
@@ -23,6 +21,8 @@ CHART_TYPES = {
     "treemap": "矩形树图 - 适合展示层级占比",
     "funnel": "漏斗图 - 适合展示转化率/流程衰减",
     "horizontal_bar": "水平柱状图 - 适合标签过长的分类对比",
+    "radar": "雷达图 - 适合多维度对比",
+    "gauge": "仪表盘 - 适合展示单指标进度",
 }
 
 
@@ -36,7 +36,7 @@ def create_chart_tool(
     color_col: str = None,
     size_col: str = None,
 ) -> str:
-    """执行 SQL 查询并生成交互式数据可视化图表。
+    """执行 SQL 查询并返回原始数据供前端可视化渲染。
     当用户需要观察趋势、分布、对比等可视化需求时调用此工具。
 
     参数:
@@ -44,15 +44,16 @@ def create_chart_tool(
         chart_type: 图表类型，支持: 'bar'(柱状图), 'line'(折线图), 'pie'(饼图),
                     'scatter'(散点图), 'area'(面积图), 'histogram'(直方图),
                     'box'(箱线图), 'heatmap'(热力图), 'treemap'(矩形树图),
-                    'funnel'(漏斗图), 'horizontal_bar'(水平柱状图)。
+                    'funnel'(漏斗图), 'horizontal_bar'(水平柱状图),
+                    'radar'(雷达图), 'gauge'(仪表盘)。
         title: 图表的标题（中文）。
-        x_col: 数据中作为 X 轴（或饼图的 names / treemap 的 path）的列名。
-        y_col: 数据中作为 Y 轴（或饼图的 values / treemap 的 values）的列名。
+        x_col: 数据中作为 X 轴（或饼图的 names）的列名。
+        y_col: 数据中作为 Y 轴（或饼图的 values）的列名。
         color_col: （可选）用于分组/着色的列名，实现多系列图表。
         size_col: （可选）用于散点图气泡大小的列名。
 
     返回:
-        图表的 JSON 序列化字符串，前端将自动渲染该字符串为交互式图表。
+        包含原始数据的 JSON 字符串，前端将使用 ECharts 进行渲染。
     """
     # 安全检查
     query_upper = sql_query.upper()
@@ -98,69 +99,95 @@ def create_chart_tool(
             size_col = _fix_col(size_col) or size_col
 
         # 限制数据量防止前端卡死
-        if len(df) > 500:
-            df = df.head(500)
-            title += " (前 500 条)"
+        if len(df) > 1000:
+            df = df.head(1000)
+            title += " (前 1000 条)"
 
-        # 通用参数
-        template = "plotly_dark"
-        color_args = {"color": color_col} if color_col and color_col in df.columns else {}
+        # 构建返回数据结构
+        result = {
+            "type": "chart_data",
+            "chartType": chart_type,
+            "title": title,
+            "xCol": x_col,
+            "yCol": y_col,
+            "colorCol": color_col,
+            "sizeCol": size_col,
+            "columns": list(df.columns),
+            "data": df.to_dict(orient="records"),
+            "summary": {
+                "rowCount": len(df),
+                "columns": len(df.columns),
+            },
+        }
 
-        # 根据类型生成 Plotly 图表
-        if chart_type == "bar":
-            fig = px.bar(df, x=x_col, y=y_col, title=title, template=template, **color_args)
-        elif chart_type == "horizontal_bar":
-            fig = px.bar(df, x=y_col, y=x_col, title=title, template=template, orientation="h", **color_args)
-        elif chart_type == "line":
-            fig = px.line(df, x=x_col, y=y_col, title=title, template=template, markers=True, **color_args)
-        elif chart_type == "area":
-            fig = px.area(df, x=x_col, y=y_col, title=title, template=template, **color_args)
-        elif chart_type == "pie":
-            fig = px.pie(df, names=x_col, values=y_col, title=title, template=template)
-        elif chart_type == "scatter":
-            scatter_args = {}
-            if size_col and size_col in df.columns:
-                scatter_args["size"] = size_col
-            fig = px.scatter(df, x=x_col, y=y_col, title=title, template=template, **color_args, **scatter_args)
-        elif chart_type == "histogram":
-            fig = px.histogram(df, x=x_col, title=title, template=template, **color_args)
-        elif chart_type == "box":
-            fig = px.box(df, x=x_col, y=y_col, title=title, template=template, **color_args)
-        elif chart_type == "treemap":
-            fig = px.treemap(df, path=[x_col], values=y_col, title=title, template=template)
-        elif chart_type == "funnel":
-            fig = px.funnel(df, x=y_col, y=x_col, title=title, template=template)
-        elif chart_type == "heatmap":
-            # 热力图需要 pivot 处理
+        # 添加统计信息
+        if y_col in df.columns:
             try:
-                if color_col and color_col in df.columns:
-                    pivot_df = df.pivot_table(index=x_col, columns=color_col, values=y_col, aggfunc="sum").fillna(0)
-                else:
-                    pivot_df = df.set_index(x_col)[[y_col]]
-                fig = go.Figure(data=go.Heatmap(
-                    z=pivot_df.values,
-                    x=list(pivot_df.columns),
-                    y=list(pivot_df.index),
-                    colorscale="Viridis"
-                ))
-                fig.update_layout(title=title, template=template)
-            except Exception as e:
-                return f"热力图生成失败 (数据可能不适合热力图格式): {str(e)}"
-        else:
-            return f"错误: 不支持的图表类型 '{chart_type}'。"
-
-        # 美化图表布局
-        fig.update_layout(
-            margin=dict(l=40, r=40, t=60, b=40),
-            title_x=0.5,
-            font=dict(size=12),
-        )
+                numeric_values = pd.to_numeric(df[y_col], errors="coerce")
+                result["statistics"] = {
+                    "min": float(numeric_values.min()) if not numeric_values.isna().all() else None,
+                    "max": float(numeric_values.max()) if not numeric_values.isna().all() else None,
+                    "mean": float(numeric_values.mean()) if not numeric_values.isna().all() else None,
+                    "sum": float(numeric_values.sum()) if not numeric_values.isna().all() else None,
+                }
+            except Exception:
+                pass
 
         # 序列化为 JSON
-        fig_json = fig.to_json()
+        # 使用更严格的 JSON 序列化，确保所有数据类型都能正确处理
+        result_json = json.dumps(result, ensure_ascii=False, default=str, separators=(',', ':'))
+        
+        # 验证 JSON 格式是否正确
+        try:
+            json.loads(result_json)
+        except json.JSONDecodeError as e:
+            return f"图表数据生成错误: JSON 序列化失败 - {str(e)}"
 
-        # 返回带有特殊标记的字符串，以便 app.py 拦截和渲染
-        return f"[PLOTLY_CHART] {fig_json}"
+        # 返回带有特殊标记的字符串，以便前端拦截和渲染
+        return f"[CHART_DATA] {result_json}"
 
     except Exception as e:
-        return f"图表生成错误: {str(e)}"
+        return f"图表数据获取错误: {str(e)}"
+
+
+@tool
+def get_raw_data(
+    sql_query: str,
+    limit: int = 100,
+) -> str:
+    """执行 SQL 查询并返回原始数据表格。
+    当用户只需要查看数据而不需要可视化时使用。
+
+    参数:
+        sql_query: SQL 查询语句。
+        limit: 返回的最大行数，默认 100。
+
+    返回:
+        包含原始数据的 JSON 字符串。
+    """
+    # 安全检查
+    query_upper = sql_query.upper()
+    for kw in ["DROP ", "DELETE ", "UPDATE ", "INSERT ", "ALTER ", "TRUNCATE "]:
+        if kw in query_upper:
+            return f"错误: 禁止执行含有 {kw.strip()} 的语句。"
+
+    try:
+        df = run_query_to_dataframe(sql_query)
+        if df.empty:
+            return "查询未返回任何数据。"
+
+        # 限制数据量
+        if len(df) > limit:
+            df = df.head(limit)
+
+        result = {
+            "type": "raw_data",
+            "columns": list(df.columns),
+            "data": df.to_dict(orient="records"),
+            "rowCount": len(df),
+        }
+
+        return json.dumps(result, ensure_ascii=False, default=str, separators=(',', ':'))
+
+    except Exception as e:
+        return f"数据获取错误: {str(e)}"

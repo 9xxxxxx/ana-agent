@@ -1,303 +1,511 @@
-# Chainlit 应用入口：接入 LangGraph Agent 实现流式对话（带跨轮记忆）
-import chainlit as cl
-from langchain_core.messages import HumanMessage, AIMessageChunk, ToolMessage, AIMessage
-from langchain_core.runnables import RunnableConfig
-from core.database import test_connection
-from core.agent import create_agent_graph
-from chainlit.data.sql_alchemy import SQLAlchemyDataLayer
+"""
+FastAPI 后端入口：提供 SSE 流式对话、历史记录管理、文件下载等 API。
+替代原 Chainlit 的 app.py，实现完全前后端分离。
+"""
+
 import os
+import json
+import sqlite3
+from datetime import datetime
+from contextlib import asynccontextmanager
 
-# 绑定 Chainlit 数据层实现原生历史记录管理
-cl_data_layer = SQLAlchemyDataLayer(conninfo="sqlite+aiosqlite:///chainlit_data.db")
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
+from sse_starlette.sse import EventSourceResponse
 
-@cl.data_layer
-def get_data_layer():
-    return cl_data_layer
+from langchain_core.messages import HumanMessage, AIMessageChunk, ToolMessage, AIMessage
 
-# 强制开启本地历史记录（必须有认证用户才能激活 SideBar）
-@cl.header_auth_callback
-def header_auth_callback(headers: dict):
-    # 构建一个虚拟的本地用户标识，用于在数据库中隔离记录
-    return cl.User(identifier="local_admin", metadata={"role": "admin", "provider": "local"})
+from core.database import test_connection, set_session_db_url
+from core.agent import create_agent_graph
 
 
-@cl.on_chat_start
-async def on_chat_start():
-    """对话启动时初始化数据库连接与 Agent 图"""
-    from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
-    
-    # 测试数据库连接
-    db_status = test_connection()
-    if db_status:
-        conn_msg = "✅ 数据库连接已成功建立！"
+# ==================== 应用初始化 ====================
+
+# 全局 Agent 图实例（线程安全，可多请求共享）
+graph = create_agent_graph()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """应用启动/关闭生命周期"""
+    print("🚀 SQL Agent API 启动中...")
+    db_ok = test_connection()
+    if db_ok:
+        print("✅ 数据库连接成功")
     else:
-        conn_msg = "❌ 警告：数据库连接失败，请检查 .env 配置。"
+        print("⚠️ 数据库连接失败，请检查 .env 中的 AGENT_DATABASE_URL")
+    yield
+    print("🛑 SQL Agent API 已关闭")
 
-    # 创建 Agent 图实例
-    graph = create_agent_graph()
-    cl.user_session.set("graph", graph)
+
+app = FastAPI(
+    title="SQL Agent API",
+    description="基于 LangGraph 的智能数据分析 Agent 后端",
+    version="2.0.0",
+    lifespan=lifespan,
+)
+
+# CORS 配置：允许 Next.js 开发服务器访问
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# ==================== 健康检查 ====================
+
+@app.get("/api/health")
+async def health_check():
+    """健康检查端点，含数据库连接状态"""
+    from core.database import get_session_db_url, settings
+    db_ok = test_connection()
+    session_url = get_session_db_url()
+    # 隐藏密码信息
+    display_url = None
+    if session_url:
+        # 简单处理：移除密码部分
+        display_url = session_url
+    elif settings.DATABASE_URL:
+        display_url = settings.DATABASE_URL
     
-    # 动态获取当前 chainlit 为当前窗口分配的唯一 ID
-    # 彻底解耦，为每个新增聊天窗口创建全新的独立隔离环境
-    thread_id = cl.user_session.get("id")
-    cl.user_session.set("thread_id", thread_id)
+    return {
+        "status": "ok",
+        "database_connected": db_ok,
+        "database_url": display_url,
+        "timestamp": datetime.now().isoformat(),
+    }
+
+
+# ==================== 核心对话 API（SSE 流式） ====================
+
+@app.post("/api/chat")
+async def chat_endpoint(request: Request):
+    """
+    SSE 流式对话端点。
+    请求体: { "message": "用户消息", "thread_id": "对话ID" }
+    事件类型:
+      - token: AI 文本增量 { "content": "..." }
+      - tool_start: 工具开始 { "id": "tool_call_id", "name": "tool_name" }
+      - tool_input: 工具参数增量 { "id": "tool_call_id", "args": "..." }
+      - tool_end: 工具结束 { "id": "tool_call_id", "output": "..." }
+      - chart: Plotly 图表 { "json": "..." }
+      - file: 文件下载 { "filename": "...", "url": "/api/files/..." }
+      - done: 流结束
+      - error: 错误
+    """
+    body = await request.json()
+    message = body.get("message", "")
+    thread_id = body.get("thread_id", "default")
+
+    if not message.strip():
+        return JSONResponse({"error": "消息不能为空"}, status_code=400)
+
     config = {"configurable": {"thread_id": thread_id}}
-    
-    # 构建左侧边栏管理配置
-    settings = cl.ChatSettings(
-        [
-            cl.input_widget.Select(
-                id="bulk_delete",
-                label="🗑️ 清理本应用所有历史记忆",
-                values=["保持现状", "仅清空当前窗口", "清空今日记录", "清空全部数据（含隐藏历史）"],
-                initial_index=0,
-            )
-        ]
-    )
-    await settings.send()
 
-    # 发送欢迎消息
-    await cl.Message(
-        content=(
-            f"您好！我是您的数据分析 SQL Agent。\n\n{conn_msg}\n\n"
-            "**功能概览**：\n"
-            "- 📊 多数据库支持（PostgreSQL / MySQL / SQLite / DuckDB）\n"
-            "- 🔍 多 Schema 智能探索\n"
-            "- 📈 11 种交互式图表（柱状图、折线图、饼图、散点图、热力图等）\n"
-            "- 📝 报告导出（Markdown / 无缝推包）\n"
-            "- 🔔 消息推送（原生飞书卡片 / 邮件）\n"
-            "- 💬 跨轮对话记忆（刷新页面记录不丢）\n\n"
-            "请问今天想要分析哪些数据？"
-        )
-    ).send()
+    async def event_generator():
+        try:
+            # 修复 LangGraph 的中断悬挂状态（与原 app.py 逻辑一致）
+            current_state = graph.get_state(config)
+            messages = current_state.values.get("messages", []) if current_state and hasattr(current_state, "values") else []
 
-    # 移除手动回复历史记录逻辑。引入了 Data Layer 之后，Chainlit 前端原声接管了页面的历史加载，
-    # 我们不再需要主动查询 LangGraph memory 然后手工发 cl.Message()。
+            if messages:
+                completed_tool_call_ids = {
+                    m.tool_call_id for m in messages
+                    if isinstance(m, ToolMessage) and getattr(m, 'tool_call_id', None)
+                }
+                fallback_msgs = []
+                for msg in messages:
+                    if isinstance(msg, AIMessage) and hasattr(msg, "tool_calls") and msg.tool_calls:
+                        missing_calls = [tc for tc in msg.tool_calls if tc["id"] not in completed_tool_call_ids]
+                        for tc in missing_calls:
+                            fallback_msgs.append(ToolMessage(
+                                content="[System] 上次操作未完成，已自动恢复。",
+                                tool_call_id=tc["id"]
+                            ))
+                if fallback_msgs:
+                    graph.update_state(config, {"messages": fallback_msgs})
 
-    # 发送快捷操作按钮 (依然可以在当前对话保留导出按钮，移除底部的清空功能，因为移到了侧边栏)
-    actions = [
-        cl.Action(name="export_last_result", value="export", label="📂 导出最新数据", description="将最近一次分析结果导出为 Excel", payload={})
-    ]
-    await cl.Message(content="您可以点击下方按钮进行快捷操作：", actions=actions, author="System").send()
+            # 流式调用 Agent
+            tool_steps = {}
+            for chunk, metadata in graph.stream(
+                {"messages": [HumanMessage(content=message)]},
+                stream_mode="messages",
+                config=config,
+            ):
+                node = metadata.get("langgraph_node", "")
 
-from chainlit.types import ThreadDict
+                if isinstance(chunk, AIMessageChunk):
+                    if chunk.tool_call_chunks:
+                        for tc_chunk in chunk.tool_call_chunks:
+                            tc_id = tc_chunk.get("id")
+                            tc_name = tc_chunk.get("name")
+                            # 工具调用开始
+                            if tc_id and tc_name and tc_id not in tool_steps:
+                                tool_steps[tc_id] = {"name": tc_name, "input": ""}
+                                yield {
+                                    "event": "tool_start",
+                                    "data": json.dumps({"id": tc_id, "name": tc_name}, ensure_ascii=False)
+                                }
+                            # 工具参数增量
+                            if tc_id and tc_id in tool_steps:
+                                args_chunk = tc_chunk.get("args", "")
+                                if args_chunk:
+                                    tool_steps[tc_id]["input"] += args_chunk
+                                    yield {
+                                        "event": "tool_input",
+                                        "data": json.dumps({"id": tc_id, "args": args_chunk}, ensure_ascii=False)
+                                    }
+                    elif chunk.content and node == "agent":
+                        # AI 文本增量
+                        yield {
+                            "event": "token",
+                            "data": json.dumps({"content": chunk.content}, ensure_ascii=False)
+                        }
 
-@cl.on_chat_resume
-async def on_chat_resume(thread: ThreadDict):
-    """从左侧边栏点击历史记录恢复会话时触发"""
-    graph = create_agent_graph()
-    cl.user_session.set("graph", graph)
-    
-    # 极其重要：使用恢复的 Thread 的 ID 作为 LangGraph 的记忆锚点
-    thread_id = thread["id"]
-    cl.user_session.set("thread_id", thread_id)
+                elif isinstance(chunk, ToolMessage):
+                    tc_id = chunk.tool_call_id
+                    output_text = str(chunk.content)
 
+                    # 检测图表数据标记（chart_tools 返回 [CHART_DATA]）
+                    is_chart = False
+                    if "[CHART_DATA]" in output_text:
+                        parts = output_text.split("[CHART_DATA]")
+                        chart_json = parts[1].strip()
+                        yield {
+                            "event": "chart",
+                            "data": json.dumps({"id": tc_id, "json": chart_json}, ensure_ascii=False)
+                        }
+                        output_text = "✅ 图表已生成"
+                        is_chart = True
+                    # 兼容旧的 Plotly 标记
+                    elif "[PLOTLY_CHART]" in output_text:
+                        parts = output_text.split("[PLOTLY_CHART]")
+                        chart_json = parts[1].strip()
+                        yield {
+                            "event": "chart",
+                            "data": json.dumps({"id": tc_id, "json": chart_json}, ensure_ascii=False)
+                        }
+                        output_text = "✅ 图表已生成"
+                        is_chart = True
 
-@cl.on_message
-async def main(message: cl.Message):
-    """处理用户消息：调用 LangGraph Agent 并流式输出结果"""
-    graph = cl.user_session.get("graph")
-    thread_id = cl.user_session.get("thread_id")
+                    # 检测文件导出标记
+                    elif any(kw in output_text for kw in ["报告已成功导出", "数据已成功导出"]):
+                        # 从输出中提取文件名
+                        import re
+                        match = re.search(r'(?:导出至|导出到)[:\s]*(.+?)(?:\s*（|$)', output_text)
+                        if match:
+                            filepath = match.group(1).strip()
+                            filename = os.path.basename(filepath)
+                            yield {
+                                "event": "file",
+                                "data": json.dumps({
+                                    "filename": filename,
+                                    "url": f"/api/files/{filename}",
+                                    "message": output_text
+                                }, ensure_ascii=False)
+                            }
 
-    config = RunnableConfig(
-        configurable={"thread_id": thread_id},
-    )
-
-    final_answer = cl.Message(content="", author="SQL Agent")
-    tool_steps: dict[str, cl.Step] = {}
-    cl.user_session.set("abort_task", False)
-
-    # --- 修复 LangGraph 的中断悬挂状态 ---
-    # 如果用户在工具执行中途刷新页面（或之前的报错遗留），历史记录中可能会有
-    # 带有 tool_calls 的 AIMessage 缺少对应的 ToolMessage，这会导致 LangGraph 报错。
-    current_state = graph.get_state(config)
-    messages = current_state.values.get("messages", []) if current_state and hasattr(current_state, "values") else []
-    
-    if messages:
-        # 收集历史中所有已经完成的 tool_call_id
-        completed_tool_call_ids = {m.tool_call_id for m in messages if isinstance(m, ToolMessage) and getattr(m, 'tool_call_id', None)}
-        
-        fallback_msgs = []
-        for msg in messages:
-            if isinstance(msg, AIMessage) and hasattr(msg, "tool_calls") and msg.tool_calls:
-                # 找出在这个 AIMessage 中发起，但没有在后续找到 ToolMessage 结果的调用
-                missing_calls = [tc for tc in msg.tool_calls if tc["id"] not in completed_tool_call_ids]
-                for tc in missing_calls:
-                    print(f"检测到未完整闭环的工具调用 (ID: {tc['id']})，将补充断联回调。")
-                    fallback_msgs.append(ToolMessage(
-                        content="[System] 用户中断/报错或刷新了页面，此操作未完成。",
-                        tool_call_id=tc["id"]
-                    ))
-        
-        # 将所有需要修补的 fallback 消息一次性注入图状态
-        if fallback_msgs:
-            graph.update_state(config, {"messages": fallback_msgs})
-    # =======================================
-
-
-    for chunk, metadata in graph.stream(
-        {"messages": [HumanMessage(content=message.content)]},
-        stream_mode="messages",
-        config=config,
-    ):
-        if cl.user_session.get("abort_task"):
-            await cl.Message(content="⚠️ **任务已被用户手动终止。**", author="System").send()
-            break
-        
-        node = metadata.get("langgraph_node", "")
-
-        if isinstance(chunk, AIMessageChunk):
-            if chunk.tool_call_chunks:
-                for tc_chunk in chunk.tool_call_chunks:
-                    tc_id = tc_chunk.get("id")
-                    tc_name = tc_chunk.get("name")
-                    if tc_id and tc_name and tc_id not in tool_steps:
-                        step = cl.Step(name=f"🔧 {tc_name}", type="tool")
-                        step.input = ""
-                        tool_steps[tc_id] = step
-                        await step.__aenter__()
+                    # 工具结果
                     if tc_id and tc_id in tool_steps:
-                        args_chunk = tc_chunk.get("args", "")
-                        if args_chunk:
-                            tool_steps[tc_id].input += args_chunk
+                        # 图表数据已通过 chart 事件发送，tool_end 只发简短确认
+                        display_output = output_text
+                        if not is_chart and len(display_output) > 500:
+                            display_output = display_output[:500] + "\n... (已截断)"
+                        yield {
+                            "event": "tool_end",
+                            "data": json.dumps({"id": tc_id, "output": display_output}, ensure_ascii=False)
+                        }
+                        del tool_steps[tc_id]
 
-            elif chunk.content and node == "agent":
-                await final_answer.stream_token(chunk.content)
+            yield {"event": "done", "data": "{}"}
 
-        elif isinstance(chunk, ToolMessage):
-            tc_id = chunk.tool_call_id
-            if tc_id and tc_id in tool_steps:
-                step = tool_steps[tc_id]
-                output_text = str(chunk.content)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            yield {
+                "event": "error",
+                "data": json.dumps({"message": str(e)}, ensure_ascii=False)
+            }
 
-                if "[PLOTLY_CHART]" in output_text:
-                    parts = output_text.split("[PLOTLY_CHART]")
-                    json_part = parts[1].strip()
-                    try:
-                        import json
-                        import plotly.io as pio
-                        fig_dict = json.loads(json_part)
-                        fig = pio.from_json(json.dumps(fig_dict))
-
-                        chart = cl.Plotly(name="chart", figure=fig, display="inline")
-                        await cl.Message(
-                            content="✨ **数据图表已生成**",
-                            elements=[chart],
-                            author="SQL Agent"
-                        ).send()
-
-                        output_text = "✅ 图表工具执行成功，可视化结果已呈现在聊天界面中。"
-                    except Exception as e:
-                        print(f"Failed to render chart from tool: {e}")
-                        output_text = f"❌ 图表渲染失败: {str(e)}"
-
-                elif any(kw in output_text for kw in ["报告已成功导出", "数据已成功导出", "已成功推送", "已成功发送邮件"]):
-                    await cl.Message(content=f"📝 **系统通知**: {output_text}", author="System").send()
-
-                if len(output_text) > 500:
-                    output_text = output_text[:500] + "\n... (已截断更长的数据内容)"
-                step.output = output_text
-                await step.__aexit__(None, None, None)
-                del tool_steps[tc_id]
-
-    for step in list(tool_steps.values()):
-        await step.__aexit__(None, None, None)
-
-    await final_answer.send()
+    return EventSourceResponse(event_generator())
 
 
-@cl.action_callback("export_last_result")
-async def on_export_action(action: cl.Action):
-    """快捷操作：触发导出"""
-    await cl.Message(content="正在为您准备导出最新的分析结果...", author="System").send()
-    # 模拟用户发送导出指令
-    await main(cl.Message(content="请将我刚才分析的数据导出为 Excel 文件并提供下载。"))
+# ==================== 历史记录 API ====================
+
+def _get_memory_db():
+    """获取 agent_memory.db 的连接"""
+    return sqlite3.connect("agent_memory.db", check_same_thread=False)
 
 
-@cl.on_stop
-def on_stop():
-    """捕获停止按钮事件，标记打断标志位并停止当前任务。"""
-    cl.user_session.set("abort_task", True)
-
-
-@cl.on_settings_update
-async def setup_agent(settings: dict):
-    """响应侧边栏的 Settings 更新，用于处理深度清理逻辑"""
-    bulk_delete = settings.get("bulk_delete")
-    
-    if bulk_delete == "保持现状":
-        return
-        
-    import sqlite3
-    from datetime import datetime
-    
-    current_thread_id = cl.user_session.get("thread_id")
-    graph = cl.user_session.get("graph")
-    
+@app.get("/api/history")
+def list_history():
+    """获取所有对话线程列表"""
+    conn = None
     try:
-        ag_conn = sqlite3.connect("agent_memory.db", check_same_thread=False)
-        ag_cur = ag_conn.cursor()
-        
-        cl_conn = sqlite3.connect("chainlit_data.db", check_same_thread=False)
-        cl_cur = cl_conn.cursor()
-        
-        if bulk_delete == "仅清空当前窗口":
-            if current_thread_id:
-                # 1. 删 LangGraph 记忆
-                ag_cur.execute("DELETE FROM checkpoints WHERE thread_id = ?", (current_thread_id,))
-                ag_cur.execute("DELETE FROM checkpoint_writes WHERE thread_id = ?", (current_thread_id,))
-                ag_cur.execute("DELETE FROM checkpoint_blobs WHERE thread_id = ?", (current_thread_id,))
-                
-                # 2. 删 Chainlit UI 展示数据
-                cl_cur.execute("DELETE FROM steps WHERE threadId = ?", (current_thread_id,))
-                cl_cur.execute("DELETE FROM threads WHERE id = ?", (current_thread_id,))
-                
-                # 重置当前内存
-                if graph:
-                    graph.update_state({"configurable": {"thread_id": current_thread_id}}, {"messages": []})
-                    
-                await cl.Message(content="✅ 本当前对话的历史记录已被清空。请**点击左上角 New Chat**开始新对话！", author="System").send()
+        conn = _get_memory_db()
+        cur = conn.cursor()
+        # 从 checkpoints 表中获取所有唯一的 thread_id
+        cur.execute("""
+            SELECT DISTINCT thread_id 
+            FROM checkpoints 
+            ORDER BY thread_id DESC
+        """)
+        threads = []
+        for row in cur.fetchall():
+            thread_id = row[0]
+            title = _get_thread_title(conn, thread_id)
+            threads.append({
+                "thread_id": thread_id,
+                "title": title or "新对话",
+            })
+        return {"threads": threads}
+    except Exception as e:
+        return {"threads": [], "error": str(e)}
+    finally:
+        if conn:
+            conn.close()
 
-        elif bulk_delete == "清空今日记录":
-            today_str = datetime.now().strftime("%Y-%m-%d")
-            # 通过 chainlit_data.db 的 created_at 匹配今天
-            try:
-                cl_cur.execute("SELECT id FROM threads WHERE createdAt LIKE ?", (f"{today_str}%",))
-                target_ids = [r[0] for r in cl_cur.fetchall()]
+
+def _get_thread_title(conn, thread_id: str) -> str | None:
+    """从 LangGraph 状态中提取对话的第一条用户消息作为标题"""
+    try:
+        config = {"configurable": {"thread_id": thread_id}}
+        state = graph.get_state(config)
+        if state and hasattr(state, "values"):
+            messages = state.values.get("messages", [])
+            for msg in messages:
+                if isinstance(msg, HumanMessage):
+                    # 截取前 50 个字符作为标题
+                    title = msg.content[:50]
+                    if len(msg.content) > 50:
+                        title += "..."
+                    return title
+    except Exception:
+        pass
+    return None
+
+
+@app.get("/api/history/{thread_id}")
+def get_history(thread_id: str):
+    """获取指定对话的完整消息历史（包含文本、图表、文件）"""
+    try:
+        config = {"configurable": {"thread_id": thread_id}}
+        state = graph.get_state(config)
+        if not state or not hasattr(state, "values"):
+            return {"messages": []}
+
+        messages = state.values.get("messages", [])
+        result = []
+        for msg in messages:
+            if isinstance(msg, HumanMessage):
+                content = str(msg.content) if not isinstance(msg.content, list) else str(msg.content[0].get("text", ""))
+                result.append({"role": "user", "content": content, "toolSteps": [], "charts": [], "files": []})
+            elif isinstance(msg, AIMessage):
+                content = str(msg.content) if not isinstance(msg.content, list) else str(msg.content[0].get("text", ""))
+                result.append({"role": "assistant", "content": content, "toolSteps": [], "charts": [], "files": []})
+            elif isinstance(msg, ToolMessage):
+                if not result or result[-1]["role"] != "assistant":
+                    continue
+                last_msg = result[-1]
+                output_text = str(msg.content)
+                tc_id = msg.tool_call_id
+                is_chart = False
                 
-                if target_ids:
-                    placeholders = ",".join("?" for _ in target_ids)
-                    cl_cur.execute(f"DELETE FROM steps WHERE threadId IN ({placeholders})", target_ids)
-                    cl_cur.execute(f"DELETE FROM threads WHERE id IN ({placeholders})", target_ids)
-                    
-                    ag_cur.execute(f"DELETE FROM checkpoints WHERE thread_id IN ({placeholders})", target_ids)
-                    ag_cur.execute(f"DELETE FROM checkpoint_writes WHERE thread_id IN ({placeholders})", target_ids)
-                    ag_cur.execute(f"DELETE FROM checkpoint_blobs WHERE thread_id IN ({placeholders})", target_ids)
-                    
-                await cl.Message(content=f"✅ 已清空 {len(target_ids)} 条今天的记录。请刷新页面或点击 New Chat。", author="System").send()
-            except Exception as e:
-                 await cl.Message(content=f"清理今日记录失败，可能是数据表尚不完善。 {e}", author="System").send()
-                 
-        elif bulk_delete == "清空全部数据（含隐藏历史）":
-            ag_cur.execute("DELETE FROM checkpoints")
-            ag_cur.execute("DELETE FROM checkpoint_writes")
-            ag_cur.execute("DELETE FROM checkpoint_blobs")
-            
-            try:
-                cl_cur.execute("DELETE FROM steps")
-                cl_cur.execute("DELETE FROM threads")
-            except:
-                pass
+                # 提取图表数据（优先检测新标记 [CHART_DATA]）
+                if "[CHART_DATA]" in output_text:
+                    parts = output_text.split("[CHART_DATA]")
+                    chart_json = parts[1].strip()
+                    last_msg["charts"].append({"id": tc_id, "json": chart_json})
+                    output_text = "✅ 图表生成完毕"
+                    is_chart = True
+                elif "[PLOTLY_CHART]" in output_text:
+                    parts = output_text.split("[PLOTLY_CHART]")
+                    chart_json = parts[1].strip()
+                    last_msg["charts"].append({"id": tc_id, "json": chart_json})
+                    output_text = "✅ 图表生成完毕"
+                    is_chart = True
                 
-            await cl.Message(content="🔥 已焚毁整库的所有记忆数据。一切重新开始！请**刷新页面**", author="System").send()
-            
-        ag_conn.commit()
-        ag_conn.close()
-        
-        cl_conn.commit()
-        cl_conn.close()
-        
+                # 提取文件下载
+                elif any(kw in output_text for kw in ["报告已成功导出", "数据已成功导出"]):
+                    import re
+                    match = re.search(r'(?:导出至|导出到)[:\s]*(.+?)(?:\s*（|$)', output_text)
+                    if match:
+                        filepath = match.group(1).strip()
+                        filename = os.path.basename(filepath)
+                        last_msg["files"].append({
+                            "filename": filename,
+                            "url": f"/api/files/{filename}",
+                            "message": output_text
+                        })
+                
+                tool_name = getattr(msg, "name", "tool") or "tool"
+                # 图表数据已单独提取，tool_end 只显示简短确认
+                display_output = output_text
+                if not is_chart and len(display_output) > 500:
+                    display_output = display_output[:500] + "..."
+                last_msg["toolSteps"].append({
+                    "id": tc_id, "name": tool_name, "input": "", 
+                    "output": display_output, 
+                    "status": "done"
+                })
+
+        return {"messages": result, "thread_id": thread_id}
     except Exception as e:
         import traceback
         traceback.print_exc()
-        await cl.Message(content=f"清理发生错误: {e}", author="System").send()
+        return {"messages": [], "error": str(e)}
+
+
+@app.delete("/api/history/{thread_id}")
+def delete_history(thread_id: str):
+    """删除指定对话的历史记录"""
+    conn = None
+    try:
+        conn = _get_memory_db()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM checkpoints WHERE thread_id = ?", (thread_id,))
+        cur.execute("DELETE FROM writes WHERE thread_id = ?", (thread_id,))
+        conn.commit()
+        return {"success": True, "message": f"对话 {thread_id} 已删除"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+    finally:
+        if conn:
+            conn.close()
+
+
+@app.delete("/api/history")
+def clear_all_history():
+    """清空所有历史记录"""
+    conn = None
+    try:
+        conn = _get_memory_db()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM checkpoints")
+        cur.execute("DELETE FROM writes")
+        conn.commit()
+        return {"success": True, "message": "所有历史记录已清空"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+    finally:
+        if conn:
+            conn.close()
+
+
+# ==================== 文件下载 API ====================
+
+@app.get("/api/files/{filename}")
+async def download_file(filename: str):
+    """提供 reports/ 目录下文件的下载"""
+    reports_dir = os.path.join(os.getcwd(), "reports")
+    file_path = os.path.join(reports_dir, filename)
+
+    # 安全检查：防止路径穿越
+    real_reports = os.path.realpath(reports_dir)
+    real_file = os.path.realpath(file_path)
+    if not real_file.startswith(real_reports):
+        return JSONResponse({"error": "非法路径"}, status_code=403)
+
+    if not os.path.exists(file_path):
+        return JSONResponse({"error": f"文件 {filename} 不存在"}, status_code=404)
+
+    return FileResponse(file_path, filename=filename)
+
+
+# ==================== 数据库连接管理 API ====================
+
+# 内存中存储已保存的数据库配置（生产环境应使用数据库）
+_saved_db_configs = []
+_config_id_counter = 1
+
+@app.post("/api/db/test")
+async def test_db_connection_api(request: Request):
+    """测试数据库连接"""
+    body = await request.json()
+    url = body.get("url", "")
+    if not url:
+        return {"success": False, "message": "连接URL不能为空"}
+
+    try:
+        from core.database import get_engine_by_url
+        from sqlalchemy import text
+        eng = get_engine_by_url(url)
+        with eng.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return {"success": True, "message": "连接成功"}
+    except Exception as e:
+        return {"success": False, "message": f"连接失败: {str(e)}"}
+
+
+@app.post("/api/db/config")
+async def save_db_config_api(request: Request):
+    """保存数据库配置"""
+    global _config_id_counter
+    body = await request.json()
+
+    config = {
+        "id": _config_id_counter,
+        "name": body.get("name", f"配置 {_config_id_counter}"),
+        "url": body.get("url", ""),
+        "type": body.get("type", "unknown"),
+        "created_at": datetime.now().isoformat(),
+    }
+    _saved_db_configs.append(config)
+    _config_id_counter += 1
+
+    return {"success": True, "config": config}
+
+
+@app.get("/api/db/config")
+async def list_db_configs():
+    """获取已保存的数据库配置列表"""
+    return _saved_db_configs
+
+
+@app.post("/api/db/connect")
+async def connect_db_api(request: Request):
+    """设置当前会话的数据库连接"""
+    body = await request.json()
+    url = body.get("url", "")
+    if not url:
+        return JSONResponse({"error": "URL 不能为空"}, status_code=400)
+
+    try:
+        from core.database import set_session_db_url
+        set_session_db_url(url)
+        db_ok = test_connection()
+        return {
+            "success": db_ok,
+            "message": "数据库连接成功" if db_ok else "数据库连接失败",
+        }
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
+
+# 兼容旧 API
+@app.post("/api/switch-db")
+async def switch_database(request: Request):
+    """切换当前数据库连接（兼容旧版）"""
+    body = await request.json()
+    db_url = body.get("database_url", "")
+    if not db_url:
+        return JSONResponse({"error": "database_url 不能为空"}, status_code=400)
+
+    set_session_db_url(db_url)
+    db_ok = test_connection()
+    return {
+        "success": db_ok,
+        "database_url": db_url,
+        "message": "数据库切换成功" if db_ok else "数据库连接失败",
+    }
+
+
+# ==================== 启动入口 ====================
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)

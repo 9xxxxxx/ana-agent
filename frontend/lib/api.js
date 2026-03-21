@@ -68,6 +68,9 @@ export function streamChat(message, threadId, callbacks) {
     signal: controller.signal,
   })
     .then((response) => {
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
@@ -77,7 +80,23 @@ export function streamChat(message, threadId, callbacks) {
           if (done) {
             // 处理缓冲区中剩余的数据
             if (buffer.trim()) {
-              processSSEBuffer(buffer);
+              const lines = buffer.split('\n');
+              let currentEvent = { type: '', data: '' };
+              for (const line of lines) {
+                const trimmed = line.trim();
+                if (trimmed.startsWith('event:')) {
+                  if (currentEvent.type && currentEvent.data) {
+                    processSSEEvent(currentEvent.type, currentEvent.data);
+                  }
+                  currentEvent = { type: trimmed.slice(6).trim(), data: '' };
+                } else if (trimmed.startsWith('data:')) {
+                  currentEvent.data = trimmed.slice(5).trim();
+                  if (currentEvent.type) {
+                    processSSEEvent(currentEvent.type, currentEvent.data);
+                    currentEvent = { type: '', data: '' };
+                  }
+                }
+              }
             }
             onDone?.();
             return;
@@ -85,46 +104,62 @@ export function streamChat(message, threadId, callbacks) {
 
           buffer += decoder.decode(value, { stream: true });
 
-          // 按双换行分割 SSE 事件
-          const events = buffer.split('\n\n');
-          // 最后一个可能不完整，保留在缓冲区
-          buffer = events.pop() || '';
+          // 按换行符分割所有行
+          const lines = buffer.split('\n');
+          
+          // 找到最后一个不完整的行（没有 event: 或 data: 前缀的）
+          let lastCompleteIndex = lines.length;
+          for (let i = lines.length - 1; i >= 0; i--) {
+            const line = lines[i].trim();
+            if (line.startsWith('event:') || line.startsWith('data:')) {
+              lastCompleteIndex = i + 1;
+              break;
+            }
+          }
+          
+          // 提取完整的事件行
+          const completeLines = lines.slice(0, lastCompleteIndex);
+          // 保留不完整的行在缓冲区
+          buffer = lines.slice(lastCompleteIndex).join('\n');
 
-          for (const eventStr of events) {
-            processSSEEvent(eventStr);
+          // 解析事件
+          let currentEvent = { type: '', data: '' };
+          for (const line of completeLines) {
+            const trimmed = line.trim();
+            if (trimmed.startsWith('event:')) {
+              // 如果之前有事件，先处理
+              if (currentEvent.type && currentEvent.data) {
+                processSSEEvent(currentEvent.type, currentEvent.data);
+              }
+              currentEvent = { type: trimmed.slice(6).trim(), data: '' };
+            } else if (trimmed.startsWith('data:')) {
+              currentEvent.data = trimmed.slice(5).trim();
+              // 处理当前事件
+              if (currentEvent.type) {
+                processSSEEvent(currentEvent.type, currentEvent.data);
+                currentEvent = { type: '', data: '' };
+              }
+            }
           }
 
           processChunk();
+        }).catch((err) => {
+          console.error('[api] Error reading stream:', err);
+          onError?.(err.message);
         });
       }
 
-      function processSSEBuffer(buf) {
-        const events = buf.split('\n\n');
-        for (const eventStr of events) {
-          if (eventStr.trim()) processSSEEvent(eventStr);
-        }
-      }
-
-      function processSSEEvent(eventStr) {
-        let eventType = 'message';
-        let eventData = '';
-
-        for (const line of eventStr.split('\n')) {
-          if (line.startsWith('event:')) {
-            eventType = line.slice(6).trim();
-          } else if (line.startsWith('data:')) {
-            eventData += line.slice(5).trim();
-          }
-        }
-
+      function processSSEEvent(eventType, eventData) {
         if (!eventData) return;
 
         try {
-          const data = JSON.parse(eventData);
+          const data = JSON.parse(eventData.trim());
 
           switch (eventType) {
             case 'token':
-              onToken?.(data.content);
+              // 确保content是字符串类型
+              const tokenContent = typeof data.content === 'string' ? data.content : String(data.content || '');
+              onToken?.(tokenContent);
               break;
             case 'tool_start':
               onToolStart?.(data.id, data.name);
@@ -133,6 +168,20 @@ export function streamChat(message, threadId, callbacks) {
               onToolInput?.(data.id, data.args);
               break;
             case 'tool_end':
+              // 检查是否是图表数据
+              if (data.output && typeof data.output === 'string') {
+                if (data.output.startsWith('[CHART_DATA]')) {
+                  const chartJson = data.output.replace('[CHART_DATA]', '').trim();
+                  onChart?.(data.id, chartJson);
+                  break;
+                }
+                if (data.output.startsWith('[PLOTLY_CHART]')) {
+                  // 兼容旧格式
+                  const chartJson = data.output.replace('[PLOTLY_CHART]', '').trim();
+                  onChart?.(data.id, chartJson);
+                  break;
+                }
+              }
               onToolEnd?.(data.id, data.output);
               break;
             case 'chart':
@@ -149,7 +198,7 @@ export function streamChat(message, threadId, callbacks) {
               break;
           }
         } catch (e) {
-          console.warn('SSE 解析失败:', eventData, e);
+          console.warn('[api] SSE 解析失败:', eventData, e);
         }
       }
 
@@ -162,4 +211,48 @@ export function streamChat(message, threadId, callbacks) {
     });
 
   return { abort: () => controller.abort() };
+}
+
+/**
+ * 测试数据库连接
+ */
+export async function testDbConnection(url) {
+  const res = await fetch(`${API_BASE}/api/db/test`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url }),
+  });
+  return res.json();
+}
+
+/**
+ * 保存数据库配置
+ */
+export async function saveDbConfig(config) {
+  const res = await fetch(`${API_BASE}/api/db/config`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(config),
+  });
+  return res.json();
+}
+
+/**
+ * 获取已保存的数据库配置列表
+ */
+export async function getDbConfig() {
+  const res = await fetch(`${API_BASE}/api/db/config`);
+  return res.json();
+}
+
+/**
+ * 设置当前会话的数据库连接
+ */
+export async function setDbConnection(url) {
+  const res = await fetch(`${API_BASE}/api/db/connect`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url }),
+  });
+  return res.json();
 }

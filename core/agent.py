@@ -21,6 +21,23 @@ from core.tools.notification_tools import (
     send_feishu_notification_tool,
     send_email_notification_tool,
 )
+from core.tools.knowledge_tools import (
+    list_knowledge_base_tool,
+    read_knowledge_doc_tool,
+    get_available_knowledge_str
+)
+from core.tools.common_tools import (
+    calculate_tool,
+    format_number_tool,
+    date_time_tool,
+    data_stats_tool,
+    text_analysis_tool,
+    json_formatter_tool,
+    hash_tool,
+    base64_tool,
+    regex_tool,
+    generate_id_tool,
+)
 
 # Agent 系统提示词：定义角色、行为规范和输出格式
 SYSTEM_PROMPT = """你是一个高级数据分析师（SQL Agent），精通关系型数据库查询、数据可视化与商业洞察报告撰写。
@@ -108,6 +125,20 @@ agent_tools = [
     export_data_tool,
     send_feishu_notification_tool,
     send_email_notification_tool,
+    # 知识与业务流程读取
+    list_knowledge_base_tool,
+    read_knowledge_doc_tool,
+    # 通用辅助工具
+    calculate_tool,
+    format_number_tool,
+    date_time_tool,
+    data_stats_tool,
+    text_analysis_tool,
+    json_formatter_tool,
+    hash_tool,
+    base64_tool,
+    regex_tool,
+    generate_id_tool,
 ]
 
 import sqlite3
@@ -136,12 +167,16 @@ def create_agent_graph():
         streaming=True,      # 启用流式输出
     )
 
+    # 动态拼接当前的 Skills 和 Workflows 到 System Prompt
+    knowledge_injection = get_available_knowledge_str()
+    dynamic_prompt = SYSTEM_PROMPT + "\n\n" + knowledge_injection
+
     # 使用 create_react_agent 构建 ReAct 循环图
     # 传入 checkpointer 实现跨轮对话记忆
     graph = create_react_agent(
         model=llm,
         tools=agent_tools,
-        prompt=SYSTEM_PROMPT,
+        prompt=dynamic_prompt,
         checkpointer=memory,
     )
 

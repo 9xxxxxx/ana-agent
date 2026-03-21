@@ -19,7 +19,7 @@
 
 - **框架**: Next.js (App Router) + React
 - **样式**: Vanilla CSS 暗色主题设计系统
-- **图表渲染**: react-plotly.js
+- **图表渲染**: ECharts (通过 SmartChart 组件)
 - **Markdown 渲染**: react-markdown + remark-gfm
 - **通信**: SSE (Server-Sent Events) 流式对话
 
@@ -32,6 +32,7 @@
 
 - **多 Schema 智能探索**: 自动发现并列出所有 schema 和表
 - **跨轮对话记忆**: 基于 LangGraph SqliteSaver，分步提需求不丢上下文
+- **技能与业务流挂载 (Skills & Workflows)**: 自动加载根目录下 `skills/` 和 `workflows/` 的 Markdown 规范文件，实现类似 Claude/Gemini 的专业预设。
 - **11 种图表**: bar, horizontal_bar, line, area, pie, scatter, histogram, box, heatmap, treemap, funnel
 - **报告导出**: Markdown / CSV / Excel，前端文件下载
 - **消息推送**: 飞书群 Webhook (交互式卡片) / 邮件 SMTP
