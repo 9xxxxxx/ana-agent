@@ -8,12 +8,17 @@
 import { useEffect, useRef } from 'react';
 import * as echarts from 'echarts';
 
-// 内置多套图表配色方案 (Color Themes)
+// 内置多套图表超级配色方案 (Color Themes) 结合业界 BI 最佳实践
 const colorThemes = {
   default: ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#14b8a6'],
+  tableau: ['#4e79a7', '#f28e2c', '#e15759', '#76b7b2', '#59a14f', '#edc949', '#af7aa1', '#ff9da7', '#9c755f', '#bab0ab'],
+  material: ['#4285F4', '#DB4437', '#F4B400', '#0F9D58', '#AB47BC', '#00ACC1', '#FF7043', '#9E9D24'],
+  antv: ['#5B8FF9', '#5AD8A6', '#5D7092', '#F6BD16', '#E8684A', '#6DC8EC', '#9270CA', '#FF9D4D', '#269A99', '#FF99C3'],
   warm: ['#fc8d62', '#e78ac3', '#ffd92f', '#e5c494', '#f46d43', '#fdae61', '#fee08b', '#abdda4'], // 温润柔和
   cool: ['#00b8a9', '#f6416c', '#3fc1c9', '#364f6b', '#7a42f4', '#00d2fc', '#0ad59e', '#fc5185'],  // 酷炫科技
-  fresh: ['#a8e6cf', '#dcedc1', '#ffd3b6', '#ffaaa5', '#76b4bd', '#5c969e', '#f3e8cb', '#c5e3f6'] // 清新简洁
+  fresh: ['#a8e6cf', '#dcedc1', '#ffd3b6', '#ffaaa5', '#76b4bd', '#5c969e', '#f3e8cb', '#c5e3f6'], // 清新简洁
+  forest: ['#2a9d8f', '#e9c46a', '#f4a261', '#e76f51', '#386641', '#6a994e', '#a7c957', '#bc4749'],  // 青葱森林
+  sunset: ['#f94144', '#f3722c', '#f8961e', '#f9c74f', '#90be6d', '#43aa8b', '#577590', '#277da1']   // 晚霞余晖
 };
 
 // 亮色主题配置（适配白色背景）
@@ -144,29 +149,62 @@ export function inferChartType(data, xCol, yCol) {
 }
 
 /**
+ * 数据按 X 轴分类对齐辅助函数
+ */
+function alignDataToCategories(items, xCategories, xCol, yCol, emptyValue = 0) {
+  return xCategories.map(xCat => {
+    // 注意：转为字符串进行比对
+    const match = items.find(d => String(d[xCol]) === String(xCat));
+    return match ? match[yCol] : emptyValue;
+  });
+}
+
+/**
+ * 智能判断是否进行分组
+ */
+function getGroupedData(data, colorCol, title) {
+  if (!colorCol) return { [title || 'Value']: data };
+  const uniqueColors = new Set(data.map(d => d[colorCol]));
+  // 如果用作颜色的列其唯一值数量等于数据总量，或者大于20，则没有分组意义（例如误用了 ID、销量数值作为色标）
+  if (uniqueColors.size === data.length || uniqueColors.size > 20) {
+    return { [title || 'Value']: data };
+  }
+  return data.reduce((acc, d) => {
+    const key = d[colorCol];
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(d);
+    return acc;
+  }, {});
+}
+
+/**
  * 生成柱状图配置
  */
 function generateBarOption(data, xCol, yCol, title, colorCol, defaultColors) {
-  const grouped = colorCol
-    ? data.reduce((acc, d) => {
-        const key = d[colorCol];
-        if (!acc[key]) acc[key] = [];
-        acc[key].push(d);
-        return acc;
-      }, {})
-    : { [title || '数据']: data };
+  const grouped = getGroupedData(data, colorCol, title);
+  const xCategories = [...new Set(data.map((d) => d[xCol]))];
+  const isSingleSeries = Object.keys(grouped).length === 1;
 
-  const series = Object.entries(grouped).map(([name, items], idx) => ({
-    name,
+  const series = Object.entries(grouped).map(([key, items], idx) => ({
+    name: key,
     type: 'bar',
-    data: items.map((d) => d[yCol]),
-    smooth: true,
+    data: alignDataToCategories(items, xCategories, xCol, yCol, 0),
+    barMaxWidth: 50,
     itemStyle: {
       borderRadius: [6, 6, 0, 0],
-      color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-        { offset: 0, color: defaultColors[idx % defaultColors.length] },
-        { offset: 1, color: defaultColors[idx % defaultColors.length] + '80' },
-      ]),
+      color: isSingleSeries 
+        ? (params) => {
+            // 单一系列时，让每根柱子五颜六色
+            const colorIdx = params.dataIndex % defaultColors.length;
+            return new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: defaultColors[colorIdx] },
+              { offset: 1, color: defaultColors[colorIdx] + '80' },
+            ]);
+          }
+        : new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: defaultColors[idx % defaultColors.length] },
+            { offset: 1, color: defaultColors[idx % defaultColors.length] + '80' },
+          ]),
     },
     emphasis: {
       itemStyle: {
@@ -194,7 +232,7 @@ function generateBarOption(data, xCol, yCol, title, colorCol, defaultColors) {
     xAxis: {
       ...chartTheme.xAxis,
       type: 'category',
-      data: [...new Set(data.map((d) => d[xCol]))],
+      data: xCategories,
       axisLabel: {
         ...chartTheme.xAxis.axisLabel,
         rotate: data.length > 8 ? 30 : 0,
@@ -213,19 +251,13 @@ function generateBarOption(data, xCol, yCol, title, colorCol, defaultColors) {
  * 生成折线图配置
  */
 function generateLineOption(data, xCol, yCol, title, colorCol, defaultColors) {
-  const grouped = colorCol
-    ? data.reduce((acc, d) => {
-        const key = d[colorCol];
-        if (!acc[key]) acc[key] = [];
-        acc[key].push(d);
-        return acc;
-      }, {})
-    : { [title || '数据']: data };
+  const grouped = getGroupedData(data, colorCol, title);
+  const xCategories = [...new Set(data.map((d) => d[xCol]))];
 
-  const series = Object.entries(grouped).map(([name, items], idx) => ({
-    name,
+  const series = Object.entries(grouped).map(([key, items], idx) => ({
+    name: key,
     type: 'line',
-    data: items.map((d) => d[yCol]),
+    data: alignDataToCategories(items, xCategories, xCol, yCol, null),
     smooth: true,
     symbol: 'circle',
     symbolSize: 8,
@@ -273,7 +305,7 @@ function generateLineOption(data, xCol, yCol, title, colorCol, defaultColors) {
     xAxis: {
       ...chartTheme.xAxis,
       type: 'category',
-      data: [...new Set(data.map((d) => d[xCol]))],
+      data: xCategories,
       boundaryGap: false,
     },
     yAxis: {
@@ -360,17 +392,10 @@ function generatePieOption(data, xCol, yCol, title, defaultColors) {
  * 生成散点图配置
  */
 function generateScatterOption(data, xCol, yCol, title, colorCol, sizeCol, defaultColors) {
-  const grouped = colorCol
-    ? data.reduce((acc, d) => {
-        const key = d[colorCol];
-        if (!acc[key]) acc[key] = [];
-        acc[key].push(d);
-        return acc;
-      }, {})
-    : { [title || '数据']: data };
+  const grouped = getGroupedData(data, colorCol, title);
 
-  const series = Object.entries(grouped).map(([name, items], idx) => ({
-    name,
+  const series = Object.entries(grouped).map(([key, items], idx) => ({
+    name: key,
     type: 'scatter',
     data: items.map((d) => [d[xCol], d[yCol], sizeCol ? d[sizeCol] : 20]),
     symbolSize: sizeCol ? (val) => Math.sqrt(val[2]) * 2 : 15,
@@ -854,16 +879,22 @@ function generateSunburstOption(data, xCol, yCol, title, defaultColors) {
  * 生成箱线图配置
  */
 function generateBoxplotOption(data, xCol, yCol, title, colorCol, defaultColors) {
-  const grouped = colorCol
-    ? data.reduce((acc, d) => {
-        const key = d[colorCol];
-        if (!acc[key]) acc[key] = [];
-        acc[key].push(d[yCol]);
-        return acc;
-      }, {})
-    : { [xCol]: data.map((d) => d[yCol]) };
+  const groupCol = colorCol || xCol;
+  
+  const grouped = data.reduce((acc, d) => {
+    const key = d[groupCol] || 'Unknown';
+    if (!acc[key]) acc[key] = [];
+    const val = Number(d[yCol]);
+    if (!isNaN(val)) {
+      acc[key].push(val);
+    }
+    return acc;
+  }, {});
 
-  const boxplotData = Object.entries(grouped).map(([, values]) => {
+  const categories = Object.keys(grouped);
+  const boxplotData = categories.map((key) => {
+    const values = grouped[key];
+    if (values.length === 0) return [0, 0, 0, 0, 0];
     const sorted = [...values].sort((a, b) => a - b);
     const q1 = sorted[Math.floor(sorted.length * 0.25)];
     const q2 = sorted[Math.floor(sorted.length * 0.5)];
@@ -887,11 +918,11 @@ function generateBoxplotOption(data, xCol, yCol, title, colorCol, defaultColors)
     xAxis: {
       ...chartTheme.xAxis,
       type: 'category',
-      data: Object.keys(grouped),
+      data: categories,
       boundaryGap: true,
       axisLabel: {
         ...chartTheme.xAxis.axisLabel,
-        rotate: Object.keys(grouped).length > 5 ? 30 : 0,
+        rotate: categories.length > 8 ? 30 : 0,
       },
     },
     yAxis: {
@@ -1039,19 +1070,13 @@ function generatePolarBarOption(data, xCol, yCol, title, defaultColors) {
  * 生成面积图配置
  */
 function generateAreaOption(data, xCol, yCol, title, colorCol, defaultColors) {
-  const grouped = colorCol
-    ? data.reduce((acc, d) => {
-        const key = d[colorCol];
-        if (!acc[key]) acc[key] = [];
-        acc[key].push(d);
-        return acc;
-      }, {})
-    : { [title || '数据']: data };
+  const grouped = getGroupedData(data, colorCol, title);
+  const xCategories = [...new Set(data.map((d) => d[xCol]))];
 
-  const series = Object.entries(grouped).map(([name, items], idx) => ({
-    name,
+  const series = Object.entries(grouped).map(([key, items], idx) => ({
+    name: key,
     type: 'line',
-    data: items.map((d) => d[yCol]),
+    data: alignDataToCategories(items, xCategories, xCol, yCol, 0),
     smooth: true,
     symbol: 'circle',
     symbolSize: 6,
