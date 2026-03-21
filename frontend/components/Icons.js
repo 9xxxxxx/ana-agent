@@ -32,7 +32,14 @@ import {
   Loader2,
   Play,
   Terminal,
-  AlarmClock
+  AlarmClock,
+  MoreHorizontal,
+  Star,
+  Share2,
+  ExternalLink,
+  BookOpen,
+  Hash,
+  ChevronLeft
 } from 'lucide-react';
 
 export const UserIcon = User;
@@ -60,9 +67,16 @@ export const ImageIcon = ImageIconComponent;
 export const CloseIcon = X;
 export const ChevronRightIcon = ChevronRight;
 export const ChevronDownIcon = ChevronDown;
+export const ChevronLeftIcon = ChevronLeft;
 export const WrenchIcon = Wrench;
 export const CheckCircleIcon = CheckCircle;
 export const SpinnerIcon = Loader2;
 export const InputIcon = Play;
 export const OutputIcon = Terminal;
 export const AlarmClockIcon = AlarmClock;
+export const MoreIcon = MoreHorizontal;
+export const StarIcon = Star;
+export const ShareIcon = Share2;
+export const ExternalLinkIcon = ExternalLink;
+export const BookOpenIcon = BookOpen;
+export const HashIcon = Hash;

@@ -1,12 +1,15 @@
 'use client';
 
 /**
- * 侧边栏组件 — ChatGPT 风格对话列表
+ * 侧边栏组件 — 品牌 Logo + 对话列表 + 操作菜单
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { fetchThreads, deleteThread, clearAllHistory } from '@/lib/api';
-import { PlusIcon, TrashIcon, MessageIcon, SparklesIcon } from './Icons';
+import {
+  PlusIcon, TrashIcon, MessageIcon, SparklesIcon,
+  MoreIcon, StarIcon, ShareIcon, DownloadIcon, SettingsIcon
+} from './Icons';
 import ConfirmDialog from './ConfirmDialog';
 
 // 按日期分组对话
@@ -34,11 +37,61 @@ function groupThreadsByDate(threads) {
   return groups;
 }
 
+// 对话操作菜单（下拉弹层）
+function ThreadActionMenu({ threadId, onClose, onDelete }) {
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        onClose();
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [onClose]);
+
+  const actions = [
+    { icon: <StarIcon size={14} />, label: '收藏', onClick: () => { onClose(); } },
+    { icon: <ShareIcon size={14} />, label: '分享', onClick: () => { onClose(); } },
+    { icon: <DownloadIcon size={14} />, label: '导出', onClick: () => { onClose(); } },
+    { divider: true },
+    { icon: <TrashIcon size={14} />, label: '删除', danger: true, onClick: () => { onDelete(threadId); onClose(); } },
+  ];
+
+  return (
+    <div
+      ref={menuRef}
+      className="absolute right-0 top-8 z-50 w-36 bg-white border border-gray-200 rounded-lg shadow-lg py-1 animate-in fade-in zoom-in-95 duration-150"
+    >
+      {actions.map((action, i) => {
+        if (action.divider) {
+          return <div key={i} className="border-t border-gray-100 my-1" />;
+        }
+        return (
+          <button
+            key={i}
+            className={`flex items-center gap-2.5 w-full px-3 py-2 text-xs transition-colors ${
+              action.danger
+                ? 'text-rose-600 hover:bg-rose-50'
+                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+            }`}
+            onClick={action.onClick}
+          >
+            {action.icon}
+            <span>{action.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, refreshKey }) {
   const [threads, setThreads] = useState([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmTarget, setConfirmTarget] = useState(null);
-  const [hoveredThread, setHoveredThread] = useState(null);
+  const [activeMenu, setActiveMenu] = useState(null);
 
   const loadThreads = useCallback(async () => {
     try {
@@ -55,8 +108,7 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
 
   const grouped = useMemo(() => groupThreadsByDate(threads), [threads]);
 
-  const handleDelete = (e, tid) => {
-    e.stopPropagation();
+  const handleDelete = (tid) => {
     setConfirmTarget(tid);
     setConfirmOpen(true);
   };
@@ -80,14 +132,23 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
   return (
     <>
       <aside className="w-[260px] bg-white flex flex-col h-full shrink-0 border-r border-gray-200 shadow-sm z-10">
-        {/* 顶部新建按钮 */}
-        <div className="p-3">
+        {/* 品牌 Logo 区域 */}
+        <div className="px-4 pt-4 pb-2">
+          <div className="flex items-center gap-2.5 mb-4">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-500 to-indigo-600 flex items-center justify-center shadow-sm">
+              <SparklesIcon size={16} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-sm font-bold text-gray-900 leading-tight">SQL Agent</h1>
+              <p className="text-[10px] text-gray-400 leading-tight">智能数据分析助手</p>
+            </div>
+          </div>
           <button
-            className="flex items-center gap-2 w-full px-4 py-3 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 hover:border-gray-300 rounded-xl transition-all duration-200 shadow-sm group"
+            className="flex items-center gap-2 w-full px-4 py-2.5 bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 text-white rounded-xl transition-all duration-200 shadow-sm hover:shadow-md group text-sm font-medium"
             onClick={onNewChat}
           >
-            <PlusIcon size={18} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
-            <span className="text-sm font-semibold">新建对话</span>
+            <PlusIcon size={16} className="opacity-80 group-hover:opacity-100" />
+            <span>新建对话</span>
           </button>
         </div>
 
@@ -102,32 +163,41 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
             Object.entries(grouped).map(([label, items], idx) => {
               if (items.length === 0) return null;
               return (
-                <div key={label} className={idx > 0 ? "mt-6" : "mt-2"}>
-                  <div className="px-3 pb-2 text-xs font-bold text-gray-400 uppercase tracking-wider">{label}</div>
+                <div key={label} className={idx > 0 ? "mt-5" : "mt-1"}>
+                  <div className="px-3 pb-1.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{label}</div>
                   <div className="flex flex-col gap-0.5">
                     {items.map(t => (
                       <div
                         key={t.thread_id}
-                        className={`group relative flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all duration-200 text-sm ${
+                        className={`group relative flex items-center gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer transition-all duration-200 text-sm ${
                           currentThreadId === t.thread_id
-                            ? 'bg-brand-50 text-brand-700 font-semibold shadow-sm ring-1 ring-brand-200/50'
-                            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                            ? 'bg-brand-50 text-brand-700 font-semibold ring-1 ring-brand-200/50'
+                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                         }`}
                         onClick={() => onSelectThread(t.thread_id)}
-                        onMouseEnter={() => setHoveredThread(t.thread_id)}
-                        onMouseLeave={() => setHoveredThread(null)}
                       >
-                        <MessageIcon size={16} className={`shrink-0 ${currentThreadId === t.thread_id ? 'text-brand-500' : 'text-gray-400'}`} />
-                        <span className="flex-1 truncate pr-6">{t.title || '新对话'}</span>
+                        <MessageIcon size={15} className={`shrink-0 ${currentThreadId === t.thread_id ? 'text-brand-500' : 'text-gray-400'}`} />
+                        <span className="flex-1 truncate pr-7 text-[13px]">{t.title || '新对话'}</span>
                         
-                        {(hoveredThread === t.thread_id || currentThreadId === t.thread_id) && (
-                          <button
-                            className="absolute right-2 p-1 text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded-md opacity-0 group-hover:opacity-100 transition-all shadow-sm"
-                            onClick={(e) => handleDelete(e, t.thread_id)}
-                            title="删除对话"
-                          >
-                            <TrashIcon size={14} />
-                          </button>
+                        {/* 操作按钮 -- hover 时显示 */}
+                        <button
+                          className="absolute right-2 p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-md opacity-0 group-hover:opacity-100 transition-all"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveMenu(activeMenu === t.thread_id ? null : t.thread_id);
+                          }}
+                          title="更多操作"
+                        >
+                          <MoreIcon size={14} />
+                        </button>
+
+                        {/* 操作菜单下拉 */}
+                        {activeMenu === t.thread_id && (
+                          <ThreadActionMenu
+                            threadId={t.thread_id}
+                            onClose={() => setActiveMenu(null)}
+                            onDelete={handleDelete}
+                          />
                         )}
                       </div>
                     ))}
@@ -138,18 +208,26 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
           )}
         </nav>
 
-        {/* 底部 */}
-        {threads.length > 0 && (
-          <div className="p-3 border-t border-gray-100 bg-gray-50/50">
+        {/* 底部区域 */}
+        <div className="p-3 border-t border-gray-100">
+          <div className="flex items-center gap-2">
+            {threads.length > 0 && (
+              <button
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                onClick={handleClearAll}
+              >
+                <TrashIcon size={13} />
+                <span>清空历史</span>
+              </button>
+            )}
             <button
-              className="flex items-center justify-center gap-2 w-full px-3 py-2.5 text-sm text-gray-500 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-200 border border-transparent rounded-lg transition-all"
-              onClick={handleClearAll}
+              className="flex items-center justify-center p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all"
+              title="设置"
             >
-              <TrashIcon size={16} />
-              <span className="font-medium">清空所有历史</span>
+              <SettingsIcon size={16} />
             </button>
           </div>
-        )}
+        </div>
       </aside>
 
       <ConfirmDialog

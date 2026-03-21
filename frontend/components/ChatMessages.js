@@ -12,7 +12,7 @@ import SmartChart from './charts/SmartChart';
 import ReportGenerator from './report/ReportGenerator';
 import { getFileUrl } from '@/lib/api';
 import {
-  CopyIcon, CheckIcon, FileIcon, DownloadIcon, BarChartIcon, SparklesIcon, DatabaseIcon
+  CopyIcon, CheckIcon, FileIcon, DownloadIcon, BarChartIcon, SparklesIcon, DatabaseIcon, BookOpenIcon
 } from './Icons';
 
 // 复制按钮组件
@@ -66,7 +66,7 @@ function AttachmentPreview({ files }) {
 }
 
 // 单个消息组件
-const MessageItem = memo(({ msg, isStreaming, isLast }) => {
+const MessageItem = memo(({ msg, isStreaming, isLast, onViewReport }) => {
   const contentObj = useMemo(() => {
     let text = typeof msg.content === 'string' ? msg.content : String(msg.content || '');
     const attachments = [];
@@ -175,10 +175,19 @@ const MessageItem = memo(({ msg, isStreaming, isLast }) => {
 
         {/* 底部操作区 */}
         {(!isStreaming || !isLast) && (contentObj.text || msg.charts?.length > 0) && (
-          <div className="flex items-center gap-2 mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex items-center gap-2 mt-4 pt-3 border-t border-gray-100">
             {contentObj.text && <CopyButton text={contentObj.text} />}
             {(msg.charts?.length > 0 || contentObj.text?.includes('|')) && (
               <ReportGenerator message={msg} />
+            )}
+            {(contentObj.text || msg.charts?.length > 0) && onViewReport && (
+              <button
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-brand-600 hover:bg-brand-50 rounded-md transition-colors font-medium"
+                onClick={() => onViewReport(msg)}
+              >
+                <BookOpenIcon size={14} />
+                查看完整报告
+              </button>
             )}
           </div>
         )}
@@ -317,7 +326,7 @@ const ChartWrapper = memo(({ chartJson }) => {
 
 ChartWrapper.displayName = 'ChartWrapper';
 
-export default function ChatMessages({ messages, isStreaming }) {
+export default function ChatMessages({ messages, isStreaming, onViewReport }) {
   const bottomRef = useRef(null);
   const containerRef = useRef(null);
   const [isUserAtBottom, setIsUserAtBottom] = useState(true);
@@ -389,6 +398,7 @@ export default function ChatMessages({ messages, isStreaming }) {
             msg={msg}
             isStreaming={isStreaming}
             isLast={index === messages.length - 1}
+            onViewReport={onViewReport}
           />
         ))}
         <div ref={bottomRef} className="h-4" />
