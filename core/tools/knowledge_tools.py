@@ -88,3 +88,103 @@ def read_knowledge_doc_tool(doc_type: str, file_name: str) -> str:
             return f"成功读取 {doc_type}/{safe_file_name}，文档内容如下：\n\n{content}\n\n请熟读上述内容并在后续行为中严格遵守。"
     except Exception as e:
         return f"读取文件时发生错误：{str(e)}"
+
+
+@tool
+def save_knowledge_tool(title: str, content: str, category: str = "skills") -> str:
+    """将企业术语、字段释义、业务规则或经验总结持久化保存到知识库中。
+    保存后的知识在后续所有对话中都会自动注入到 Agent 的上下文中。
+    
+    参数:
+        title (str): 知识条目的标题，将作为文件名（如 "GMV定义"、"业务术语表"）
+        content (str): 知识条目的完整内容，支持 Markdown 格式
+        category (str): 知识分类，仅支持 "skills"（技能/定义/规则）或 "workflows"（SOP/流程）。默认为 "skills"
+    """
+    if category not in ["skills", "workflows"]:
+        return "错误：category 参数只支持 'skills' 或 'workflows'。"
+
+    _ensure_dirs_exist()
+
+    # 安全处理文件名
+    safe_title = "".join(c if c.isalnum() or c in ("_", "-", " ") else "_" for c in title)
+    safe_title = safe_title.strip().replace(" ", "_")
+    if not safe_title:
+        return "错误：标题不能为空或全为特殊字符。"
+
+    filename = f"{safe_title}.md"
+    target_dir = SKILLS_DIR if category == "skills" else WORKFLOWS_DIR
+    target_path = os.path.join(target_dir, filename)
+
+    try:
+        # 构建知识文档内容
+        from datetime import datetime
+        now = datetime.now().strftime("%Y-%m-%d %H:%M")
+        
+        doc_content = f"# {title}\n\n"
+        doc_content += f"> 创建时间: {now}\n\n"
+        doc_content += content + "\n"
+
+        # 如果已存在同名文件，追加更新标记
+        if os.path.exists(target_path):
+            with open(target_path, 'r', encoding='utf-8') as f:
+                existing = f.read()
+            doc_content = existing + f"\n\n---\n\n## 更新 ({now})\n\n{content}\n"
+
+        with open(target_path, 'w', encoding='utf-8') as f:
+            f.write(doc_content)
+
+        return f"✅ 知识已成功保存到 {category}/{filename}。该知识将在后续所有对话中自动可用。"
+
+    except Exception as e:
+        return f"❌ 保存知识时发生错误: {str(e)}"
+
+
+@tool
+def search_knowledge_tool(keyword: str) -> str:
+    """在知识库（skills 和 workflows 目录）中搜索包含指定关键词的知识条目。
+    当不确定某个业务术语的含义或需要查找特定规则时使用此工具。
+    
+    参数:
+        keyword (str): 要搜索的关键词（不区分大小写）
+    """
+    _ensure_dirs_exist()
+    keyword_lower = keyword.lower()
+    results = []
+
+    for doc_type, directory in [("skills", SKILLS_DIR), ("workflows", WORKFLOWS_DIR)]:
+        if not os.path.exists(directory):
+            continue
+        for filename in os.listdir(directory):
+            if not filename.endswith('.md'):
+                continue
+            filepath = os.path.join(directory, filename)
+            try:
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                if keyword_lower in content.lower() or keyword_lower in filename.lower():
+                    # 提取匹配行的上下文
+                    matching_lines = []
+                    for i, line in enumerate(content.split('\n')):
+                        if keyword_lower in line.lower():
+                            matching_lines.append(f"  L{i+1}: {line.strip()}")
+                    
+                    results.append({
+                        "file": f"{doc_type}/{filename}",
+                        "matches": matching_lines[:5]  # 最多显示 5 行
+                    })
+            except Exception:
+                continue
+
+    if not results:
+        return f"未在知识库中找到与 '{keyword}' 相关的内容。"
+
+    output = f"在知识库中找到 {len(results)} 个匹配文件：\n\n"
+    for r in results:
+        output += f"📄 **{r['file']}**\n"
+        for line in r['matches']:
+            output += f"{line}\n"
+        output += "\n"
+
+    output += "💡 使用 `read_knowledge_doc_tool` 可以阅读完整内容。"
+    return output
+
