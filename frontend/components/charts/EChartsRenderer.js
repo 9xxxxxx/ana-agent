@@ -1243,7 +1243,7 @@ function generateSankeyOption(data, xCol, yCol, title, colorCol, defaultColors) 
  * 核心调度器：根据类型分发对应的 ECharts Option 生成逻辑
  */
 export function generateChartOption(data, config) {
-  const { chartType, xCol: rawXCol, yCol: rawYCol, title, colorCol, sizeCol, colorTheme = 'default' } = config;
+  const { chartType, xCol: rawXCol, yCol: rawYCol, title, colorCol, sizeCol, colorTheme = 'default', advanced = {} } = config;
 
   const defaultColors = colorThemes[colorTheme] || colorThemes.default;
 
@@ -1279,9 +1279,11 @@ export function generateChartOption(data, config) {
 
   const type = chartType || inferChartType(data, xCol, yCol);
 
+  let option;
   switch (type) {
     case 'bar':
-      return generateBarOption(data, xCol, yCol, title, colorCol, defaultColors);
+      option = generateBarOption(data, xCol, yCol, title, colorCol, defaultColors);
+      break;
     case 'horizontal_bar': {
       // 横向柱状图：交换 X/Y 轴
       const opt = generateBarOption(data, xCol, yCol, title, colorCol, defaultColors);
@@ -1297,41 +1299,147 @@ export function generateChartOption(data, config) {
           itemStyle: { ...s.itemStyle, borderRadius: [0, 6, 6, 0] },
         }));
       }
-      return opt;
+      option = opt;
+      break;
     }
     case 'line':
-      return generateLineOption(data, xCol, yCol, title, colorCol, defaultColors);
+      option = generateLineOption(data, xCol, yCol, title, colorCol, defaultColors);
+      break;
     case 'area':
-      return generateAreaOption(data, xCol, yCol, title, colorCol, defaultColors);
+      option = generateAreaOption(data, xCol, yCol, title, colorCol, defaultColors);
+      break;
     case 'pie':
-      return generatePieOption(data, xCol, yCol, title, defaultColors);
+      option = generatePieOption(data, xCol, yCol, title, defaultColors);
+      break;
     case 'scatter':
-      return generateScatterOption(data, xCol, yCol, title, colorCol, sizeCol, defaultColors);
+      option = generateScatterOption(data, xCol, yCol, title, colorCol, sizeCol, defaultColors);
+      break;
     case 'radar':
-      return generateRadarOption(data, xCol, yCol, title, defaultColors);
+      option = generateRadarOption(data, xCol, yCol, title, defaultColors);
+      break;
     case 'funnel':
-      return generateFunnelOption(data, xCol, yCol, title, defaultColors);
+      option = generateFunnelOption(data, xCol, yCol, title, defaultColors);
+      break;
     case 'gauge':
-      return generateGaugeOption(data, xCol, yCol, title, defaultColors);
+      option = generateGaugeOption(data, xCol, yCol, title, defaultColors);
+      break;
     case 'heatmap':
-      return generateHeatmapOption(data, xCol, yCol, title, colorCol, defaultColors);
+      option = generateHeatmapOption(data, xCol, yCol, title, colorCol, defaultColors);
+      break;
     case 'treemap':
-      return generateTreemapOption(data, xCol, yCol, title, defaultColors);
+      option = generateTreemapOption(data, xCol, yCol, title, defaultColors);
+      break;
     case 'sunburst':
-      return generateSunburstOption(data, xCol, yCol, title, defaultColors);
+      option = generateSunburstOption(data, xCol, yCol, title, defaultColors);
+      break;
     case 'boxplot':
-      return generateBoxplotOption(data, xCol, yCol, title, colorCol, defaultColors);
+      option = generateBoxplotOption(data, xCol, yCol, title, colorCol, defaultColors);
+      break;
     case 'wordcloud':
-      return generateWordcloudOption(data, xCol, yCol, title, defaultColors);
+      option = generateWordcloudOption(data, xCol, yCol, title, defaultColors);
+      break;
     case 'polar_bar':
-      return generatePolarBarOption(data, xCol, yCol, title, defaultColors);
+      option = generatePolarBarOption(data, xCol, yCol, title, defaultColors);
+      break;
     case 'waterfall':
-      return generateWaterfallOption(data, xCol, yCol, title, defaultColors);
+      option = generateWaterfallOption(data, xCol, yCol, title, defaultColors);
+      break;
     case 'sankey':
-      return generateSankeyOption(data, xCol, yCol, title, colorCol, defaultColors);
+      option = generateSankeyOption(data, xCol, yCol, title, colorCol, defaultColors);
+      break;
     default:
-      return generateBarOption(data, xCol, yCol, title, colorCol, defaultColors);
+      option = generateBarOption(data, xCol, yCol, title, colorCol, defaultColors);
+      break;
   }
+
+  // 统一应用高级设置 (标题覆盖、XY 轴重命名、数据标签显示、百分比格式化等)
+  return applyAdvancedConfig(option, advanced);
+}
+
+/**
+ * 注入与覆盖高级用户设置参数
+ */
+function applyAdvancedConfig(option, advanced) {
+  if (!advanced || Object.keys(advanced).length === 0 || !option) return option;
+
+  const { titleOverride, xAxisName, yAxisName, showDataLabel, valueFormat } = advanced;
+
+  // 1. 标题覆盖
+  if (titleOverride && option.title) {
+    if (Array.isArray(option.title)) {
+      option.title[0].text = titleOverride;
+    } else {
+      option.title.text = titleOverride;
+    }
+  }
+
+  // 2. X轴名称
+  if (xAxisName && option.xAxis) {
+    if (Array.isArray(option.xAxis)) {
+      option.xAxis[0].name = xAxisName;
+      option.xAxis[0].nameTextStyle = { color: '#6b7280', padding: [0, 0, 0, 10] };
+    } else {
+      option.xAxis.name = xAxisName;
+      option.xAxis.nameTextStyle = { color: '#6b7280', padding: [0, 0, 0, 10] };
+    }
+  }
+
+  // 3. Y轴名称
+  if (yAxisName && option.yAxis) {
+    if (Array.isArray(option.yAxis)) {
+      option.yAxis[0].name = yAxisName;
+      option.yAxis[0].nameTextStyle = { color: '#6b7280', padding: [0, 0, 10, 0] };
+    } else {
+      option.yAxis.name = yAxisName;
+      option.yAxis.nameTextStyle = { color: '#6b7280', padding: [0, 0, 10, 0] };
+    }
+  }
+
+  // 4. 数据标签与格式化
+  const isPercent = valueFormat === 'percent';
+  
+  if (option.series) {
+    const seriesList = Array.isArray(option.series) ? option.series : [option.series];
+    seriesList.forEach(s => {
+      // 启用/禁用文字标签
+      if (showDataLabel !== undefined) {
+        s.label = s.label || {};
+        s.label.show = showDataLabel;
+        if (s.type === 'bar' || s.type === 'line' || s.type === 'scatter') {
+          s.label.position = 'top';
+        }
+      }
+      
+      // 数值百分比格式 (如果在饼图等有自有 formatter 的图则跳过，只覆盖数值类)
+      if (isPercent && s.type !== 'pie' && s.type !== 'funnel' && s.label?.show) {
+        s.label.formatter = (params) => `${params.value}%`;
+      }
+    });
+  }
+
+  // 如果 Y 轴为 value 型并且要求显示百分比格式，也给轴加上 %
+  if (isPercent && option.yAxis) {
+    const yAxisList = Array.isArray(option.yAxis) ? option.yAxis : [option.yAxis];
+    yAxisList.forEach(y => {
+      if (y.type === 'value') {
+        y.axisLabel = y.axisLabel || {};
+        y.axisLabel.formatter = '{value}%';
+      }
+    });
+  }
+
+  // 横向柱状图是 X 轴为 value 型，对应处理
+  if (isPercent && option.xAxis) {
+    const xAxisList = Array.isArray(option.xAxis) ? option.xAxis : [option.xAxis];
+    xAxisList.forEach(x => {
+      if (x.type === 'value') {
+        x.axisLabel = x.axisLabel || {};
+        x.axisLabel.formatter = '{value}%';
+      }
+    });
+  }
+
+  return option;
 }
 
 /**

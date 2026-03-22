@@ -11,7 +11,7 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react';
 import EChartsRenderer, { inferChartType } from './EChartsRenderer';
-import { DatabaseIcon, BarChartIcon, SettingsIcon, SparklesIcon, ChevronDownIcon, CheckIcon } from '../Icons';
+import { DatabaseIcon, BarChartIcon, SettingsIcon, SparklesIcon, ChevronDownIcon, CheckIcon, SaveIcon, DownloadIcon } from '../Icons';
 
 // 图表类型字典 (仅用于 UI 显示和切换器)
 const chartTypes = [
@@ -74,7 +74,15 @@ export default function SmartChart({
 }) {
   const [selectedType, setSelectedType] = useState(explicitType);
   const [selectedTheme, setSelectedTheme] = useState('default');
-  const [activeTab, setActiveTab] = useState(null); // 'type' | 'color' | null
+  const [activeTab, setActiveTab] = useState(null); // 'type' | 'color' | 'advanced' | null
+
+  const [advancedSettings, setAdvancedSettings] = useState({
+    titleOverride: '',
+    xAxisName: '',
+    yAxisName: '',
+    showDataLabel: false,
+    valueFormat: 'auto',
+  });
 
   const data = useMemo(() => parseChartData(rawData), [rawData]);
 
@@ -108,8 +116,45 @@ export default function SmartChart({
 
   // 最终使用的属性
   const actualData = data.type === 'chart_data' ? data.data : data;
-    const renderChart = () => {
-    if (!actualData || actualData.length === 0) {
+  const inferredType = selectedType || chartConfig?.chartType || 'bar';
+
+  // 组装传给子画布的完整配置
+  const finalConfig = useMemo(() => {
+    if (!chartConfig) return null;
+    return {
+      ...chartConfig,
+      chartType: inferredType,
+      colorTheme: selectedTheme,
+      advanced: advancedSettings,
+    };
+  }, [chartConfig, inferredType, selectedTheme, advancedSettings]);
+
+  const handleSavePreset = () => {
+    try {
+      localStorage.setItem('smartChartPreset', JSON.stringify({ theme: selectedTheme, advanced: advancedSettings }));
+      alert('图表偏好预设已保存！');
+    } catch(e) {
+      console.warn(e);
+    }
+  };
+
+  const handleLoadPreset = () => {
+    try {
+      const presetStr = localStorage.getItem('smartChartPreset');
+      if (presetStr) {
+        const preset = JSON.parse(presetStr);
+        if (preset.theme) setSelectedTheme(preset.theme);
+        if (preset.advanced) setAdvancedSettings(preset.advanced);
+      } else {
+        alert('暂无保存的预设配置');
+      }
+    } catch(e) {
+      console.warn(e);
+    }
+  };
+
+  const renderChart = () => {
+    if (!actualData || actualData.length === 0 || !finalConfig) {
       return (
         <div className="flex flex-col items-center justify-center p-8 bg-gray-50 border border-gray-200 rounded-xl text-gray-400">
           <DatabaseIcon size={32} className="mb-2 opacity-50" />
@@ -153,7 +198,7 @@ export default function SmartChart({
 
     const chartProps = {
       data: limitedData,
-      config,
+      config: finalConfig,
       height,
     };
 
@@ -166,12 +211,12 @@ export default function SmartChart({
     <div className="w-full bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 transition-all font-sans">
       
       {/* 极简顶栏 */}
-      {config.xCol && config.yCol && !readonly && (
+      {finalConfig?.xCol && finalConfig?.yCol && !readonly && (
         <div className="flex flex-col border-b border-gray-100 bg-gray-50/30">
           <div className="flex items-center justify-between px-4 py-3">
             <div className="flex items-center gap-2">
               <span className="text-gray-500">{currentTypeMeta?.icon}</span>
-              <span className="font-semibold text-[13px] text-gray-800 tracking-wide">{config.title || currentTypeMeta?.label || '数据可视化'}</span>
+              <span className="font-semibold text-[13px] text-gray-800 tracking-wide">{advancedSettings.titleOverride || finalConfig.title || currentTypeMeta?.label || '数据可视化'}</span>
             </div>
             
             <div className="flex items-center gap-2">
@@ -189,6 +234,14 @@ export default function SmartChart({
               >
                 <SparklesIcon size={14} />
                 配色方案
+              </button>
+              <button
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border ${activeTab === 'advanced' ? 'bg-white border-gray-200 text-brand-600 shadow-sm' : 'border-transparent text-gray-600 hover:bg-gray-200/50'}`}
+                onClick={() => setActiveTab(activeTab === 'advanced' ? null : 'advanced')}
+                disabled={inferredType === 'table'}
+              >
+                <SettingsIcon size={14} />
+                图表设置
               </button>
             </div>
           </div>
@@ -250,6 +303,52 @@ export default function SmartChart({
                     <span className="text-[10px] font-medium leading-tight text-center">{t.label}</span>
                   </button>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'advanced' && (
+            <div className="px-6 py-5 bg-white border-t border-gray-100 animate-in fade-in slide-in-from-top-1 duration-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className="text-sm font-bold text-gray-800">自定义基础属性</div>
+                <div className="flex items-center gap-2">
+                  <button onClick={handleLoadPreset} className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded transition">
+                    <DownloadIcon size={12} /> 加载配置
+                  </button>
+                  <button onClick={handleSavePreset} className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-white bg-gray-800 hover:bg-black rounded transition">
+                    <SaveIcon size={12} /> 保存为预设
+                  </button>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-gray-600">重写主标题</label>
+                  <input type="text" className="px-3 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 transition" placeholder={finalConfig.title || '如：年度销量分析'} value={advancedSettings.titleOverride} onChange={e => setAdvancedSettings(s => ({ ...s, titleOverride: e.target.value }))} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-gray-600">数值显示格式</label>
+                  <select className="px-3 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 transition" value={advancedSettings.valueFormat} onChange={e => setAdvancedSettings(s => ({ ...s, valueFormat: e.target.value }))}>
+                    <option value="auto">自动映射 (Auto)</option>
+                    <option value="percent">百分比比例 (%)</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-gray-600">类别轴名称 (X Axis)</label>
+                  <input type="text" className="px-3 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 transition" placeholder={finalConfig.xCol || '默认'} value={advancedSettings.xAxisName} onChange={e => setAdvancedSettings(s => ({ ...s, xAxisName: e.target.value }))} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-gray-600">数值轴名称 (Y Axis)</label>
+                  <input type="text" className="px-3 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 transition" placeholder={finalConfig.yCol || '默认'} value={advancedSettings.yAxisName} onChange={e => setAdvancedSettings(s => ({ ...s, yAxisName: e.target.value }))} />
+                </div>
+              </div>
+
+              <div className="mt-5 pt-4 border-t border-gray-100 flex items-center justify-between">
+                 <div className="text-xs font-medium text-gray-600">直接显示数值标签</div>
+                 <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" className="sr-only peer" checked={advancedSettings.showDataLabel} onChange={e => setAdvancedSettings(s => ({...s, showDataLabel: e.target.checked}))} />
+                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
               </div>
             </div>
           )}

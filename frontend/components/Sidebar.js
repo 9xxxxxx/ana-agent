@@ -14,6 +14,9 @@ import {
   SparklesIcon, LayoutGridIcon
 } from './Icons';
 import ConfirmDialog from './ConfirmDialog';
+import SearchModal from './SearchModal';
+import SettingsModal from './SettingsModal';
+import ReportsDashboard from './ReportsDashboard';
 
 // 按日期分组对话
 function groupThreadsByDate(threads) {
@@ -96,6 +99,11 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
   const [confirmTarget, setConfirmTarget] = useState(null);
   const [activeMenu, setActiveMenu] = useState(null);
   const [isCollapsed, setIsCollapsed] = useState(false); // 控制侧边栏展开/折叠
+  
+  // 模态框控制状态
+  const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showReportsDashboard, setShowReportsDashboard] = useState(false);
 
   // 快捷折叠提示窗态
   const [showTooltip, setShowTooltip] = useState('');
@@ -156,7 +164,7 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
           <button 
             className="p-2 hover:bg-gray-200 rounded-lg text-gray-700 transition" 
             title="搜索聊天"
-            onClick={() => window.alert('全局检索功能将在通过 Embedding 完成后支持，敬请期待！')}
+            onClick={() => setShowSearchModal(true)}
           >
             <SearchIcon size={20} />
           </button>
@@ -168,7 +176,7 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
           <button 
             className="p-2 hover:bg-gray-200 rounded-lg text-gray-700 transition" 
             title="系统设置"
-            onClick={() => window.alert('系统设置功能即将就绪。未来支持：\\n1. 模型与代理系统指令修改\\n2. 云端账号登录与同步\\n3. 自定义配色板持久化')}
+            onClick={() => setShowSettingsModal(true)}
           >
             <SettingsIcon size={20} />
           </button>
@@ -220,7 +228,7 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
           
           <button 
             className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-gray-800 hover:bg-gray-200 rounded-xl transition"
-            onClick={() => window.alert('全局检索功能将在通过 Embedding 完成后支持，敬请期待！')}
+            onClick={() => setShowSearchModal(true)}
           >
             <SearchIcon size={18} />
             <span className="font-medium">搜索聊天</span>
@@ -228,7 +236,7 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
 
           <button 
             className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-gray-800 hover:bg-gray-200 rounded-xl transition"
-            onClick={() => window.alert('报告管理看板即将上线！在这里将能集中展示您导出的所有 Markdown 长卷与图表数据，方便演示与再分发。')}
+            onClick={() => setShowReportsDashboard(true)}
           >
             <LayoutGridIcon size={18} />
             <span className="font-medium">全部报告</span>
@@ -309,7 +317,7 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
         <div className="px-3 py-3 border-t border-transparent mt-auto bg-[#f9f9f9]">
           <button 
             className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-gray-800 hover:bg-gray-200 rounded-xl transition"
-            onClick={() => window.alert('系统设置功能即将就绪。未来支持：\\n1. 模型与代理系统指令修改\\n2. 云端账号登录与同步\\n3. 自定义配色板持久化')}
+            onClick={() => setShowSettingsModal(true)}
           >
             <SettingsIcon size={18} />
             <span className="font-medium">系统设置</span>
@@ -323,6 +331,28 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
         message={confirmTarget === '__all__' ? '确定要清空所有对话记录吗？此操作不可撤销。' : '确定要删除此对话吗？'}
         onConfirm={handleConfirm}
         onCancel={() => { setConfirmOpen(false); setConfirmTarget(null); }}
+      />
+      
+      {/* Search Modal */}
+      <SearchModal 
+        isOpen={showSearchModal} 
+        onClose={() => setShowSearchModal(false)}
+        threads={threads}
+        onSelectThread={onSelectThread}
+      />
+
+      {/* Settings Modal */}
+      <SettingsModal 
+        isOpen={showSettingsModal} 
+        onClose={() => setShowSettingsModal(false)} 
+      />
+
+      {/* Reports Dashboard */}
+      <ReportsDashboard 
+        isOpen={showReportsDashboard}
+        onClose={() => setShowReportsDashboard(false)}
+        threads={threads}
+        onSelectThread={onSelectThread}
       />
     </>
   );
