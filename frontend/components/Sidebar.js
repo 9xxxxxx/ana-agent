@@ -1,14 +1,17 @@
 'use client';
 
 /**
- * 侧边栏组件 — 品牌 Logo + 对话列表 + 操作菜单
+ * 侧边栏组件 — 极简白雅风格 (ChatGPT Style)
+ * 支持折叠/展开，分为固定操作区与滚动聊天记录区。
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { fetchThreads, deleteThread, clearAllHistory } from '@/lib/api';
 import {
-  PlusIcon, TrashIcon, MessageIcon, SparklesIcon,
-  MoreIcon, StarIcon, ShareIcon, DownloadIcon, SettingsIcon
+  EditIcon, SearchIcon, DatabaseIcon, MessageIcon, 
+  MoreIcon, StarIcon, ShareIcon, DownloadIcon, TrashIcon,
+  SettingsIcon, PanelLeftCloseIcon, PanelLeftOpenIcon,
+  SparklesIcon, LayoutGridIcon
 } from './Icons';
 import ConfirmDialog from './ConfirmDialog';
 
@@ -54,7 +57,7 @@ function ThreadActionMenu({ threadId, onClose, onDelete }) {
   const actions = [
     { icon: <StarIcon size={14} />, label: '收藏', onClick: () => { onClose(); } },
     { icon: <ShareIcon size={14} />, label: '分享', onClick: () => { onClose(); } },
-    { icon: <DownloadIcon size={14} />, label: '导出', onClick: () => { onClose(); } },
+    { icon: <DownloadIcon size={14} />, label: '全景导出', onClick: () => { onClose(); } },
     { divider: true },
     { icon: <TrashIcon size={14} />, label: '删除', danger: true, onClick: () => { onDelete(threadId); onClose(); } },
   ];
@@ -62,7 +65,7 @@ function ThreadActionMenu({ threadId, onClose, onDelete }) {
   return (
     <div
       ref={menuRef}
-      className="absolute right-0 top-8 z-50 w-36 bg-white border border-gray-200 rounded-lg shadow-lg py-1 animate-in fade-in zoom-in-95 duration-150"
+      className="absolute right-0 top-8 z-50 w-36 bg-white border border-gray-100 rounded-xl shadow-lg py-1 animate-in fade-in zoom-in-95 duration-150"
     >
       {actions.map((action, i) => {
         if (action.divider) {
@@ -74,7 +77,7 @@ function ThreadActionMenu({ threadId, onClose, onDelete }) {
             className={`flex items-center gap-2.5 w-full px-3 py-2 text-xs transition-colors ${
               action.danger
                 ? 'text-rose-600 hover:bg-rose-50'
-                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                : 'text-gray-700 hover:bg-gray-100'
             }`}
             onClick={action.onClick}
           >
@@ -87,11 +90,15 @@ function ThreadActionMenu({ threadId, onClose, onDelete }) {
   );
 }
 
-export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, refreshKey }) {
+export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, refreshKey, onToggleDatabase }) {
   const [threads, setThreads] = useState([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmTarget, setConfirmTarget] = useState(null);
   const [activeMenu, setActiveMenu] = useState(null);
+  const [isCollapsed, setIsCollapsed] = useState(false); // 控制侧边栏展开/折叠
+
+  // 快捷折叠提示窗态
+  const [showTooltip, setShowTooltip] = useState('');
 
   const loadThreads = useCallback(async () => {
     try {
@@ -129,69 +136,159 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
     loadThreads();
   };
 
+  // 折叠状态下的侧边栏
+  if (isCollapsed) {
+    return (
+      <aside className="w-[60px] bg-[#f9f9f9] flex flex-col h-full shrink-0 border-r border-gray-100 transition-all duration-300">
+        <div className="flex flex-col items-center pt-4 pb-2 gap-4">
+          {/* Logo 简化 */}
+          <div 
+            className="flex items-center justify-center w-8 h-8 rounded-lg bg-black cursor-pointer shadow-sm hover:ring-2 hover:ring-gray-200 transition-all" 
+            onClick={() => setIsCollapsed(false)} 
+            title="展开侧边栏"
+          >
+            <SparklesIcon size={16} className="text-white" />
+          </div>
+          
+          <button className="p-2 hover:bg-gray-200 rounded-lg text-gray-700 transition mt-4" onClick={onNewChat} title="新建聊天">
+            <EditIcon size={20} />
+          </button>
+          <button 
+            className="p-2 hover:bg-gray-200 rounded-lg text-gray-700 transition" 
+            title="搜索聊天"
+            onClick={() => window.alert('全局检索功能将在通过 Embedding 完成后支持，敬请期待！')}
+          >
+            <SearchIcon size={20} />
+          </button>
+          <button className="p-2 hover:bg-gray-200 rounded-lg text-gray-700 transition" onClick={onToggleDatabase} title="数据连接参数">
+            <DatabaseIcon size={20} />
+          </button>
+        </div>
+        <div className="mt-auto flex flex-col items-center pb-4 gap-4">
+          <button 
+            className="p-2 hover:bg-gray-200 rounded-lg text-gray-700 transition" 
+            title="系统设置"
+            onClick={() => window.alert('系统设置功能即将就绪。未来支持：\\n1. 模型与代理系统指令修改\\n2. 云端账号登录与同步\\n3. 自定义配色板持久化')}
+          >
+            <SettingsIcon size={20} />
+          </button>
+        </div>
+      </aside>
+    );
+  }
+
+  // 展开状态的侧边栏
   return (
     <>
-      <aside className="w-[260px] bg-white flex flex-col h-full shrink-0 border-r border-gray-200 shadow-sm z-10">
-        {/* 品牌 Logo 区域 */}
-        <div className="px-4 pt-4 pb-2">
-          <div className="flex items-center gap-2.5 mb-4">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-500 to-indigo-600 flex items-center justify-center shadow-sm">
-              <SparklesIcon size={16} className="text-white" />
+      <aside className="w-[260px] bg-[#f9f9f9] flex flex-col h-full shrink-0 transition-all duration-300 relative group">
+        
+        {/* 顶部悬浮控制栏（如 Logo + Collapse） */}
+        <div className="flex items-center justify-between px-3 pt-3 pb-2">
+          <div className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-gray-200 cursor-pointer transition">
+            <div className="w-5 h-5 rounded bg-black flex items-center justify-center">
+               <SparklesIcon size={12} className="text-white" />
             </div>
-            <div>
-              <h1 className="text-sm font-bold text-gray-900 leading-tight">SQL Agent</h1>
-              <p className="text-[10px] text-gray-400 leading-tight">智能数据分析助手</p>
-            </div>
+            <span className="text-sm font-bold text-gray-800 tracking-wide">SQL Agent</span>
           </div>
-          <button
-            className="flex items-center gap-2 w-full px-4 py-2.5 bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 text-white rounded-xl transition-all duration-200 shadow-sm hover:shadow-md group text-sm font-medium"
+          <div className="flex items-center gap-1">
+            <button 
+              className="p-1.5 text-gray-500 hover:text-gray-800 hover:bg-gray-200 rounded-lg transition opacity-0 group-hover:opacity-100" 
+              onClick={() => setIsCollapsed(true)}
+              title="关闭侧边栏"
+            >
+              <PanelLeftCloseIcon size={18} />
+            </button>
+            <button 
+              className="p-1.5 text-gray-500 hover:text-gray-800 hover:bg-gray-200 rounded-lg transition"
+              onClick={onNewChat}
+              title="新聊天"
+            >
+              <EditIcon size={18} />
+            </button>
+          </div>
+        </div>
+
+        {/* 第一段：固定的功能导航区 */}
+        <div className="px-3 py-2 flex flex-col gap-0.5">
+          <button 
+            className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-gray-800 hover:bg-gray-200 rounded-xl transition"
             onClick={onNewChat}
           >
-            <PlusIcon size={16} className="opacity-80 group-hover:opacity-100" />
-            <span>新建对话</span>
+            <EditIcon size={18} />
+            <span className="font-medium">新聊天</span>
+          </button>
+          
+          <button 
+            className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-gray-800 hover:bg-gray-200 rounded-xl transition"
+            onClick={() => window.alert('全局检索功能将在通过 Embedding 完成后支持，敬请期待！')}
+          >
+            <SearchIcon size={18} />
+            <span className="font-medium">搜索聊天</span>
+          </button>
+
+          <button 
+            className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-gray-800 hover:bg-gray-200 rounded-xl transition"
+            onClick={() => window.alert('报告管理看板即将上线！在这里将能集中展示您导出的所有 Markdown 长卷与图表数据，方便演示与再分发。')}
+          >
+            <LayoutGridIcon size={18} />
+            <span className="font-medium">全部报告</span>
           </button>
         </div>
 
-        {/* 对话列表 */}
-        <nav className="flex-1 overflow-y-auto px-3 py-2 sidebar-scroller">
+        {/* 插件/应用导航区 */}
+        <div className="px-3 py-1 flex flex-col gap-0.5">
+          <button 
+            className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-gray-800 hover:bg-gray-200 rounded-xl transition"
+            onClick={onToggleDatabase}
+          >
+            <DatabaseIcon size={18} />
+            <span className="font-medium">数据表连接参数</span>
+          </button>
+        </div>
+
+        <div className="px-5 py-2">
+          <div className="h-px bg-gray-200/60 w-full" />
+        </div>
+
+        {/* 第二段：滚动的历史聊天记录区 */}
+        <nav className="flex-1 overflow-y-auto px-3 py-1 sidebar-scroller">
+          <div className="px-3 pt-2 pb-1 text-xs font-semibold text-gray-400">
+            你的聊天
+          </div>
+
           {threads.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-gray-400 opacity-80 mt-10">
-              <SparklesIcon size={28} className="mb-3 text-gray-300" />
-              <span className="text-sm font-medium">开始你的第一次探索</span>
-            </div>
+            <div className="px-3 py-4 text-xs text-gray-400">暂无历史记录</div>
           ) : (
             Object.entries(grouped).map(([label, items], idx) => {
               if (items.length === 0) return null;
               return (
-                <div key={label} className={idx > 0 ? "mt-5" : "mt-1"}>
-                  <div className="px-3 pb-1.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{label}</div>
+                <div key={label} className="mt-3">
+                  <div className="px-3 pb-1 text-[11px] font-semibold text-gray-400 tracking-wider hidden">{label}</div>
                   <div className="flex flex-col gap-0.5">
                     {items.map(t => (
                       <div
                         key={t.thread_id}
-                        className={`group relative flex items-center gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer transition-all duration-200 text-sm ${
+                        className={`group/item relative flex items-center px-3 py-2.5 rounded-xl cursor-pointer transition-colors text-sm ${
                           currentThreadId === t.thread_id
-                            ? 'bg-brand-50 text-brand-700 font-semibold ring-1 ring-brand-200/50'
-                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                            ? 'bg-gray-200 text-gray-900 font-medium'
+                            : 'text-gray-800 hover:bg-gray-200'
                         }`}
                         onClick={() => onSelectThread(t.thread_id)}
                       >
-                        <MessageIcon size={15} className={`shrink-0 ${currentThreadId === t.thread_id ? 'text-brand-500' : 'text-gray-400'}`} />
-                        <span className="flex-1 truncate pr-7 text-[13px]">{t.title || '新对话'}</span>
+                        {/* 极简风：不显示前缀图标，仅文本 */}
+                        <span className="flex-1 truncate pr-7">{t.title || '新对话'}</span>
                         
-                        {/* 操作按钮 -- hover 时显示 */}
+                        {/* 更多操作 */}
                         <button
-                          className="absolute right-2 p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-md opacity-0 group-hover:opacity-100 transition-all"
+                          className="absolute right-2 p-1 text-gray-500 hover:text-gray-900 hover:bg-white rounded-md opacity-0 group-hover/item:opacity-100 transition shadow-sm"
                           onClick={(e) => {
                             e.stopPropagation();
                             setActiveMenu(activeMenu === t.thread_id ? null : t.thread_id);
                           }}
-                          title="更多操作"
                         >
                           <MoreIcon size={14} />
                         </button>
 
-                        {/* 操作菜单下拉 */}
                         {activeMenu === t.thread_id && (
                           <ThreadActionMenu
                             threadId={t.thread_id}
@@ -208,25 +305,15 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
           )}
         </nav>
 
-        {/* 底部区域 */}
-        <div className="p-3 border-t border-gray-100">
-          <div className="flex items-center gap-2">
-            {threads.length > 0 && (
-              <button
-                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-                onClick={handleClearAll}
-              >
-                <TrashIcon size={13} />
-                <span>清空历史</span>
-              </button>
-            )}
-            <button
-              className="flex items-center justify-center p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all"
-              title="设置"
-            >
-              <SettingsIcon size={16} />
-            </button>
-          </div>
+        {/* 底部设置区 */}
+        <div className="px-3 py-3 border-t border-transparent mt-auto bg-[#f9f9f9]">
+          <button 
+            className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-gray-800 hover:bg-gray-200 rounded-xl transition"
+            onClick={() => window.alert('系统设置功能即将就绪。未来支持：\\n1. 模型与代理系统指令修改\\n2. 云端账号登录与同步\\n3. 自定义配色板持久化')}
+          >
+            <SettingsIcon size={18} />
+            <span className="font-medium">系统设置</span>
+          </button>
         </div>
       </aside>
 

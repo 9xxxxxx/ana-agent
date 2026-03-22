@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { testDbConnection, saveDbConfig, getDbConfig } from '@/lib/api';
+import { testDbConnection, saveDbConfig, getDbConfig, deleteDbConfig } from '@/lib/api';
 import { DatabaseIcon, CloseIcon, CheckIcon, TrashIcon, Play } from './Icons';
 
 const DB_TYPES = [
@@ -115,7 +115,12 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
   };
 
   const handleDeleteSaved = async (id) => {
-    setSavedConfigs(savedConfigs.filter(c => c.id !== id));
+    try {
+      await deleteDbConfig(id);
+      setSavedConfigs(savedConfigs.filter(c => c.id !== id));
+    } catch (e) {
+      setTestResult({ success: false, message: '删除失败: ' + e.message });
+    }
   };
 
   if (!isOpen) return null;

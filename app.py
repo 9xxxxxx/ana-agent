@@ -147,11 +147,13 @@ async def chat_endpoint(request: Request):
     body = await request.json()
     message = body.get("message", "")
     thread_id = body.get("thread_id", "default")
+    model = body.get("model", "deepseek-chat")
 
     if not message.strip():
         return JSONResponse({"error": "消息不能为空"}, status_code=400)
 
-    config = {"configurable": {"thread_id": thread_id}}
+    # 通过 configurable.model_name 动态配置 LLM 实例（需要 agent.py 支持）
+    config = {"configurable": {"thread_id": thread_id, "model_name": model}}
 
     async def event_generator():
         try:
@@ -206,12 +208,21 @@ async def chat_endpoint(request: Request):
                                         "event": "tool_input",
                                         "data": json.dumps({"id": tc_id, "args": args_chunk}, ensure_ascii=False)
                                     }
-                    elif chunk.content and node == "agent":
+                    elif (chunk.content or chunk.additional_kwargs.get("reasoning_content")) and node == "agent":
+                        # 兼容具有思考链 (CoT) 的模型（例如 DeepSeek-Reasoner）
+                        reasoning = chunk.additional_kwargs.get("reasoning_content", "")
+                        if reasoning:
+                            yield {
+                                "event": "reasoning",
+                                "data": json.dumps({"content": reasoning}, ensure_ascii=False)
+                            }
+                        
                         # AI 文本增量
-                        yield {
-                            "event": "token",
-                            "data": json.dumps({"content": chunk.content}, ensure_ascii=False)
-                        }
+                        if chunk.content:
+                            yield {
+                                "event": "token",
+                                "data": json.dumps({"content": chunk.content}, ensure_ascii=False)
+                            }
 
                 elif isinstance(chunk, ToolMessage):
                     tc_id = chunk.tool_call_id
@@ -515,9 +526,21 @@ async def download_file(filename: str):
 
 # ==================== 数据库连接管理 API ====================
 
-# 内存中存储已保存的数据库配置（生产环境应使用数据库）
-_saved_db_configs = []
-_config_id_counter = 1
+# 使用 JSON 文件持久化存储数据库配置
+DB_CONFIG_FILE = os.path.join(os.getcwd(), "db_configs.json")
+
+def load_db_configs():
+    if not os.path.exists(DB_CONFIG_FILE):
+        return []
+    try:
+        with open(DB_CONFIG_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+def save_db_configs(configs):
+    with open(DB_CONFIG_FILE, "w", encoding="utf-8") as f:
+        json.dump(configs, f, ensure_ascii=False, indent=2)
 
 @app.post("/api/db/test")
 async def test_db_connection_api(request: Request):
@@ -540,27 +563,62 @@ async def test_db_connection_api(request: Request):
 
 @app.post("/api/db/config")
 async def save_db_config_api(request: Request):
-    """保存数据库配置"""
-    global _config_id_counter
+    """保存或更新数据库配置"""
     body = await request.json()
+    configs = load_db_configs()
+    
+    config_id = body.get("id")
+    # 如果没有传ID，生成一个新ID
+    if not config_id:
+        config_id = max([c.get("id", 0) for c in configs], default=0) + 1
+        config = {
+            "id": config_id,
+            "name": body.get("name", f"配置 {config_id}"),
+            "url": body.get("url", ""),
+            "type": body.get("type", "unknown"),
+            "created_at": datetime.now().isoformat(),
+        }
+        configs.append(config)
+    else:
+        # 更新已存在的配置
+        config = next((c for c in configs if c.get("id") == config_id), None)
+        if config:
+            config["name"] = body.get("name", config["name"])
+            config["url"] = body.get("url", config["url"])
+            config["type"] = body.get("type", config["type"])
+            config["updated_at"] = datetime.now().isoformat()
+        else:
+            return {"success": False, "message": "未找到指定配置"}
 
-    config = {
-        "id": _config_id_counter,
-        "name": body.get("name", f"配置 {_config_id_counter}"),
-        "url": body.get("url", ""),
-        "type": body.get("type", "unknown"),
-        "created_at": datetime.now().isoformat(),
-    }
-    _saved_db_configs.append(config)
-    _config_id_counter += 1
+    save_db_configs(configs)
+    
+    # 尝试将最新保存的作为当前全局 Session DB URL
+    try:
+        from core.database import set_session_db_url
+        if config["url"]:
+            set_session_db_url(config["url"])
+    except Exception:
+        pass
 
     return {"success": True, "config": config}
+
+
+@app.delete("/api/db/config/{config_id}")
+async def delete_db_config_api(config_id: int):
+    """删除指定的数据库配置"""
+    configs = load_db_configs()
+    new_configs = [c for c in configs if c.get("id") != config_id]
+    if len(new_configs) == len(configs):
+        return {"success": False, "message": "配置不存在"}
+    
+    save_db_configs(new_configs)
+    return {"success": True, "message": "删除成功"}
 
 
 @app.get("/api/db/config")
 async def list_db_configs():
     """获取已保存的数据库配置列表"""
-    return _saved_db_configs
+    return load_db_configs()
 
 
 @app.post("/api/db/connect")

@@ -39,7 +39,12 @@ import {
   ExternalLink,
   BookOpen,
   Hash,
-  ChevronLeft
+  ChevronLeft,
+  Search,
+  PanelLeftClose,
+  PanelLeftOpen,
+  SquarePen,
+  LayoutGrid
 } from 'lucide-react';
 
 export const UserIcon = User;
@@ -80,3 +85,8 @@ export const ShareIcon = Share2;
 export const ExternalLinkIcon = ExternalLink;
 export const BookOpenIcon = BookOpen;
 export const HashIcon = Hash;
+export const SearchIcon = Search;
+export const PanelLeftCloseIcon = PanelLeftClose;
+export const PanelLeftOpenIcon = PanelLeftOpen;
+export const EditIcon = SquarePen;
+export const LayoutGridIcon = LayoutGrid;

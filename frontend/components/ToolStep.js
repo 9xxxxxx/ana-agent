@@ -22,8 +22,45 @@ export default function ToolStep({ step }) {
 
     try {
       const parsed = JSON.parse(content);
+      
+      // 智能猜测是否为 SQL 查询的行集数组，若是则渲染美观的小表格
+      if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'object' && parsed[0] !== null) {
+        const keys = Object.keys(parsed[0]);
+        if (keys.length > 0) {
+          return (
+            <div className="my-2 overflow-x-auto border border-gray-200 rounded-lg shadow-sm">
+              <table className="w-full text-left border-collapse text-[13px]">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200 text-gray-700">
+                    {keys.map((k, i) => <th key={i} className="px-3 py-2 font-medium whitespace-nowrap">{k}</th>)}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 bg-white">
+                  {parsed.slice(0, 10).map((row, i) => (
+                    <tr key={i} className="hover:bg-gray-50/50 transition-colors">
+                      {keys.map((k, j) => (
+                        <td key={j} className="px-3 py-1.5 text-gray-600 truncate max-w-[200px]" title={String(row[k])}>
+                          {String(row[k])}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                  {parsed.length > 10 && (
+                    <tr>
+                      <td colSpan={keys.length} className="px-3 py-2 text-center text-gray-400 italic bg-gray-50/50">
+                        ... 仅展示前 10 行，共 {parsed.length} 行
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          );
+        }
+      }
+
       return (
-        <pre className="p-3 bg-gray-900 text-gray-100 rounded-lg text-xs font-mono overflow-x-auto my-2">
+        <pre className="p-3 bg-gray-50 text-gray-800 border border-gray-200 rounded-xl text-[13px] font-mono overflow-x-auto my-2 shadow-inner">
           <code>{JSON.stringify(parsed, null, 2)}</code>
         </pre>
       );
@@ -44,23 +81,22 @@ export default function ToolStep({ step }) {
   };
 
   return (
-    <div className={`mt-2 mb-2 w-full max-w-full rounded-xl border overflow-hidden transition-all duration-300 ${isRunning ? 'border-amber-300 bg-amber-50/30' : 'border-gray-200 bg-white'}`}>
+    <div className={`mt-1.5 mb-1 w-full max-w-full rounded-xl border overflow-hidden transition-all duration-300 ${isRunning ? 'border-amber-200/50 bg-amber-50/30' : 'border-transparent bg-white shadow-sm hover:shadow-md'}`}>
       <div 
-        className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50 transition-colors select-none"
+        className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-gray-50 transition-colors select-none"
         onClick={() => setExpanded(!expanded)}
       >
-        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
           {isRunning ? (
-            <SpinnerIcon size={16} className="text-amber-500 animate-spin shrink-0" />
+            <SpinnerIcon size={14} className="text-amber-500 animate-spin shrink-0" />
           ) : (
-            <CheckCircleIcon size={16} className="text-green-500 shrink-0" />
+            <CheckCircleIcon size={14} className="text-emerald-500 shrink-0" />
           )}
-          <WrenchIcon size={14} className="text-gray-400 shrink-0" />
-          <span className="font-medium text-sm text-gray-700 truncate">{step.name}</span>
+          <span className="font-semibold text-[13px] text-gray-700 truncate tracking-wide">{step.name}</span>
         </div>
-        <div className="flex items-center gap-3 shrink-0 pl-2">
-          <span className={`text-[0.65rem] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full ${isRunning ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'}`}>
-            {isRunning ? '执行中...' : '完成'}
+        <div className="flex items-center gap-2 shrink-0 pl-2">
+          <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-md ${isRunning ? 'text-amber-600' : 'text-gray-400'}`}>
+            {isRunning ? '处理中...' : '完成'}
           </span>
           <ChevronRightIcon
             size={16}

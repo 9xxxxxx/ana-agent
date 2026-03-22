@@ -76,15 +76,15 @@ export async function uploadFile(file) {
  * SSE 流式对话
  * 返回一个 EventSource 包装对象
  */
-export function streamChat(message, threadId, callbacks) {
-  const { onToken, onToolStart, onToolInput, onToolEnd, onChart, onFile, onDone, onError } = callbacks;
+export function streamChat(message, threadId, model, callbacks) {
+  const { onToken, onReasoning, onToolStart, onToolInput, onToolEnd, onChart, onFile, onDone, onError } = callbacks;
 
   const controller = new AbortController();
 
   fetch(`${API_BASE}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message, thread_id: threadId }),
+    body: JSON.stringify({ message, thread_id: threadId, model }),
     signal: controller.signal,
   })
     .then((response) => {
@@ -181,6 +181,10 @@ export function streamChat(message, threadId, callbacks) {
               const tokenContent = typeof data.content === 'string' ? data.content : String(data.content || '');
               onToken?.(tokenContent);
               break;
+            case 'reasoning':
+              const reasoningContent = typeof data.content === 'string' ? data.content : String(data.content || '');
+              onReasoning?.(reasoningContent);
+              break;
             case 'tool_start':
               onToolStart?.(data.id, data.name);
               break;
@@ -262,6 +266,16 @@ export async function saveDbConfig(config) {
  */
 export async function getDbConfig() {
   const res = await fetch(`${API_BASE}/api/db/config`);
+  return res.json();
+}
+
+/**
+ * 删除已保存的数据库配置
+ */
+export async function deleteDbConfig(id) {
+  const res = await fetch(`${API_BASE}/api/db/config/${id}`, {
+    method: 'DELETE',
+  });
   return res.json();
 }
 

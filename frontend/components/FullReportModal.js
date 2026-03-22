@@ -114,6 +114,14 @@ export default function FullReportModal({ isOpen, onClose, message }) {
     URL.revokeObjectURL(url);
   };
 
+  // 调用浏览器原生打印生成 PDF
+  const handleExportPDF = () => {
+    // 短暂延迟确保页面状态稳定
+    setTimeout(() => {
+      window.print();
+    }, 100);
+  };
+
   // 滚动到指定标题
   const scrollToHeading = (id) => {
     setActiveHeading(id);
@@ -210,11 +218,17 @@ export default function FullReportModal({ isOpen, onClose, message }) {
                 <span>{copied ? '已复制' : '复制'}</span>
               </button>
               <button
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors print:hidden"
                 onClick={handleExportMarkdown}
               >
                 <DownloadIcon size={15} />
                 <span>导出 Markdown</span>
+              </button>
+              <button
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-brand-600 bg-brand-50 hover:bg-brand-100 font-medium rounded-lg transition-colors print:hidden"
+                onClick={handleExportPDF}
+              >
+                <span>打印 / 导出 PDF</span>
               </button>
               <button
                 className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
@@ -284,7 +298,7 @@ export default function FullReportModal({ isOpen, onClose, message }) {
                   {charts.map((chart) => (
                     <div key={chart.id} id={`chart-${chart.id}`} className="scroll-mt-20">
                       {chart.data?.type === 'chart_data' && chart.data.data?.length > 0 ? (
-                        <SmartChart data={chart.data} height={450} />
+                        <SmartChart data={chart.data} height={450} readonly={true} />
                       ) : (
                         <div className="p-6 bg-gray-50 border border-gray-200 rounded-xl text-gray-400 text-center text-sm">
                           图表数据不可用
@@ -298,6 +312,29 @@ export default function FullReportModal({ isOpen, onClose, message }) {
           </div>
         </div>
       </div>
+      
+      {/* 专用打印样式注入 */}
+      <style dangerouslySetInnerHTML={{__html: `
+        @media print {
+          body { visibility: hidden; }
+          .print\\:hidden { display: none !important; }
+          .fixed.inset-0 { position: absolute; }
+          .animate-in { animation: none !important; }
+          /* 隐藏左侧导航 */
+          .w-\\[240px\\].shrink-0 { display: none !important; }
+          /* 右侧全宽 */
+          .flex-1.flex.flex-col { width: 100vw; }
+          .max-w-3xl { max-w: none; width: 100%; padding: 0 40px; }
+          /* 显示需打印的主区域 */
+          .prose { visibility: visible; }
+          .prose * { visibility: visible; }
+          #chart-* { visibility: visible; }
+          /* 强制图表背景等白色 */
+          canvas { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          /* 移除滚动条 */
+          .overflow-y-auto { overflow: visible !important; height: auto !important; }
+        }
+      `}} />
     </div>
   );
 }

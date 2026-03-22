@@ -26,7 +26,7 @@ const chartTheme = {
   backgroundColor: 'transparent',
   textStyle: {
     color: '#374151',
-    fontFamily: 'Inter, system-ui, sans-serif',
+    fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
   },
   title: {
     textStyle: {

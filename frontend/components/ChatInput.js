@@ -5,16 +5,31 @@
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { SendIcon, StopIcon, CloseIcon, PaperclipIcon, ImageIcon } from './Icons';
+import { SendIcon, StopIcon, CloseIcon, PlusIcon, PaperclipIcon, ImageIcon } from './Icons';
 import { uploadFile, getUploadUrl } from '@/lib/api';
 
 export default function ChatInput({ onSend, isStreaming, onStop }) {
   const [text, setText] = useState('');
   const [attachments, setAttachments] = useState([]);
   const [uploading, setUploading] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [acceptType, setAcceptType] = useState('*/*');
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
-  const imageInputRef = useRef(null);
+  const menuRef = useRef(null);
+
+  // 监听点击外部关闭菜单
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setShowMenu(false);
+      }
+    };
+    if (showMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showMenu]);
 
   // 自动调整文本框高度
   useEffect(() => {
@@ -131,27 +146,36 @@ export default function ChatInput({ onSend, isStreaming, onStop }) {
         </div>
       )}
 
-      {/* 核心输入框容器 */}
-      <div className="flex items-end gap-2 bg-white border border-gray-200 rounded-2xl shadow-sm focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/20 transition-all p-2 pl-3">
+      {/* 核心输入框容器：大圆角、淡色背景衬托 (仿 ChatGPT 极简风) */}
+      <div className="flex items-end gap-2 bg-gray-50/80 hover:bg-white border border-gray-200 rounded-[28px] focus-within:bg-white focus-within:ring-2 focus-within:ring-gray-200 transition-all px-2.5 py-2.5 shadow-sm">
         
         {/* 工具按钮栏 */}
-        <div className="flex items-center gap-1 pb-1 shrink-0">
+        <div className="flex items-center pb-0.5 shrink-0 relative" ref={menuRef}>
           <button
-            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg overflow-hidden transition-colors"
-            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center justify-center w-8 h-8 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-all"
+            onClick={() => setShowMenu(!showMenu)}
             disabled={isStreaming || uploading}
-            title="上传文件"
+            title="添加附件"
           >
-            <PaperclipIcon size={18} />
+            <PlusIcon size={20} />
           </button>
-          <button
-            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg overflow-hidden transition-colors"
-            onClick={() => imageInputRef.current?.click()}
-            disabled={isStreaming || uploading}
-            title="上传图片"
-          >
-            <ImageIcon size={18} />
-          </button>
+          
+          {showMenu && (
+            <div className="absolute bottom-12 left-0 bg-white border border-gray-100 shadow-xl rounded-xl py-1.5 w-32 animate-in fade-in zoom-in-95 duration-100 z-50">
+              <button 
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                onClick={() => { setAcceptType('*/*'); setTimeout(() => fileInputRef.current?.click(), 0); setShowMenu(false); }}
+              >
+                <PaperclipIcon size={16} /> <span>上传文件</span>
+              </button>
+              <button 
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                onClick={() => { setAcceptType('image/*'); setTimeout(() => fileInputRef.current?.click(), 0); setShowMenu(false); }}
+              >
+                 <ImageIcon size={16} /> <span>上传图片</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* 隐藏输入框 */}
@@ -159,16 +183,13 @@ export default function ChatInput({ onSend, isStreaming, onStop }) {
           ref={fileInputRef}
           type="file"
           multiple
+          accept={acceptType}
           className="hidden"
-          onChange={(e) => handleFileSelect(e.target.files)}
-        />
-        <input
-          ref={imageInputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          className="hidden"
-          onChange={(e) => handleFileSelect(e.target.files)}
+          onChange={(e) => {
+            handleFileSelect(e.target.files);
+            // 重置以便下次触发 onChange
+            if(e.target) e.target.value = '';
+          }}
         />
 
         {/* 核心输入区 */}
@@ -184,10 +205,10 @@ export default function ChatInput({ onSend, isStreaming, onStop }) {
         />
 
         {/* 发送与停止控制 */}
-        <div className="pb-0.5 shrink-0 pl-1">
+        <div className="pb-0.5 shrink-0 pr-1">
           {isStreaming ? (
             <button 
-              className="flex items-center justify-center w-8 h-8 bg-red-500 text-white rounded-full hover:bg-red-600 hover:scale-105 transition-all shadow-sm animate-pulse" 
+              className="flex items-center justify-center w-8 h-8 bg-black text-white rounded-full hover:bg-gray-800 transition-all shadow-sm" 
               onClick={onStop} 
               title="停止生成"
             >
@@ -195,7 +216,7 @@ export default function ChatInput({ onSend, isStreaming, onStop }) {
             </button>
           ) : (
             <button
-              className="flex items-center justify-center w-8 h-8 rounded-full transition-all shadow-sm disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed disabled:shadow-none bg-brand-600 text-white hover:bg-brand-700 hover:scale-105"
+              className="flex items-center justify-center w-8 h-8 rounded-full transition-all disabled:bg-gray-100 disabled:text-gray-300 bg-black text-white hover:bg-gray-800"
               onClick={handleSend}
               disabled={(!text.trim() && attachments.length === 0) || uploading}
               title="发送"
@@ -204,10 +225,6 @@ export default function ChatInput({ onSend, isStreaming, onStop }) {
             </button>
           )}
         </div>
-      </div>
-
-      <div className="text-center text-[0.7rem] text-gray-400 mt-2">
-        按 Enter 发送，Shift+Enter 换行，支持拖拽上传文件
       </div>
     </div>
   );

@@ -42,6 +42,7 @@ export function useChat(threadId) {
           id: generateId(),
           role: m.role,
           content: m.content,
+          reasoning: m.reasoning || '',
           toolSteps: m.toolSteps || [],
           charts: m.charts || [],
           files: m.files || [],
@@ -60,7 +61,7 @@ export function useChat(threadId) {
 
   // 发送消息
   const sendMessage = useCallback(
-    (content) => {
+    (content, model = 'deepseek-chat') => {
       // 提取文件附件，格式：[附件: xxx](url)
       const attachRegex = /\[附件:\s*(.+?)\]\((.+?)\)/g;
       const initialFiles = [];
@@ -88,6 +89,7 @@ export function useChat(threadId) {
         id: generateId(),
         role: 'assistant',
         content: '',
+        reasoning: '',
         toolSteps: [],
         charts: [],
         files: [],
@@ -108,9 +110,13 @@ export function useChat(threadId) {
         });
       };
 
-      const handle = streamChat(content, threadId, {
+      const handle = streamChat(content, threadId, model, {
         onToken: (token) => {
           updateAssistant((m) => ({ ...m, content: m.content + token }));
+        },
+
+        onReasoning: (token) => {
+          updateAssistant((m) => ({ ...m, reasoning: (m.reasoning || '') + token }));
         },
 
         onToolStart: (id, name) => {

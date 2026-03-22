@@ -10,9 +10,9 @@ import ChatMessages from '@/components/ChatMessages';
 import ChatInput from '@/components/ChatInput';
 import DbConnectionPanel from '@/components/DbConnectionPanel';
 import FullReportModal from '@/components/FullReportModal';
-import { DatabaseIcon, BarChartIcon, HashIcon } from '@/components/Icons';
+import { TrashIcon, ShareIcon } from '@/components/Icons';
 import { useChat } from '@/hooks/useChat';
-import { checkHealth, setDbConnection } from '@/lib/api';
+import { checkHealth, setDbConnection, deleteThread } from '@/lib/api';
 
 // 生成新的 thread ID
 function newThreadId() {
@@ -26,6 +26,7 @@ export default function Home() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [showDbPanel, setShowDbPanel] = useState(false);
   const [reportMsg, setReportMsg] = useState(null); // 查看完整报告的消息
+  const [selectedModel, setSelectedModel] = useState('deepseek-chat');
 
   const { messages, isStreaming, sendMessage, stopStreaming, loadHistory, clearMessages } = useChat(threadId);
 
@@ -47,26 +48,6 @@ export default function Home() {
       })
       .catch(() => setDbConnected(false));
   }, []);
-
-  // 从消息中提取对话主题（取第一条用户消息的前 30 字）
-  const chatTopic = useMemo(() => {
-    if (messages.length === 0) return null;
-    const firstUser = (messages as any[]).find((m: any) => m.role === 'user');
-    if (!firstUser) return null;
-    const text = typeof firstUser.content === 'string' ? firstUser.content : '';
-    // 去除附件文本
-    const cleanText = text.replace(/\[附件:\s*.+?\]\(.+?\)/g, '').trim();
-    return cleanText.length > 40 ? cleanText.slice(0, 40) + '…' : cleanText;
-  }, [messages]);
-
-  // 对话进度统计
-  const chatStats = useMemo(() => {
-    if (messages.length === 0) return null;
-    const userCount = (messages as any[]).filter((m: any) => m.role === 'user').length;
-    const aiCount = (messages as any[]).filter((m: any) => m.role === 'assistant').length;
-    const chartCount = (messages as any[]).reduce((acc: number, m: any) => acc + (m.charts?.length || 0), 0);
-    return { userCount, aiCount, chartCount };
-  }, [messages]);
 
   // 处理数据库连接
   const handleDbConnect = useCallback(async (url: string) => {
@@ -113,51 +94,56 @@ export default function Home() {
         onSelectThread={handleSelectThread}
         onNewChat={handleNewChat}
         refreshKey={refreshKey}
+        onToggleDatabase={() => setShowDbPanel(true)}
       />
 
       <main className="flex-1 flex flex-col min-w-0 bg-white relative">
-        {/* 动态 Header */}
-        <header className="flex items-center justify-between px-6 py-3 border-b border-gray-100 bg-white/80 backdrop-blur-sm z-10 sticky top-0 shrink-0">
-          <div className="flex items-center gap-3 min-w-0">
-            {chatTopic ? (
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="text-base font-semibold text-gray-800 truncate max-w-md">
-                  {chatTopic}
-                </div>
-                {chatStats && (
-                  <div className="flex items-center gap-2 text-xs text-gray-400 shrink-0">
-                    <span className="flex items-center gap-1">
-                      <HashIcon size={12} />
-                      {chatStats.userCount + chatStats.aiCount} 条消息
-                    </span>
-                    {chatStats.chartCount > 0 && (
-                      <span className="flex items-center gap-1">
-                        <BarChartIcon size={12} />
-                        {chatStats.chartCount} 个图表
-                      </span>
-                    )}
-                    {isStreaming && (
-                      <span className="flex items-center gap-1 text-brand-500">
-                        <span className="w-1.5 h-1.5 rounded-full bg-brand-500 animate-pulse" />
-                        生成中
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="text-base font-semibold text-gray-800">新对话</div>
-            )}
-          </div>
+        {/* 极简动态 Header (仿 ChatGPT) */}
+        <header className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 bg-white z-10 sticky top-0 shrink-0">
+          {/* 左侧：模型选择器 */}
           <div className="flex items-center">
+            <div className="relative">
+              <select 
+                className="appearance-none pl-3 pr-8 py-1.5 focus:bg-white hover:bg-gray-100 rounded-lg transition text-gray-700 text-[15px] font-semibold outline-none cursor-pointer bg-transparent border-0 ring-0 focus:ring-2 focus:ring-gray-200"
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value)}
+                disabled={isStreaming}
+              >
+                <option value="deepseek-chat">DeepSeek-Chat (标准智增)</option>
+                <option value="deepseek-reasoner">DeepSeek-Reasoner (深度思考)</option>
+                <option value="gpt-4o">GPT-4o (全能旗舰)</option>
+                <option value="claude-3-5-sonnet">Claude 3.5 Sonnet (编码专家)</option>
+              </select>
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 text-xs">▼</div>
+            </div>
+          </div>
+          
+          {/* 右侧：快捷操作 */}
+          <div className="flex items-center gap-1">
             <button
-              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-200 hover:bg-gray-50 transition-colors text-gray-600"
-              onClick={() => setShowDbPanel(true)}
-              title="配置数据库连接"
+              className="p-2 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+              title="删除当前对话"
+              onClick={async () => {
+                if (window.confirm('确定要删除当前数据洞察历史吗？此操作不可逆。')) {
+                  try {
+                    await deleteThread(threadId);
+                    handleNewChat();
+                  } catch (e) {
+                    console.error(e);
+                  }
+                }
+              }}
             >
-              <DatabaseIcon size={16} />
-              <span className={`w-2 h-2 rounded-full ${dbConnected ? 'bg-green-500' : 'bg-red-500'}`} />
-              <span>{dbConnected ? '数据库已连接' : '连接数据库'}</span>
+              <TrashIcon size={16} />
+            </button>
+            <button 
+              className="p-2 text-gray-500 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition" 
+              title="分享数据洞察"
+              onClick={() => {
+                window.alert('分享链接功能将在下一版本开放。当前您可以通过左下角的「导出报告」来分享洞察结论！');
+              }}
+            >
+              <ShareIcon size={16} />
             </button>
           </div>
         </header>
@@ -167,13 +153,16 @@ export default function Home() {
             messages={messages}
             isStreaming={isStreaming}
             onViewReport={(msg: any) => setReportMsg(msg)}
+            onEditSend={(msgId: string, newContent: string) => {
+              sendMessage(`[用户更正了问题]：\n${newContent}`, selectedModel);
+            }}
           />
         </div>
 
         <div className="absolute bottom-0 left-0 right-0 w-full bg-gradient-to-t from-white via-white to-transparent pt-10 pb-6 pointer-events-none">
           <div className="pointer-events-auto">
             <ChatInput
-              onSend={sendMessage}
+              onSend={(text: string) => sendMessage(text, selectedModel)}
               isStreaming={isStreaming}
               onStop={stopStreaming}
             />

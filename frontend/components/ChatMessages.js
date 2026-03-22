@@ -12,7 +12,7 @@ import SmartChart from './charts/SmartChart';
 import ReportGenerator from './report/ReportGenerator';
 import { getFileUrl } from '@/lib/api';
 import {
-  CopyIcon, CheckIcon, FileIcon, DownloadIcon, BarChartIcon, SparklesIcon, DatabaseIcon, BookOpenIcon
+  CopyIcon, CheckIcon, FileIcon, DownloadIcon, BarChartIcon, SparklesIcon, DatabaseIcon, BookOpenIcon, EditIcon, ChevronRightIcon
 } from './Icons';
 
 // 复制按钮组件
@@ -66,7 +66,7 @@ function AttachmentPreview({ files }) {
 }
 
 // 单个消息组件
-const MessageItem = memo(({ msg, isStreaming, isLast, onViewReport }) => {
+const MessageItem = memo(({ msg, isStreaming, isLast, onViewReport, onEditSend }) => {
   const contentObj = useMemo(() => {
     let text = typeof msg.content === 'string' ? msg.content : String(msg.content || '');
     const attachments = [];
@@ -86,19 +86,59 @@ const MessageItem = memo(({ msg, isStreaming, isLast, onViewReport }) => {
     return <ReactMarkdown remarkPlugins={[remarkGfm]}>{contentObj.text}</ReactMarkdown>;
   }, [contentObj.text]);
 
+  const [isEditing, setIsEditing] = useState(false);
+  const [editText, setEditText] = useState('');
+
   if (msg.role === 'user') {
     return (
       <div className="flex w-full justify-end mb-8 relative group/user">
         <div className="max-w-[80%] flex flex-col items-end relative">
           <AttachmentPreview files={contentObj.attachments} />
           {contentObj.text && (
-            <div className="flex items-end gap-2">
-              <div className="opacity-0 group-hover/user:opacity-100 transition-opacity duration-200 mb-1">
+            <div className="flex items-center gap-2 mt-1">
+              {/* 原生编辑和复制入口悬浮 */}
+              <div className="flex items-center gap-1 opacity-0 group-hover/user:opacity-100 transition-opacity duration-200">
+                <button
+                  className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                  title="编辑并重新发送"
+                  onClick={() => {
+                    setEditText(contentObj.text);
+                    setIsEditing(true);
+                  }}
+                >
+                  <EditIcon size={14} />
+                </button>
                 <CopyButton text={contentObj.text} />
               </div>
-              <div className="relative border border-gray-200 shadow-sm bg-gray-50 text-gray-800 px-5 py-3.5 rounded-2xl rounded-tr-sm whitespace-pre-wrap break-words text-[15px] leading-relaxed font-normal">
-                {contentObj.text}
-              </div>
+              
+              {isEditing ? (
+                <div className="bg-gray-50 border border-gray-200 shadow-sm px-4 py-3 rounded-2xl w-[400px]">
+                  <textarea 
+                    className="w-full bg-transparent outline-none resize-none text-[15px] text-gray-800"
+                    rows={3}
+                    value={editText}
+                    onChange={e => setEditText(e.target.value)}
+                    autoFocus
+                  />
+                  <div className="flex justify-end gap-2 mt-2">
+                    <button className="text-xs px-3 py-1.5 text-gray-500 hover:bg-gray-200 rounded-md transition-colors" onClick={() => setIsEditing(false)}>取消</button>
+                    <button 
+                      className="text-xs px-3 py-1.5 bg-black text-white hover:bg-gray-800 rounded-md shadow-sm transition-colors"
+                      onClick={() => {
+                         if (!editText.trim()) return;
+                         setIsEditing(false);
+                         if (onEditSend) onEditSend(msg.id, editText);
+                      }}
+                    >
+                      保存并重发
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="relative border border-transparent shadow-sm bg-[#f4f4f4] text-gray-900 px-5 py-3 rounded-3xl rounded-tr-sm whitespace-pre-wrap break-words text-[15px] leading-relaxed font-normal">
+                  {contentObj.text}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -106,51 +146,72 @@ const MessageItem = memo(({ msg, isStreaming, isLast, onViewReport }) => {
     );
   }
 
-  // AI 消息
+  // AI 消息 - 极简复合排版纸幅
   return (
-    <div className="flex w-full justify-start mb-12 gap-5 group/ai">
-      <div className="shrink-0 w-9 h-9 rounded-full border border-gray-100 flex items-center justify-center bg-gradient-to-br from-brand-50 to-brand-100 shadow-sm mt-1">
-        <SparklesIcon size={18} className="text-brand-600" />
+    <div className="flex w-full justify-start mb-12 gap-4 group/ai font-sans">
+      <div className="shrink-0 w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center bg-white shadow-sm mt-0.5">
+        <SparklesIcon size={16} className="text-gray-800" />
       </div>
       
-      <div className="flex-1 min-w-0 pt-1">
-        {/* 工具步骤区 */}
+      <div className="flex-1 min-w-0 pt-1 relative max-w-[90%]">
+        
+        {/* 工具步骤区 - 稍微弱化作为思考前置 */}
         {msg.toolSteps?.length > 0 && (
-          <div className="flex flex-col gap-3 mb-5">
+          <div className="flex flex-col gap-2 mb-4 bg-gray-50/50 p-3 rounded-2xl border border-gray-100">
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1.5"><SparklesIcon size={12}/> Analysis Process</div>
             {msg.toolSteps.map((step) => (
               <ToolStep key={step.id} step={step} />
             ))}
           </div>
         )}
 
-        {/* 文本内容区 */}
-        {contentObj.text && (
-          <div className="prose prose-slate max-w-none prose-p:leading-[1.8] prose-p:mb-5 prose-li:my-1.5 prose-pre:my-6 prose-pre:rounded-xl text-[15.5px] text-gray-800 tracking-[0.015em]">
-            {markdownContent}
-            {isStreaming && isLast && <span className="inline-block w-2.5 h-4 ml-1.5 bg-gray-400 rounded-sm animate-pulse align-middle" />}
-          </div>
-        )}
+        {/* 核心内容区 (文本与图表紧凑交织) */}
+        <div className="text-[15.5px] text-gray-800 leading-[1.8] space-y-5">
+          {/* 推理/思考链卡片 (仅当有 reasoning 数据时显示) */}
+          {msg.reasoning && (
+             <details className="group/reasoning mb-4 border border-gray-200 rounded-xl bg-gray-50/50 overflow-hidden" open={isStreaming && isLast && !contentObj.text}>
+               <summary className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-gray-500 hover:text-gray-700 hover:bg-gray-100 bg-gray-50 outline-none list-none select-none cursor-pointer transition-colors">
+                 <ChevronRightIcon size={14} className="transition-transform group-open/reasoning:rotate-90" />
+                 <SparklesIcon size={12} className="text-gray-400" />
+                 思考过程
+               </summary>
+               <div className="px-4 py-3 pt-2 text-[13.5px] text-gray-600 leading-[1.7] font-serif whitespace-pre-wrap break-words bg-white/50 border-t border-gray-100 italic">
+                 {msg.reasoning}
+                 {isStreaming && isLast && !contentObj.text && <span className="inline-block w-2.5 h-3 ml-1 bg-gray-400 animate-pulse align-middle" />}
+               </div>
+             </details>
+          )}
+
+          {contentObj.text && (
+            <div className="prose prose-slate max-w-none prose-p:my-2 prose-li:my-1 prose-pre:my-4 prose-pre:rounded-xl prose-pre:bg-gray-50 prose-pre:text-gray-800 prose-pre:border prose-pre:border-gray-200">
+              {markdownContent}
+              {isStreaming && isLast && <span className="inline-block w-2.5 h-4 ml-1.5 bg-gray-800 rounded-sm animate-pulse align-middle" />}
+            </div>
+          )}
+
+          {/* 图表展示区挂载于文字流下方 */}
+          {msg.charts?.length > 0 && (
+            <div className="flex flex-col gap-6 mt-2">
+              {msg.charts.map((chart) => (
+                <div key={chart.id} className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4 hover:shadow-md transition-shadow">
+                   <ChartWrapper chartJson={chart.json} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* 流式思考指示器 */}
         {isStreaming && isLast && !contentObj.text && (!msg.toolSteps || msg.toolSteps.length === 0) && (
           <div className="flex items-center gap-2 text-gray-500 text-sm py-2">
             <SparklesIcon size={16} className="animate-spin text-gray-400" />
-            <span className="animate-pulse">AI 正在思考...</span>
+            <span className="animate-pulse">AI 推理中...</span>
           </div>
         )}
 
-        {/* 图表展示区 */}
-        {msg.charts?.length > 0 && (
-          <div className="mt-6 flex flex-col gap-6">
-            {msg.charts.map((chart) => (
-              <ChartWrapper key={chart.id} chartJson={chart.json} />
-            ))}
-          </div>
-        )}
-
-        {/* 文件下载卡片区 */}
+        {/* 文件导出区 */}
         {msg.files?.length > 0 && (
-          <div className="mt-4 flex flex-wrap gap-3">
+          <div className="mt-6 flex flex-wrap gap-3">
             {msg.files.map((file, i) => (
               <a
                 key={i}
@@ -160,33 +221,35 @@ const MessageItem = memo(({ msg, isStreaming, isLast, onViewReport }) => {
                 target="_blank"
                 rel="noreferrer"
               >
-                <div className="p-2 bg-brand-50 rounded-lg text-brand-600">
+                <div className="p-2 bg-gray-100 rounded-lg text-gray-600">
                   <FileIcon size={20} />
                 </div>
                 <div className="flex-1 min-w-0 overflow-hidden">
                   <div className="font-medium text-sm text-gray-900 truncate">{file.filename}</div>
-                  <div className="text-xs text-gray-500 mt-0.5">{file.message || '点击下载导出文件'}</div>
+                  <div className="text-xs text-gray-500 mt-0.5">{file.message || '点击下载文档'}</div>
                 </div>
-                <DownloadIcon className="text-gray-400 group-hover/file:text-brand-600" size={16} />
+                <DownloadIcon className="text-gray-400 group-hover/file:text-gray-800" size={16} />
               </a>
             ))}
           </div>
         )}
 
-        {/* 底部操作区 */}
+        {/* 底部融合操作栏：极简灰底单行动条 */}
         {(!isStreaming || !isLast) && (contentObj.text || msg.charts?.length > 0) && (
-          <div className="flex items-center gap-2 mt-4 pt-3 border-t border-gray-100">
+          <div className="flex items-center gap-3 mt-6 pt-1 opacity-0 group-hover/ai:opacity-100 transition-opacity">
             {contentObj.text && <CopyButton text={contentObj.text} />}
+            
             {(msg.charts?.length > 0 || contentObj.text?.includes('|')) && (
               <ReportGenerator message={msg} />
             )}
+            
             {(contentObj.text || msg.charts?.length > 0) && onViewReport && (
               <button
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-brand-600 hover:bg-brand-50 rounded-md transition-colors font-medium"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors font-medium border border-indigo-100/50 shadow-sm"
                 onClick={() => onViewReport(msg)}
               >
                 <BookOpenIcon size={14} />
-                查看完整报告
+                进入全视野报告模式
               </button>
             )}
           </div>
@@ -326,7 +389,7 @@ const ChartWrapper = memo(({ chartJson }) => {
 
 ChartWrapper.displayName = 'ChartWrapper';
 
-export default function ChatMessages({ messages, isStreaming, onViewReport }) {
+export default function ChatMessages({ messages, isStreaming, onViewReport, onEditSend }) {
   const bottomRef = useRef(null);
   const containerRef = useRef(null);
   const [isUserAtBottom, setIsUserAtBottom] = useState(true);
@@ -399,6 +462,7 @@ export default function ChatMessages({ messages, isStreaming, onViewReport }) {
             isStreaming={isStreaming}
             isLast={index === messages.length - 1}
             onViewReport={onViewReport}
+            onEditSend={onEditSend}
           />
         ))}
         <div ref={bottomRef} className="h-4" />

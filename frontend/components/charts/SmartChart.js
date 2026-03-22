@@ -9,12 +9,13 @@
  * 4. 提供图表类型手动切换 UI，以及丰富的色彩主题切换
  */
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import EChartsRenderer, { inferChartType } from './EChartsRenderer';
-import { DatabaseIcon, BarChartIcon, SettingsIcon } from '../Icons';
+import { DatabaseIcon, BarChartIcon, SettingsIcon, SparklesIcon, ChevronDownIcon, CheckIcon } from '../Icons';
 
 // 图表类型字典 (仅用于 UI 显示和切换器)
 const chartTypes = [
+  { value: 'table', label: '数据表格', icon: '📋', category: 'basic' },
   { value: 'bar', label: '柱状图', icon: '📊', category: 'basic' },
   { value: 'horizontal_bar', label: '条形图', icon: '📈', category: 'basic' },
   { value: 'line', label: '折线图', icon: '📉', category: 'basic' },
@@ -29,9 +30,8 @@ const chartTypes = [
   { value: 'sunburst', label: '旭日图', icon: '☀️', category: 'advanced' },
   { value: 'boxplot', label: '箱线图', icon: '📦', category: 'advanced' },
   { value: 'wordcloud', label: '词云', icon: '☁️', category: 'advanced' },
-  { value: 'polar_bar', label: '极坐标柱状图', icon: '🌀', category: 'advanced' },
+  { value: 'polar_bar', label: '圆环柱图', icon: '🌀', category: 'advanced' },
   { value: 'waterfall', label: '瀑布图', icon: '💧', category: 'advanced' },
-  { value: 'bullet', label: '子弹图', icon: '🎯', category: 'advanced' },
   { value: 'sankey', label: '桑基图', icon: '〰️', category: 'advanced' },
 ];
 
@@ -70,9 +70,11 @@ export default function SmartChart({
   colorCol,
   sizeCol,
   height = 400,
+  readonly = false,
 }) {
   const [selectedType, setSelectedType] = useState(explicitType);
   const [selectedTheme, setSelectedTheme] = useState('default');
+  const [activeTab, setActiveTab] = useState(null); // 'type' | 'color' | null
 
   const data = useMemo(() => parseChartData(rawData), [rawData]);
 
@@ -106,27 +108,42 @@ export default function SmartChart({
 
   // 最终使用的属性
   const actualData = data.type === 'chart_data' ? data.data : data;
-  const inferredType =
-    selectedType ||
-    chartConfig?.chartType ||
-    inferChartType(actualData, chartConfig?.xCol || xCol, chartConfig?.yCol || yCol);
-
-  const config = {
-    chartType: inferredType,
-    xCol: chartConfig?.xCol || xCol || Object.keys(actualData[0] || {})[0],
-    yCol: chartConfig?.yCol || yCol || Object.keys(actualData[0] || {})[1],
-    title: chartConfig?.title || title,
-    colorCol: chartConfig?.colorCol || colorCol,
-    sizeCol: chartConfig?.sizeCol || sizeCol,
-    colorTheme: selectedTheme,
-  };
-
-  const renderChart = () => {
+    const renderChart = () => {
     if (!actualData || actualData.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center p-8 bg-gray-50 border border-gray-200 rounded-xl text-gray-400">
           <DatabaseIcon size={32} className="mb-2 opacity-50" />
           <span className="text-sm">暂无有效格式的图表数据</span>
+        </div>
+      );
+    }
+
+    // 表格视图渲染逻辑
+    if (inferredType === 'table') {
+      const columns = Object.keys(actualData[0] || {});
+      return (
+        <div className="w-full overflow-x-auto">
+          <table className="w-full text-sm text-left border-collapse">
+            <thead className="bg-gray-50 text-gray-600 font-medium border-b border-gray-200">
+              <tr>
+                {columns.map(col => (
+                  <th key={col} className="px-4 py-2 whitespace-nowrap">{col}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {actualData.slice(0, 500).map((row, i) => (
+                <tr key={i} className="hover:bg-gray-50/50 transition-colors">
+                  {columns.map(col => (
+                    <td key={col} className="px-4 py-2 text-gray-700 whitespace-nowrap">{String(row[col] ?? '')}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {actualData.length > 500 && (
+            <div className="text-center py-2 text-xs text-gray-400">仅显示前 500 行，完整数据请导出</div>
+          )}
         </div>
       );
     }
@@ -140,63 +157,107 @@ export default function SmartChart({
       height,
     };
 
-    // 专注于一个稳定的高级图表引擎 ECharts
     return <EChartsRenderer {...chartProps} />;
   };
 
   const currentTypeMeta = chartTypes.find((t) => t.value === inferredType) || chartTypes[0];
 
   return (
-    <div className="w-full bg-white rounded-xl overflow-hidden shadow-sm border border-gray-200 translate-z-0 transition-shadow hover:shadow-md group">
-      {/* 智能工具栏：悬浮时显示或者默认置顶 */}
-      {config.xCol && config.yCol && (
-        <div className="flex items-center justify-between px-3 py-2 bg-gray-50/80 border-b border-gray-200 text-xs shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]">
-          <div className="flex items-center gap-3 overflow-hidden">
-            <div className="flex items-center gap-1.5 shrink-0 bg-white px-2 py-1.5 rounded-md border border-gray-200 shadow-sm text-gray-700 font-medium hover:border-brand-300 transition-colors">
-              <span>{currentTypeMeta?.icon}</span>
-              <select
-                value={inferredType}
-                onChange={(e) => setSelectedType(e.target.value)}
-                className="text-xs bg-transparent border-none focus:ring-0 cursor-pointer font-medium p-0 pr-4 truncate max-w-[100px]"
-              >
-                {chartTypes.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
+    <div className="w-full bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 transition-all font-sans">
+      
+      {/* 极简顶栏 */}
+      {config.xCol && config.yCol && !readonly && (
+        <div className="flex flex-col border-b border-gray-100 bg-gray-50/30">
+          <div className="flex items-center justify-between px-4 py-3">
+            <div className="flex items-center gap-2">
+              <span className="text-gray-500">{currentTypeMeta?.icon}</span>
+              <span className="font-semibold text-[13px] text-gray-800 tracking-wide">{config.title || currentTypeMeta?.label || '数据可视化'}</span>
             </div>
-            <div className="flex items-center text-gray-400 gap-1.5 truncate">
-              <span className="shrink-0 bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-mono text-[10px]">X</span>
-              <span className="truncate max-w-[80px]" title={config.xCol}>{config.xCol}</span>
-              <span className="text-gray-300">|</span>
-              <span className="shrink-0 bg-green-50 text-green-600 px-1.5 py-0.5 rounded font-mono text-[10px]">Y</span>
-              <span className="truncate max-w-[80px]" title={config.yCol}>{config.yCol}</span>
-            </div>
-          </div>
-          
-          {/* 配色方案选择器 */}
-          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide shrink-0 ml-4 max-w-[200px]">
-            {colorThemesList.map((theme) => (
+            
+            <div className="flex items-center gap-2">
               <button
-                key={theme.value}
-                className={`w-[18px] h-[18px] rounded-full border-2 transition-all ${
-                  selectedTheme === theme.value ? 'scale-110 shadow-sm' : 'scale-90 opacity-60 hover:opacity-100 hover:scale-100'
-                }`}
-                style={{
-                  backgroundColor: theme.color,
-                  borderColor: selectedTheme === theme.value ? '#374151' : 'transparent'
-                }}
-                onClick={() => setSelectedTheme(theme.value)}
-                title={theme.label}
-              />
-            ))}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border ${activeTab === 'type' ? 'bg-white border-gray-200 text-brand-600 shadow-sm' : 'border-transparent text-gray-600 hover:bg-gray-200/50'}`}
+                onClick={() => setActiveTab(activeTab === 'type' ? null : 'type')}
+              >
+                <BarChartIcon size={14} />
+                图表类型
+              </button>
+              <button
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border ${activeTab === 'color' ? 'bg-white border-gray-200 text-brand-600 shadow-sm' : 'border-transparent text-gray-600 hover:bg-gray-200/50'}`}
+                onClick={() => setActiveTab(activeTab === 'color' ? null : 'color')}
+                disabled={inferredType === 'table'}
+              >
+                <SparklesIcon size={14} />
+                配色方案
+              </button>
+            </div>
           </div>
+
+          {/* 展开的平铺格栅内容 */}
+          {activeTab === 'type' && (
+            <div className="px-4 py-4 bg-white border-t border-gray-100 animate-in fade-in slide-in-from-top-1 duration-200">
+              <div className="text-xs font-bold text-gray-400 mb-2.5">基本数据与图表</div>
+              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2 mb-5">
+                {chartTypes.filter(t => t.category === 'basic').map(t => (
+                  <button
+                    key={t.value}
+                    onClick={() => setSelectedType(t.value)}
+                    className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all ${
+                      inferredType === t.value 
+                        ? 'bg-brand-50 border-brand-200 text-brand-700 shadow-sm' 
+                        : 'bg-gray-50/50 border-gray-100 hover:bg-gray-100 hover:border-gray-200 text-gray-600'
+                    }`}
+                  >
+                    <span className="text-[1.2rem] mb-1">{t.icon}</span>
+                    <span className="text-[10px] font-medium leading-tight">{t.label}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="text-xs font-bold text-gray-400 mb-2.5">高级复杂图表</div>
+              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
+                {chartTypes.filter(t => t.category === 'advanced').map(t => (
+                  <button
+                    key={t.value}
+                    onClick={() => { setSelectedType(t.value); if(t.value !== 'table' && !selectedTheme) setSelectedTheme('default'); }}
+                    className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all ${
+                      inferredType === t.value 
+                        ? 'bg-brand-50 border-brand-200 text-brand-700 shadow-sm' 
+                        : 'bg-gray-50/50 border-gray-100 hover:bg-gray-100 hover:border-gray-200 text-gray-600'
+                    }`}
+                  >
+                    <span className="text-[1.2rem] mb-1">{t.icon}</span>
+                    <span className="text-[10px] font-medium leading-tight text-center">{t.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'color' && (
+            <div className="px-4 py-4 bg-white border-t border-gray-100 animate-in fade-in slide-in-from-top-1 duration-200">
+              <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-9 gap-2">
+                {colorThemesList.map(t => (
+                  <button
+                    key={t.value}
+                    onClick={() => setSelectedTheme(t.value)}
+                    className={`flex flex-col items-center justify-center p-2.5 rounded-xl border transition-all ${
+                      selectedTheme === t.value 
+                        ? 'bg-gray-50 border-gray-300 shadow-sm text-gray-800' 
+                        : 'border-transparent hover:bg-gray-50 hover:border-gray-200 text-gray-500'
+                    }`}
+                  >
+                    <div className="w-6 h-6 rounded-full mb-1.5 shadow-sm ring-1 ring-black/5" style={{ backgroundColor: t.color }} />
+                    <span className="text-[10px] font-medium leading-tight text-center">{t.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {/* 渲染区域 */}
-      <div className="p-4 relative">
+      <div className={`relative bg-white ${inferredType !== 'table' ? 'p-3' : 'p-0'}`}>
         {renderChart()}
       </div>
     </div>
