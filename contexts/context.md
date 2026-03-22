@@ -17,11 +17,12 @@
 
 ### 2.2 前端交互 (Frontend)
 
-- **框架**: Next.js (App Router) + React
-- **样式**: Vanilla CSS 暗色主题设计系统
-- **图表渲染**: ECharts (通过 SmartChart 组件)
+- **框架**: Next.js (App Router) + React + Tailwind CSS
+- **样式**: 白雅极简设计（仿 ChatGPT 产品级 UI）
+- **图表渲染**: ECharts (通过 SmartChart 组件支持独立高级属性覆盖与配色自选)
+- **全局组件**: SearchModal (离线历史搜索), ReportsDashboard (卡片化报告大屏), SettingsModal (全局系统偏好存取)
 - **Markdown 渲染**: react-markdown + remark-gfm
-- **通信**: SSE (Server-Sent Events) 流式对话
+- **通信**: SSE (Server-Sent Events) 流式对话，支持带有 Reasoning（深度思考）的实时打字机效果。
 
 ### 2.3 数据库 (Database)
 
@@ -30,12 +31,14 @@
 
 ### 2.4 核心功能
 
-- **多 Schema 智能探索**: 自动发现并列出所有 schema 和表
-- **跨轮对话记忆**: 基于 LangGraph SqliteSaver，分步提需求不丢上下文
-- **技能与业务流挂载 (Skills & Workflows)**: 自动加载根目录下 `skills/` 和 `workflows/` 的 Markdown 规范文件，实现类似 Claude/Gemini 的专业预设。
-- **11 种图表**: bar, horizontal_bar, line, area, pie, scatter, histogram, box, heatmap, treemap, funnel
-- **报告导出**: Markdown / CSV / Excel，前端文件下载
-- **消息推送**: 飞书群 Webhook (交互式卡片) / 邮件 SMTP
+- **多 Schema 智能探索**: 自动发现并列出所有 schema 和表。
+- **跨轮对话记忆与搜索**: 基于 LangGraph SqliteSaver 的长程显性记忆，配合前端极速检索面板。
+- **技能与业务流挂载 (Skills & Workflows)**: 自动加载 `skills/` 和 `workflows/` 规范文件，并在前端实现 System Prompt 持久化动态下放。
+- **顶级 BI 级图表库**: 15+ 种图表形态（含 Sankey 桑基图），9 套世界级商业调色板（Tableau/AntV 等），自带图表属性的热重写（百分比转换、XY轴名称重置）。
+- **文件与本地化分析 (DuckDB)**: 上传 Excel/CSV 自动入库内嵌引擎，实现跨文档 SQL 级交叉探索。
+- **交互级报告大盘 (Dashboard)**: 自动汇聚并抽取历史对话中的含图表节点，生成独立的分析画廊。
+- **报告导出**: 高保真 Markdown / CSV / 真图导出。
+- **消息推送**: 飞书群 Webhook (交互式卡片) / 邮件 SMTP。
 
 ## 3. 开发规范 (必须严格遵守)
 
@@ -52,6 +55,7 @@
 4. ~~**Phase 4**: 实现前端 Web 对话界面与报表图表渲染机制。~~ ✅
 5. ~~**Phase 5**: 多 Schema 适配 / 对话记忆 / 导出修复 / 图表增强 / 通知升级。~~ ✅
 6. ~~**Phase 6**: 前端迁移：Chainlit → Next.js + FastAPI 前后端分离。~~ ✅
-7. **Phase 7**: 深度业务报告、权限管理与 UI 精打磨。
-   - ✅ DuckDB 本地文件分析引擎（CSV/Excel/Parquet 上传后 SQL 分析）
-   - ✅ 企业知识记忆增强（持久化术语/规则 + 全文搜索）
+7. ~~**Phase 7**: 深层数据能力进化：DuckDB 文件查析与企业知识库接入。~~ ✅
+8. ~~**Phase 8**: 极简白雅 UI 重构：仿 ChatGPT 对话流、Settings、Reports看板全覆盖。~~ ✅
+9. ~~**Phase 9**: 强化定制能力：图表 XY 轴覆写、百分比占比格式化以及动态 System Prompt 注入。~~ ✅
+10. **Phase 10 (Future)**: 云端同步、多用户账户隔离与更纵深的暗色主题适配。
