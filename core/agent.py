@@ -16,9 +16,8 @@ from core.tools.db_tools import (
     switch_database_tool,
 )
 from core.tools.chart_tools import create_chart_tool
+from core.tools.report_tools import export_report_tool, export_data_tool
 from core.tools.notification_tools import (
-    export_report_tool,
-    export_data_tool,
     send_feishu_notification_tool,
     send_email_notification_tool,
 )
@@ -28,6 +27,10 @@ from core.tools.knowledge_tools import (
     save_knowledge_tool,
     search_knowledge_tool,
     get_available_knowledge_str
+)
+from core.tools.rag_tools import (
+    sync_db_metadata_tool,
+    search_knowledge_rag_tool
 )
 from core.tools.file_analysis_tools import (
     list_uploaded_files_tool,
@@ -157,6 +160,9 @@ agent_tools = [
     read_knowledge_doc_tool,
     save_knowledge_tool,
     search_knowledge_tool,
+    # RAG 向量检索
+    sync_db_metadata_tool,
+    search_knowledge_rag_tool,
     # 通用辅助工具
     calculate_tool,
     format_number_tool,
@@ -190,7 +196,31 @@ def agent_state_modifier(state: dict, config: dict):
     
     # 动态追加环境 Skills / Workflows 提示
     knowledge_injection = get_available_knowledge_str()
-    final_prompt = base_prompt + "\n\n" + knowledge_injection
+    
+    # ================= 动态 RAG 检索注入 =================
+    rag_injection = ""
+    user_query = ""
+    # 查找最后一条由用户发出的消息
+    for msg in reversed(state.get("messages", [])):
+        if msg.type == "user":
+            user_query = msg.content
+            break
+            
+    if user_query:
+        try:
+            from core.rag.vector_store import get_metadata_store
+            store = get_metadata_store()
+            # 根据用户问题去 RAG 检索大概率会用到的表结构
+            docs = store.similarity_search(user_query, k=3)
+            if docs:
+                rag_injection = "\n\n【🔗 Data Context via RAG】\n以下是从向量库中检索出的可能与当前查询相关的表结构参考（如无相关性请忽略，注意表结构可能会随时变动，以 list_tables/describe_table 的真实查询结果为准）：\n"
+                for doc in docs:
+                    rag_injection += f"{doc.page_content}\n---\n"
+        except Exception as e:
+            # RAG 如果初始化或执行失败，不能阻塞 Agent 主流程
+            print(f"[RAG Warning] {str(e)}")
+    
+    final_prompt = base_prompt + "\n\n" + knowledge_injection + rag_injection
     
     return final_prompt
 
