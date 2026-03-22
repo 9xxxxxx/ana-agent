@@ -77,7 +77,7 @@ export async function uploadFile(file) {
  * 返回一个 EventSource 包装对象
  */
 export function streamChat(message, threadId, model, systemPrompt, callbacks) {
-  const { onToken, onReasoning, onToolStart, onToolInput, onToolEnd, onChart, onFile, onDone, onError } = callbacks;
+  const { onToken, onReasoning, onToolStart, onToolInput, onToolEnd, onChart, onFile, onCodeOutput, onDone, onError } = callbacks;
 
   const controller = new AbortController();
 
@@ -213,6 +213,9 @@ export function streamChat(message, threadId, model, systemPrompt, callbacks) {
               break;
             case 'file':
               onFile?.(data.filename, data.url, data.message);
+              break;
+            case 'code_output':
+              onCodeOutput?.(data.id, data.stdout, data.images);
               break;
             case 'done':
               onDone?.();

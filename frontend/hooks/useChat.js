@@ -46,6 +46,7 @@ export function useChat(threadId) {
           toolSteps: m.toolSteps || [],
           charts: m.charts || [],
           files: m.files || [],
+          codeOutputs: m.codeOutputs || [],
         }));
         console.log('[useChat] Loaded messages:', loadedMessages.length);
         setMessages(loadedMessages);
@@ -93,6 +94,7 @@ export function useChat(threadId) {
         toolSteps: [],
         charts: [],
         files: [],
+        codeOutputs: [],
       };
 
       setMessages((prev) => [...prev, userMsg, assistantMsg]);
@@ -183,6 +185,13 @@ export function useChat(threadId) {
           updateAssistant((m) => ({
             ...m,
             files: [...m.files, { filename, url, message }],
+          }));
+        },
+
+        onCodeOutput: (id, stdout, images) => {
+          updateAssistant((m) => ({
+            ...m,
+            codeOutputs: [...(m.codeOutputs || []), { id, stdout, images }],
           }));
         },
 

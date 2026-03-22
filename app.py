@@ -238,6 +238,7 @@ async def chat_endpoint(request: Request):
 
                     # 检测图表数据标记（chart_tools 返回 [CHART_DATA]）
                     is_chart = False
+                    is_code_output = False
                     if "[CHART_DATA]" in output_text or "[PLOTLY_CHART]" in output_text:
                         try:
                             start_idx = output_text.find("{")
@@ -252,6 +253,24 @@ async def chat_endpoint(request: Request):
                                 }
                                 output_text = "✅ 动态数据图表渲染完毕"
                                 is_chart = True
+                        except BaseException:
+                            pass
+
+                    # 检测 Python 代码执行结果标记（code_interpreter_tool 返回 [CODE_OUTPUT]）
+                    elif "[CODE_OUTPUT]" in output_text:
+                        try:
+                            code_json_str = output_text.split("[CODE_OUTPUT]", 1)[1].strip()
+                            code_data = json.loads(code_json_str)
+                            yield {
+                                "event": "code_output",
+                                "data": json.dumps({
+                                    "id": tc_id,
+                                    "stdout": code_data.get("stdout", ""),
+                                    "images": code_data.get("images", []),
+                                }, ensure_ascii=False)
+                            }
+                            output_text = "✅ Python 代码执行完毕"
+                            is_code_output = True
                         except BaseException:
                             pass
 
@@ -274,9 +293,9 @@ async def chat_endpoint(request: Request):
 
                     # 工具结果
                     if tc_id and tc_id in tool_steps:
-                        # 图表数据已通过 chart 事件发送，tool_end 只发简短确认
+                        # 图表/代码输出已通过专用事件发送，tool_end 只发简短确认
                         display_output = output_text
-                        if not is_chart and len(display_output) > 500:
+                        if not is_chart and not is_code_output and len(display_output) > 500:
                             display_output = display_output[:500] + "\n... (已截断)"
                         yield {
                             "event": "tool_end",
@@ -389,6 +408,23 @@ def get_history(thread_id: str):
                             last_msg["charts"].append({"id": tc_id, "json": chart_json})
                             output_text = "✅ 动态数据图表渲染完毕"
                             is_chart = True
+                    except BaseException:
+                        pass
+                
+                # 提取 Python 代码执行结果
+                elif "[CODE_OUTPUT]" in output_text:
+                    try:
+                        code_json_str = output_text.split("[CODE_OUTPUT]", 1)[1].strip()
+                        code_data = json.loads(code_json_str)
+                        if "codeOutputs" not in last_msg:
+                            last_msg["codeOutputs"] = []
+                        last_msg["codeOutputs"].append({
+                            "id": tc_id,
+                            "stdout": code_data.get("stdout", ""),
+                            "images": code_data.get("images", []),
+                        })
+                        output_text = "✅ Python 代码执行完毕"
+                        is_chart = True  # 复用标志位跳过截断
                     except BaseException:
                         pass
                 
