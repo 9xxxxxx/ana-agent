@@ -44,7 +44,9 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   SquarePen,
-  LayoutGrid
+  LayoutGrid,
+  AlertTriangle,
+  Info
 } from 'lucide-react';
 
 export const UserIcon = User;
@@ -90,3 +92,5 @@ export const PanelLeftCloseIcon = PanelLeftClose;
 export const PanelLeftOpenIcon = PanelLeftOpen;
 export const EditIcon = SquarePen;
 export const LayoutGridIcon = LayoutGrid;
+export const AlertIcon = AlertTriangle;
+export const InfoIcon = Info;

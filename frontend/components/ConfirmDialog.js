@@ -1,193 +1,93 @@
 'use client';
 
 /**
- * 自定义确认对话框组件
+ * 自定义确认对话框组件 (Tailwind 重构版)
  */
+import { useEffect } from 'react';
+import { AlertIcon, TrashIcon, InfoIcon, CloseIcon } from './Icons';
 
 export default function ConfirmDialog({ isOpen, title, message, onConfirm, onCancel, type = 'warning' }) {
+  // 禁止背景滚动
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'auto';
+    }
+    return () => {
+      document.body.style.overflow = 'auto';
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
-  const typeStyles = {
+  const typeConfig = {
     warning: {
-      icon: '⚠️',
-      bgColor: 'rgba(255, 152, 0, 0.1)',
-      borderColor: 'rgba(255, 152, 0, 0.3)',
-      confirmBtnBg: '#ff9800',
-      confirmBtnHover: '#f57c00'
+      icon: <AlertIcon size={22} className="text-amber-600" />,
+      iconBg: 'bg-amber-100',
+      confirmBtnClass: 'bg-amber-500 hover:bg-amber-600 text-white',
     },
     danger: {
-      icon: '🗑️',
-      bgColor: 'rgba(244, 67, 54, 0.1)',
-      borderColor: 'rgba(244, 67, 54, 0.3)',
-      confirmBtnBg: '#f44336',
-      confirmBtnHover: '#d32f2f'
+      icon: <TrashIcon size={22} className="text-rose-600" />,
+      iconBg: 'bg-rose-100',
+      confirmBtnClass: 'bg-rose-600 hover:bg-rose-700 text-white',
     },
     info: {
-      icon: 'ℹ️',
-      bgColor: 'rgba(33, 150, 243, 0.1)',
-      borderColor: 'rgba(33, 150, 243, 0.3)',
-      confirmBtnBg: '#2196f3',
-      confirmBtnHover: '#1976d2'
+      icon: <InfoIcon size={22} className="text-blue-600" />,
+      iconBg: 'bg-blue-100',
+      confirmBtnClass: 'bg-blue-600 hover:bg-blue-700 text-white',
     }
   };
 
-  const style = typeStyles[type] || typeStyles.warning;
+  const style = typeConfig[type] || typeConfig.warning;
 
   return (
-    <div className="confirm-dialog-overlay">
-      <div className="confirm-dialog">
-        <div className="confirm-dialog-header">
-          <span className="confirm-dialog-icon">{style.icon}</span>
-          <h3 className="confirm-dialog-title">{title}</h3>
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+      {/* 弹窗实体 */}
+      <div className="relative w-full max-w-md bg-white rounded-2xl shadow-xl border border-gray-100 animate-in zoom-in-95 slide-in-from-bottom-4 duration-300 overflow-hidden">
+        {/* 关闭按钮 */}
+        <button 
+          onClick={onCancel}
+          className="absolute right-4 top-4 p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+        >
+          <CloseIcon size={18} />
+        </button>
+
+        <div className="p-6">
+          <div className="flex sm:items-start gap-4 flex-col sm:flex-row items-center text-center sm:text-left">
+            {/* 图标容器区 */}
+            <div className={`shrink-0 flex items-center justify-center w-12 h-12 rounded-full ${style.iconBg}`}>
+              {style.icon}
+            </div>
+
+            {/* 文本区 */}
+            <div className="flex-1 mt-1 sm:mt-0">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                {title}
+              </h3>
+              <p className="text-[15px] leading-relaxed text-gray-600">
+                {message}
+              </p>
+            </div>
+          </div>
         </div>
-        <div className="confirm-dialog-body">
-          <p className="confirm-dialog-message">{message}</p>
-        </div>
-        <div className="confirm-dialog-footer">
+
+        {/* 底部按钮区 */}
+        <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex flex-col-reverse sm:flex-row sm:justify-end gap-3 rounded-b-2xl">
           <button
-            className="confirm-dialog-btn confirm-dialog-btn-cancel"
+            className="w-full sm:w-auto px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200 focus:ring-offset-1 transition-all"
             onClick={onCancel}
           >
             取消
           </button>
           <button
-            className="confirm-dialog-btn confirm-dialog-btn-confirm"
+            className={`w-full sm:w-auto px-5 py-2.5 text-sm font-medium rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-1 transition-all ${style.confirmBtnClass}`}
             onClick={onConfirm}
-            style={{
-              backgroundColor: style.confirmBtnBg
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.backgroundColor = style.confirmBtnHover;
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.backgroundColor = style.confirmBtnBg;
-            }}
           >
-            确认
+            确认执行
           </button>
         </div>
       </div>
-
-      <style jsx>{`
-        .confirm-dialog-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0, 0, 0, 0.5);
-          backdrop-filter: blur(4px);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 9999;
-          animation: fadeIn 0.2s ease-out;
-        }
-
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-
-        .confirm-dialog {
-          background: var(--bg-primary);
-          border: 1px solid var(--border-color);
-          border-radius: 12px;
-          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-          max-width: 400px;
-          width: 90%;
-          animation: slideUp 0.3s ease-out;
-          overflow: hidden;
-        }
-
-        @keyframes slideUp {
-          from {
-            transform: translateY(20px);
-            opacity: 0;
-          }
-          to {
-            transform: translateY(0);
-            opacity: 1;
-          }
-        }
-
-        .confirm-dialog-header {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 20px 24px;
-          border-bottom: 1px solid var(--border-color);
-        }
-
-        .confirm-dialog-icon {
-          font-size: 28px;
-        }
-
-        .confirm-dialog-title {
-          margin: 0;
-          font-size: 18px;
-          font-weight: 600;
-          color: var(--text-primary);
-        }
-
-        .confirm-dialog-body {
-          padding: 20px 24px;
-        }
-
-        .confirm-dialog-message {
-          margin: 0;
-          font-size: 15px;
-          line-height: 1.6;
-          color: var(--text-secondary);
-        }
-
-        .confirm-dialog-footer {
-          display: flex;
-          gap: 12px;
-          padding: 16px 24px;
-          background: var(--bg-secondary);
-          border-top: 1px solid var(--border-color);
-        }
-
-        .confirm-dialog-btn {
-          flex: 1;
-          padding: 10px 20px;
-          border: none;
-          border-radius: 8px;
-          font-size: 14px;
-          font-weight: 500;
-          cursor: pointer;
-          transition: all 0.2s ease;
-        }
-
-        .confirm-dialog-btn-cancel {
-          background: var(--bg-primary);
-          color: var(--text-secondary);
-          border: 1px solid var(--border-color);
-        }
-
-        .confirm-dialog-btn-cancel:hover {
-          background: var(--bg-hover);
-          border-color: var(--border-hover);
-        }
-
-        .confirm-dialog-btn-confirm {
-          color: white;
-        }
-
-        .confirm-dialog-btn-confirm:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-        }
-
-        .confirm-dialog-btn:active {
-          transform: translateY(0);
-        }
-      `}</style>
     </div>
   );
 }
