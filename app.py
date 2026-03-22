@@ -148,12 +148,20 @@ async def chat_endpoint(request: Request):
     message = body.get("message", "")
     thread_id = body.get("thread_id", "default")
     model = body.get("model", "deepseek-chat")
+    system_prompt = body.get("system_prompt", "")
 
     if not message.strip():
         return JSONResponse({"error": "消息不能为空"}, status_code=400)
 
     # 通过 configurable.model_name 动态配置 LLM 实例（需要 agent.py 支持）
-    config = {"configurable": {"thread_id": thread_id, "model_name": model}}
+    # 同时透传 system_prompt 以便 agent.py 中的 state_modifier 读取
+    config = {
+        "configurable": {
+            "thread_id": thread_id, 
+            "model_name": model,
+            "system_prompt": system_prompt
+        }
+    }
 
     async def event_generator():
         try:

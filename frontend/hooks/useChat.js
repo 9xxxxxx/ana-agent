@@ -110,7 +110,15 @@ export function useChat(threadId) {
         });
       };
 
-      const handle = streamChat(content, threadId, model, {
+      // 从本地存储获取自定义提示词
+      let customSystemPrompt = '';
+      try {
+        customSystemPrompt = localStorage.getItem('sqlAgentSystemPrompt') || '';
+      } catch (e) {
+        console.warn('读取设置失败', e);
+      }
+
+      const handle = streamChat(content, threadId, model, customSystemPrompt, {
         onToken: (token) => {
           updateAssistant((m) => ({ ...m, content: m.content + token }));
         },

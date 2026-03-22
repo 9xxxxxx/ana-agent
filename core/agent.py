@@ -179,6 +179,23 @@ _conn = sqlite3.connect("agent_memory.db", check_same_thread=False)
 memory = SqliteSaver(_conn)
 
 
+def agent_state_modifier(state: dict, config: dict):
+    """
+    动态生成 Agent 的 System Prompt，支持从前端设置(config)中覆盖默认提示词。
+    """
+    # 尝试从请求上下文中获取用户自定义的 Prompt，否则回退到内置的 SYSTEM_PROMPT
+    custom_prompt = config.get("configurable", {}).get("system_prompt", "")
+    base_prompt = custom_prompt if custom_prompt.strip() else SYSTEM_PROMPT
+    
+    # 动态追加环境 Skills / Workflows 提示
+    knowledge_injection = get_available_knowledge_str()
+    final_prompt = base_prompt + "\n\n" + knowledge_injection
+    
+    from langchain_core.messages import SystemMessage
+    
+    # LangGraph 新版本的 state_modifier 要求返回 [SystemMessage, *messages]
+    return [SystemMessage(content=final_prompt)] + state["messages"]
+
 def create_agent_graph():
     """
     创建并返回编译好的 LangGraph ReAct Agent 图。
@@ -202,16 +219,12 @@ def create_agent_graph():
         )
     )
 
-    # 动态拼接当前的 Skills 和 Workflows 到 System Prompt
-    knowledge_injection = get_available_knowledge_str()
-    dynamic_prompt = SYSTEM_PROMPT + "\n\n" + knowledge_injection
-
     # 使用 create_react_agent 构建 ReAct 循环图
-    # 传入 checkpointer 实现跨轮对话记忆
+    # 传入 checkpointer 实现跨轮对话记忆, state_modifier 实现动态 Prompt 注入
     graph = create_react_agent(
         model=llm,
         tools=agent_tools,
-        prompt=dynamic_prompt,
+        state_modifier=agent_state_modifier,
         checkpointer=memory,
     )
 

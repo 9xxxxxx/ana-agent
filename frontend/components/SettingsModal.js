@@ -8,11 +8,24 @@ export default function SettingsModal({ isOpen, onClose }) {
   const [theme, setTheme] = useState('light');
   const [systemPrompt, setSystemPrompt] = useState('你是 SQL Agent，一个智能数据分析助手...');
 
+  // 弹窗打开时加载本地存储
   useEffect(() => {
-    if (isOpen) document.body.style.overflow = 'hidden';
-    else document.body.style.overflow = '';
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+      const savedPrompt = localStorage.getItem('sqlAgentSystemPrompt');
+      if (savedPrompt) {
+        setSystemPrompt(savedPrompt);
+      }
+    } else {
+      document.body.style.overflow = '';
+    }
     return () => { document.body.style.overflow = ''; };
   }, [isOpen]);
+
+  const handleSavePrompt = () => {
+    localStorage.setItem('sqlAgentSystemPrompt', systemPrompt);
+    alert('AI 偏好提示词已保存生效！');
+  };
 
   if (!isOpen) return null;
 
@@ -114,7 +127,10 @@ export default function SettingsModal({ isOpen, onClose }) {
                     onChange={(e) => setSystemPrompt(e.target.value)}
                   />
                   <div className="mt-4 flex justify-end">
-                    <button className="px-4 py-2 bg-gray-900 hover:bg-black text-white text-sm font-medium rounded-lg transition-colors">
+                    <button 
+                      onClick={handleSavePrompt}
+                      className="px-4 py-2 bg-gray-900 hover:bg-black text-white text-sm font-medium rounded-lg transition-colors"
+                    >
                       保存更改
                     </button>
                   </div>

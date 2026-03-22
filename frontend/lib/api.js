@@ -76,7 +76,7 @@ export async function uploadFile(file) {
  * SSE 流式对话
  * 返回一个 EventSource 包装对象
  */
-export function streamChat(message, threadId, model, callbacks) {
+export function streamChat(message, threadId, model, systemPrompt, callbacks) {
   const { onToken, onReasoning, onToolStart, onToolInput, onToolEnd, onChart, onFile, onDone, onError } = callbacks;
 
   const controller = new AbortController();
@@ -84,7 +84,7 @@ export function streamChat(message, threadId, model, callbacks) {
   fetch(`${API_BASE}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message, thread_id: threadId, model }),
+    body: JSON.stringify({ message, thread_id: threadId, model, system_prompt: systemPrompt }),
     signal: controller.signal,
   })
     .then((response) => {
