@@ -182,6 +182,7 @@ memory = SqliteSaver(_conn)
 def agent_state_modifier(state: dict, config: dict):
     """
     动态生成 Agent 的 System Prompt，支持从前端设置(config)中覆盖默认提示词。
+    LangGraph 1.0 的 prompt 参数支持 callable(state, config) -> str / SystemMessage。
     """
     # 尝试从请求上下文中获取用户自定义的 Prompt，否则回退到内置的 SYSTEM_PROMPT
     custom_prompt = config.get("configurable", {}).get("system_prompt", "")
@@ -191,10 +192,7 @@ def agent_state_modifier(state: dict, config: dict):
     knowledge_injection = get_available_knowledge_str()
     final_prompt = base_prompt + "\n\n" + knowledge_injection
     
-    from langchain_core.messages import SystemMessage
-    
-    # LangGraph 新版本的 state_modifier 要求返回 [SystemMessage, *messages]
-    return [SystemMessage(content=final_prompt)] + state["messages"]
+    return final_prompt
 
 def create_agent_graph():
     """
@@ -212,7 +210,7 @@ def create_agent_graph():
         temperature=0,       # 数据分析场景需要确定性输出
         streaming=True,      # 启用流式输出
     ).configurable_fields(
-        model=ConfigurableField(
+        model_name=ConfigurableField(
             id="model_name",
             name="Model Name",
             description="The name of the LLM model to use."
@@ -220,11 +218,11 @@ def create_agent_graph():
     )
 
     # 使用 create_react_agent 构建 ReAct 循环图
-    # 传入 checkpointer 实现跨轮对话记忆, state_modifier 实现动态 Prompt 注入
+    # prompt 参数接受 callable(state, config) 实现动态 Prompt 注入
     graph = create_react_agent(
         model=llm,
         tools=agent_tools,
-        state_modifier=agent_state_modifier,
+        prompt=agent_state_modifier,
         checkpointer=memory,
     )
 

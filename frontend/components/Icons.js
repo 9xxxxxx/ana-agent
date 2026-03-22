@@ -46,7 +46,8 @@ import {
   SquarePen,
   LayoutGrid,
   AlertTriangle,
-  Info
+  Info,
+  Save
 } from 'lucide-react';
 
 export const UserIcon = User;
@@ -94,3 +95,4 @@ export const EditIcon = SquarePen;
 export const LayoutGridIcon = LayoutGrid;
 export const AlertIcon = AlertTriangle;
 export const InfoIcon = Info;
+export const SaveIcon = Save;
