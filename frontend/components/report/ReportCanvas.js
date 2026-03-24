@@ -51,6 +51,11 @@ function stanceTone(stance = 'analysis') {
   return 'bg-sky-50 text-sky-600 border-sky-200';
 }
 
+const titleInputClass = 'w-full bg-transparent text-xl font-semibold text-zinc-900 outline-none';
+const cardClass = 'rounded-[24px] border border-zinc-200 bg-white p-4';
+const compactInputClass = 'rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-800 outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100';
+const compactTextareaClass = 'mt-3 w-full min-h-[90px] resize-none rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm leading-7 text-zinc-700 outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100';
+
 function CanvasToolbar({ onAddBlock, onApplyTemplate, onInsertRuntime, onGenerateDecisionPack, onSyncActionStatus, loadingRuntime, blockCount }) {
   const blockTypes = [
     { key: 'text', label: '文本', icon: <EditIcon size={14} /> },
@@ -447,23 +452,23 @@ function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runni
     return (
       <div className="space-y-4">
         <input
-          className="w-full bg-transparent text-xl font-semibold text-stone-900 outline-none"
+          className={titleInputClass}
           value={block.title || ''}
           onChange={(event) => onUpdate(block.id, { title: event.target.value })}
           placeholder="决策流标题"
         />
         <input
-          className="w-full rounded-[24px] border border-stone-200 bg-white px-4 py-3 text-sm text-stone-800 outline-none"
+          className={ui.input}
           value={block.decision || ''}
           onChange={(event) => onUpdate(block.id, { decision: event.target.value })}
           placeholder="最终决策"
         />
         <div className="grid gap-3 xl:grid-cols-2">
           {(block.nodes || []).map((item, index) => (
-            <div key={item.id || index} className="rounded-[24px] border border-stone-200 bg-white p-4">
+            <div key={item.id || index} className={cardClass}>
               <div className="grid gap-3 md:grid-cols-[1fr,0.9fr]">
                 <input
-                  className="rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm font-semibold text-stone-900 outline-none"
+                  className={cn(compactInputClass, 'font-semibold text-zinc-900')}
                   value={item.label || ''}
                   onChange={(event) => {
                     const nodes = [...(block.nodes || [])];
@@ -473,7 +478,7 @@ function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runni
                   placeholder="节点标题"
                 />
                 <select
-                  className="rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-800 outline-none"
+                  className={compactInputClass}
                   value={item.kind || 'specialist'}
                   onChange={(event) => {
                     const nodes = [...(block.nodes || [])];
@@ -488,7 +493,7 @@ function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runni
                 </select>
               </div>
               <textarea
-                className="mt-3 w-full min-h-[88px] resize-none rounded-2xl border border-stone-200 bg-stone-50/70 px-3 py-2 text-sm leading-7 text-stone-700 outline-none"
+                className={compactTextareaClass}
                 value={item.detail || ''}
                 onChange={(event) => {
                   const nodes = [...(block.nodes || [])];
@@ -499,7 +504,7 @@ function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runni
               />
               <div className="mt-3 grid gap-3 md:grid-cols-2">
                 <select
-                  className="rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-800 outline-none"
+                  className={compactInputClass}
                   value={item.status || 'reserved'}
                   onChange={(event) => {
                     const nodes = [...(block.nodes || [])];
@@ -512,7 +517,7 @@ function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runni
                   ))}
                 </select>
                 <select
-                  className="rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-800 outline-none"
+                  className={compactInputClass}
                   value={item.strength || 'medium'}
                   onChange={(event) => {
                     const nodes = [...(block.nodes || [])];
@@ -536,16 +541,16 @@ function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runni
     return (
       <div className="space-y-4">
         <input
-          className="w-full bg-transparent text-xl font-semibold text-stone-900 outline-none"
+          className={titleInputClass}
           value={block.title || ''}
           onChange={(event) => onUpdate(block.id, { title: event.target.value })}
           placeholder="证据块标题"
         />
         <div className="space-y-3">
           {(block.items || []).map((item, index) => (
-            <div key={index} className="rounded-[24px] border border-stone-200 bg-white p-4">
+            <div key={index} className={cardClass}>
               <input
-                className="w-full rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm font-semibold text-stone-900 outline-none"
+                className={cn(compactInputClass, 'font-semibold text-zinc-900')}
                 value={item.claim || ''}
                 onChange={(event) => {
                   const items = [...(block.items || [])];
@@ -555,7 +560,7 @@ function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runni
                 placeholder="证据标题"
               />
               <textarea
-                className="mt-3 w-full min-h-[90px] resize-none rounded-2xl border border-stone-200 bg-stone-50/70 px-3 py-2 text-sm leading-7 text-stone-700 outline-none"
+                className={compactTextareaClass}
                 value={item.evidence || ''}
                 onChange={(event) => {
                   const items = [...(block.items || [])];
@@ -575,16 +580,16 @@ function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runni
     return (
       <div className="space-y-4">
         <input
-          className="w-full bg-transparent text-xl font-semibold text-stone-900 outline-none"
+          className={titleInputClass}
           value={block.title || ''}
           onChange={(event) => onUpdate(block.id, { title: event.target.value })}
           placeholder="争议块标题"
         />
         <div className="space-y-3">
           {(block.items || []).map((item, index) => (
-            <div key={index} className="rounded-[24px] border border-stone-200 bg-white p-4">
+            <div key={index} className={cardClass}>
               <input
-                className="w-full rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm font-semibold text-stone-900 outline-none"
+                className={cn(compactInputClass, 'font-semibold text-zinc-900')}
                 value={item.perspective || ''}
                 onChange={(event) => {
                   const items = [...(block.items || [])];
@@ -594,7 +599,7 @@ function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runni
                 placeholder="观点方"
               />
               <textarea
-                className="mt-3 w-full min-h-[90px] resize-none rounded-2xl border border-stone-200 bg-stone-50/70 px-3 py-2 text-sm leading-7 text-stone-700 outline-none"
+                className={compactTextareaClass}
                 value={item.point || ''}
                 onChange={(event) => {
                   const items = [...(block.items || [])];
@@ -614,16 +619,16 @@ function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runni
     return (
       <div className="space-y-4">
         <input
-          className="w-full bg-transparent text-xl font-semibold text-stone-900 outline-none"
+          className={titleInputClass}
           value={block.title || ''}
           onChange={(event) => onUpdate(block.id, { title: event.target.value })}
           placeholder="图表标题"
         />
-        <div className="rounded-[24px] border border-stone-200 bg-white p-4">
+        <div className={cardClass}>
           <CanvasChart chartData={block.chartData} />
         </div>
         <textarea
-          className="w-full min-h-[96px] resize-none rounded-[24px] border border-stone-200 bg-stone-50/80 px-4 py-3 text-sm leading-7 text-stone-700 outline-none"
+          className={cn(ui.textareaMuted, 'min-h-[96px] text-sm leading-7')}
           value={block.note || ''}
           onChange={(event) => onUpdate(block.id, { note: event.target.value })}
           placeholder="补充这张图的解读、异常点和业务含义"
@@ -636,12 +641,12 @@ function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runni
     return (
       <div className="space-y-4">
         <input
-          className="w-full bg-transparent text-xl font-semibold text-stone-900 outline-none"
+          className={titleInputClass}
           value={block.title || ''}
           onChange={(event) => onUpdate(block.id, { title: event.target.value })}
           placeholder="数据表标题"
         />
-        <div className="overflow-hidden rounded-[24px] border border-stone-200 bg-white">
+        <div className="overflow-hidden rounded-[24px] border border-zinc-200 bg-white">
           <DataTable
             title={null}
             searchable={false}
@@ -659,14 +664,14 @@ function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runni
     return (
       <div className="space-y-4">
         <input
-          className="w-full bg-transparent text-xl font-semibold text-stone-900 outline-none"
+          className={titleInputClass}
           value={block.title || ''}
           onChange={(event) => onUpdate(block.id, { title: event.target.value })}
           placeholder="行动清单标题"
         />
         <div className="space-y-2">
           {(block.items || []).map((item, index) => (
-            <label key={item.id || index} className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-white px-4 py-3">
+            <label key={item.id || index} className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white px-4 py-3">
               <input
                 type="checkbox"
                 checked={!!item.checked}
@@ -677,7 +682,7 @@ function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runni
                 }}
               />
               <input
-                className={`flex-1 bg-transparent text-sm outline-none ${item.checked ? 'text-stone-400 line-through' : 'text-stone-800'}`}
+                className={`flex-1 bg-transparent text-sm outline-none ${item.checked ? 'text-zinc-400 line-through' : 'text-zinc-800'}`}
                 value={item.text || ''}
                 onChange={(event) => {
                   const items = [...(block.items || [])];
@@ -698,20 +703,20 @@ function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runni
       <div className="space-y-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <input
-            className="w-full bg-transparent text-xl font-semibold text-stone-900 outline-none"
+            className={titleInputClass}
             value={block.title || ''}
             onChange={(event) => onUpdate(block.id, { title: event.target.value })}
             placeholder="执行计划标题"
           />
-          <div className="inline-flex rounded-full border border-stone-200 bg-stone-50 p-1">
+          <div className="inline-flex rounded-full border border-zinc-200 bg-zinc-50 p-1">
             <button
-              className={`rounded-full px-3 py-1.5 text-xs font-semibold ${actionView === 'board' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500'}`}
+              className={`rounded-full px-3 py-1.5 text-xs font-semibold ${actionView === 'board' ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500'}`}
               onClick={() => setActionView('board')}
             >
               看板
             </button>
             <button
-              className={`rounded-full px-3 py-1.5 text-xs font-semibold ${actionView === 'table' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500'}`}
+              className={`rounded-full px-3 py-1.5 text-xs font-semibold ${actionView === 'table' ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500'}`}
               onClick={() => setActionView('table')}
             >
               明细
@@ -727,10 +732,10 @@ function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runni
         ) : (
           <div className="space-y-3">
             {(block.items || []).map((item, index) => (
-              <div key={item.id || index} className="rounded-[24px] border border-stone-200 bg-white p-4">
+              <div key={item.id || index} className={cardClass}>
                 <div className="grid gap-3 lg:grid-cols-[1.8fr,1fr,1fr,0.8fr,0.8fr]">
                   <input
-                    className="rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-800 outline-none"
+                    className={compactInputClass}
                     value={item.title || ''}
                     onChange={(event) => {
                       const items = [...(block.items || [])];
@@ -740,7 +745,7 @@ function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runni
                     placeholder="行动项"
                   />
                   <input
-                    className="rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-800 outline-none"
+                    className={compactInputClass}
                     value={item.owner || ''}
                     onChange={(event) => {
                       const items = [...(block.items || [])];
@@ -750,7 +755,7 @@ function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runni
                     placeholder="负责人"
                   />
                   <input
-                    className="rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-800 outline-none"
+                    className={compactInputClass}
                     value={item.dueDate || ''}
                     onChange={(event) => {
                       const items = [...(block.items || [])];
@@ -760,7 +765,7 @@ function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runni
                     placeholder="截止时间"
                   />
                   <select
-                    className="rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-800 outline-none"
+                    className={compactInputClass}
                     value={item.priority || 'medium'}
                     onChange={(event) => {
                       const items = [...(block.items || [])];
@@ -773,7 +778,7 @@ function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runni
                     <option value="low">低</option>
                   </select>
                   <select
-                    className="rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-800 outline-none"
+                    className={compactInputClass}
                     value={item.status || 'todo'}
                     onChange={(event) => {
                       const items = [...(block.items || [])];
@@ -788,7 +793,7 @@ function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runni
                 </div>
                 <div className="mt-3 grid gap-3 lg:grid-cols-[1.3fr,1fr]">
                   <select
-                    className="rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-800 outline-none"
+                    className={compactInputClass}
                     value={item.linkedDeploymentId || ''}
                     onChange={(event) => {
                       const selected = linkOptions.find((option) => option.deployment_id === event.target.value);
@@ -809,27 +814,27 @@ function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runni
                       </option>
                     ))}
                   </select>
-                  <div className="rounded-2xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-500">
+                  <div className="rounded-2xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-500">
                     {item.lastRunState
                       ? `最近运行: ${item.lastRunState}${item.lastSyncedAt ? ` · ${item.lastSyncedAt}` : ''}`
                       : '尚未回写执行状态'}
                   </div>
                 </div>
                 {(item.lastRunState || item.lastRunMessage) && (
-                  <div className="mt-3 rounded-2xl border border-stone-200 bg-stone-50/70 px-4 py-3 text-sm">
+                  <div className="mt-3 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm">
                     <div className="flex flex-wrap gap-2 text-xs font-semibold">
                       {item.linkedRunId && (
-                        <span className="rounded-full bg-white px-2.5 py-1 text-stone-600">Run {item.linkedRunId.slice(0, 8)}</span>
+                        <span className="rounded-full bg-white px-2.5 py-1 text-zinc-600">Run {item.linkedRunId.slice(0, 8)}</span>
                       )}
                       {item.lastRunStartedAt && (
-                        <span className="rounded-full bg-white px-2.5 py-1 text-stone-600">开始: {item.lastRunStartedAt}</span>
+                        <span className="rounded-full bg-white px-2.5 py-1 text-zinc-600">开始: {item.lastRunStartedAt}</span>
                       )}
                       {item.lastRunEndedAt && (
-                        <span className="rounded-full bg-white px-2.5 py-1 text-stone-600">结束: {item.lastRunEndedAt}</span>
+                        <span className="rounded-full bg-white px-2.5 py-1 text-zinc-600">结束: {item.lastRunEndedAt}</span>
                       )}
                     </div>
                     {item.lastRunMessage && (
-                      <div className="mt-3 rounded-xl bg-white px-3 py-2 leading-6 text-stone-600">
+                      <div className="mt-3 rounded-xl bg-white px-3 py-2 leading-6 text-zinc-600">
                         {item.lastRunMessage}
                       </div>
                     )}
@@ -840,7 +845,7 @@ function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runni
                 )}
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <button
-                    className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-stone-900 px-3 py-2 text-xs font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex items-center gap-2 rounded-full border border-zinc-900 bg-zinc-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
                     onClick={() => onRunActionItem?.(block.id, item.id)}
                     disabled={!item.linkedDeploymentId || runningActionIds.includes(item.id)}
                   >
@@ -848,12 +853,12 @@ function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runni
                     {runningActionIds.includes(item.id) ? '执行中...' : '运行绑定 Flow'}
                   </button>
                   {!item.linkedDeploymentId && (
-                    <span className="text-xs text-stone-400">先绑定 deployment 才能直接触发执行</span>
+                    <span className="text-xs text-zinc-400">先绑定 deployment 才能直接触发执行</span>
                   )}
                   {!!item.lastRunState && (
                     <>
                       <button
-                        className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 transition hover:bg-stone-50 disabled:opacity-50"
+                        className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-50"
                         onClick={() => onRunActionItem?.(block.id, item.id)}
                         disabled={!item.linkedDeploymentId || runningActionIds.includes(item.id)}
                       >
@@ -881,7 +886,7 @@ function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runni
                         转风险块
                       </button>
                       <button
-                        className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-stone-50 px-3 py-2 text-xs font-semibold text-stone-700 transition hover:bg-stone-100"
+                        className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100"
                         onClick={() =>
                           onInsertAfter?.(
                             createCanvasBlock('text', {
@@ -919,7 +924,7 @@ function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runni
       <div className="space-y-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <input
-            className="w-full bg-transparent text-xl font-semibold text-stone-900 outline-none"
+            className={titleInputClass}
             value={block.title || ''}
             onChange={(event) => onUpdate(block.id, { title: event.target.value })}
             placeholder="专家名称"
@@ -929,7 +934,7 @@ function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runni
           </div>
         </div>
         <textarea
-          className="w-full min-h-[180px] resize-none rounded-[24px] border border-stone-200 bg-white px-4 py-3 text-[15px] leading-8 text-stone-800 outline-none"
+          className={ui.textarea}
           value={block.content || ''}
           onChange={(event) => onUpdate(block.id, { content: event.target.value })}
           placeholder="输入专家观点、依据和建议"
@@ -942,43 +947,43 @@ function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runni
     return (
       <div className="space-y-4">
         <input
-          className="w-full bg-transparent text-xl font-semibold text-stone-900 outline-none"
+          className={titleInputClass}
           value={block.title || ''}
           onChange={(event) => onUpdate(block.id, { title: event.target.value })}
           placeholder="编排快照标题"
         />
         <div className="grid gap-3 md:grid-cols-3">
-          <div className="rounded-[22px] border border-stone-200 bg-stone-50/80 p-4">
-            <div className="text-xs uppercase tracking-[0.2em] text-stone-500">Deployments</div>
-            <div className="mt-2 text-3xl font-semibold text-stone-900">{block.summary?.deployment_count ?? 0}</div>
+          <div className={cn(ui.card, 'rounded-[22px] p-4')}>
+            <div className="text-xs uppercase tracking-[0.2em] text-zinc-500">Deployments</div>
+            <div className="mt-2 text-3xl font-semibold text-zinc-900">{block.summary?.deployment_count ?? 0}</div>
           </div>
-          <div className="rounded-[22px] border border-stone-200 bg-stone-50/80 p-4">
-            <div className="text-xs uppercase tracking-[0.2em] text-stone-500">Recent Runs</div>
-            <div className="mt-2 text-3xl font-semibold text-stone-900">{block.summary?.recent_run_count ?? 0}</div>
+          <div className={cn(ui.card, 'rounded-[22px] p-4')}>
+            <div className="text-xs uppercase tracking-[0.2em] text-zinc-500">Recent Runs</div>
+            <div className="mt-2 text-3xl font-semibold text-zinc-900">{block.summary?.recent_run_count ?? 0}</div>
           </div>
-          <div className="rounded-[22px] border border-stone-200 bg-stone-50/80 p-4">
-            <div className="text-xs uppercase tracking-[0.2em] text-stone-500">Bound Runs</div>
-            <div className="mt-2 text-3xl font-semibold text-stone-900">{block.summary?.deployment_run_count ?? 0}</div>
+          <div className={cn(ui.card, 'rounded-[22px] p-4')}>
+            <div className="text-xs uppercase tracking-[0.2em] text-zinc-500">Bound Runs</div>
+            <div className="mt-2 text-3xl font-semibold text-zinc-900">{block.summary?.deployment_run_count ?? 0}</div>
           </div>
         </div>
         {!!block.runs?.length && (
-          <div className="overflow-x-auto rounded-[24px] border border-stone-200 bg-white">
+          <div className="overflow-x-auto rounded-[24px] border border-zinc-200 bg-white">
             <table className="min-w-full text-sm">
-              <thead className="bg-stone-50/70">
-                <tr className="border-b border-stone-200">
-                  <th className="px-4 py-3 text-left font-semibold text-stone-600">Run</th>
-                  <th className="px-4 py-3 text-left font-semibold text-stone-600">Deployment</th>
-                  <th className="px-4 py-3 text-left font-semibold text-stone-600">状态</th>
-                  <th className="px-4 py-3 text-left font-semibold text-stone-600">时间</th>
+              <thead className="bg-zinc-50">
+                <tr className="border-b border-zinc-200">
+                  <th className="px-4 py-3 text-left font-semibold text-zinc-600">Run</th>
+                  <th className="px-4 py-3 text-left font-semibold text-zinc-600">Deployment</th>
+                  <th className="px-4 py-3 text-left font-semibold text-zinc-600">状态</th>
+                  <th className="px-4 py-3 text-left font-semibold text-zinc-600">时间</th>
                 </tr>
               </thead>
               <tbody>
                 {block.runs.map((run, index) => (
-                  <tr key={run.id || index} className="border-b border-stone-100 last:border-b-0">
-                    <td className="px-4 py-3 text-stone-800">{run.name || run.id}</td>
-                    <td className="px-4 py-3 text-stone-600">{run.deployment_name || '未绑定'}</td>
-                    <td className="px-4 py-3 text-stone-600">{run.state_name || 'Unknown'}</td>
-                    <td className="px-4 py-3 text-stone-600">{run.start_time || run.expected_start_time || '未开始'}</td>
+                  <tr key={run.id || index} className="border-b border-zinc-100 last:border-b-0">
+                    <td className="px-4 py-3 text-zinc-800">{run.name || run.id}</td>
+                    <td className="px-4 py-3 text-zinc-600">{run.deployment_name || '未绑定'}</td>
+                    <td className="px-4 py-3 text-zinc-600">{run.state_name || 'Unknown'}</td>
+                    <td className="px-4 py-3 text-zinc-600">{run.start_time || run.expected_start_time || '未开始'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -986,7 +991,7 @@ function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runni
           </div>
         )}
         <textarea
-          className="w-full min-h-[120px] resize-none rounded-[24px] border border-stone-200 bg-white px-4 py-3 text-[15px] leading-8 text-stone-800 outline-none"
+          className={ui.textarea}
           value={block.note || ''}
           onChange={(event) => onUpdate(block.id, { note: event.target.value })}
           placeholder="补充这次编排运行状态的解读和下一步动作"
@@ -998,13 +1003,13 @@ function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runni
   return (
     <div className="space-y-4">
       <input
-        className="w-full bg-transparent text-xl font-semibold text-stone-900 outline-none"
+        className={titleInputClass}
         value={block.title || ''}
         onChange={(event) => onUpdate(block.id, { title: event.target.value })}
         placeholder="块标题"
       />
       <textarea
-        className="w-full min-h-[180px] resize-none rounded-[24px] border border-stone-200 bg-white px-4 py-3 text-[15px] leading-8 text-stone-800 outline-none"
+        className={ui.textarea}
         value={block.content || ''}
         onChange={(event) => onUpdate(block.id, { content: event.target.value })}
         placeholder="开始编写你的内容"
