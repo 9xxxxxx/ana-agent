@@ -133,6 +133,7 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
   const handleConfirm = async () => {
     if (confirmTarget === '__all__') {
       await clearAllHistory();
+      onNewChat?.();
     } else {
       await deleteThread(confirmTarget);
     }
@@ -284,8 +285,22 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
 
         {/* 第二段：滚动的历史聊天记录区 */}
         <nav className="flex-1 overflow-y-auto px-4 py-1 sidebar-scroller">
-          <div className="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500">
-            你的聊天
+          <div className="flex items-center justify-between px-3 pt-2 pb-1">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500">
+              你的聊天
+            </div>
+            {threads.length > 0 && (
+              <button
+                className="rounded-full border border-transparent px-2.5 py-1 text-[11px] font-semibold text-stone-500 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
+                onClick={() => {
+                  setConfirmTarget('__all__');
+                  setConfirmOpen(true);
+                }}
+                title="清空全部聊天记录"
+              >
+                全部删除
+              </button>
+            )}
           </div>
 
           {threads.length === 0 ? (

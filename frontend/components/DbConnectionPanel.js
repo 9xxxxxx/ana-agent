@@ -7,6 +7,7 @@
 import { useState, useEffect } from 'react';
 import { testDbConnection, saveDbConfig, getDbConfig, deleteDbConfig } from '@/lib/api';
 import { DatabaseIcon, CloseIcon, CheckIcon, TrashIcon } from './Icons';
+import { useToast } from './Toast';
 
 const DB_TYPES = [
   { value: 'postgresql', label: 'PostgreSQL', port: 5432 },
@@ -16,6 +17,7 @@ const DB_TYPES = [
 ];
 
 export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
+  const { success, error, warning } = useToast();
   const [dbType, setDbType] = useState('postgresql');
   const [host, setHost] = useState('localhost');
   const [port, setPort] = useState(5432);
@@ -29,6 +31,7 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
   const [testResult, setTestResult] = useState(null);
   const [savedConfigs, setSavedConfigs] = useState([]);
   const [activeTab, setActiveTab] = useState('form');
+  const [verifiedUrl, setVerifiedUrl] = useState('');
 
   useEffect(() => {
     if (isOpen) {
@@ -69,8 +72,16 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
     return `${driver}://${username}:${password}@${host}:${port}/${database}`;
   };
 
+  const currentUrl = buildConnectionUrl();
+
+  useEffect(() => {
+    if (verifiedUrl && verifiedUrl !== currentUrl) {
+      setVerifiedUrl('');
+    }
+  }, [currentUrl, verifiedUrl]);
+
   const handleTest = async () => {
-    const url = buildConnectionUrl();
+    const url = currentUrl;
     if (!url) {
       setTestResult({ success: false, message: '请填写完整的连接信息' });
       return;
@@ -81,28 +92,56 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
     try {
       const result = await testDbConnection(url);
       setTestResult(result);
+      if (result.success) {
+        setVerifiedUrl(url);
+        success('数据库连接测试通过。');
+      } else {
+        setVerifiedUrl('');
+        error(result.message || '数据库连接测试失败');
+      }
     } catch (e) {
       setTestResult({ success: false, message: e.message });
+      setVerifiedUrl('');
+      error(e.message);
     } finally {
       setTesting(false);
     }
   };
 
   const handleSaveAndConnect = async () => {
-    const url = buildConnectionUrl();
-    if (!url) return;
+    const url = currentUrl;
+    if (!url) {
+      warning('请先填写完整的数据库连接信息。');
+      return;
+    }
 
     setSaving(true);
     try {
-      await saveDbConfig({
+      let result = testResult;
+      if (verifiedUrl !== url) {
+        result = await testDbConnection(url);
+        setTestResult(result);
+      }
+
+      if (!result?.success) {
+        setVerifiedUrl('');
+        error(result?.message || '数据库连接不可用，未保存。');
+        return;
+      }
+
+      setVerifiedUrl(url);
+      const saved = await saveDbConfig({
         name: `${DB_TYPES.find(t => t.value === dbType)?.label || 'Custom'} - ${database || 'default'}`,
         url,
         type: dbType,
       });
+      await loadSavedConfigs();
       onConnect?.(url);
+      success(saved?.success ? '数据库配置已保存并连接。' : '数据库连接已建立。');
       onClose();
     } catch (e) {
       setTestResult({ success: false, message: e.message });
+      error(e.message);
     } finally {
       setSaving(false);
     }
@@ -117,16 +156,20 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
       if (result.success) {
         // 连接成功后才调用 onConnect 并关闭面板
         await onConnect?.(config.url);
+        setVerifiedUrl(config.url);
         setTestResult({ success: true, message: '连接成功！' });
+        success(`已连接到 ${config.name}`);
         setTimeout(() => {
           onClose();
         }, 800); // 短暂显示成功消息后关闭
       } else {
         // 连接失败，显示错误，保持面板打开
         setTestResult({ success: false, message: result.message || '连接失败' });
+        error(result.message || '连接失败');
       }
     } catch (e) {
       setTestResult({ success: false, message: '测试连接时出错: ' + e.message });
+      error('测试连接时出错: ' + e.message);
     } finally {
       setTesting(false);
     }
@@ -136,8 +179,10 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
     try {
       await deleteDbConfig(id);
       setSavedConfigs(savedConfigs.filter(c => c.id !== id));
+      success('已删除保存的数据库配置。');
     } catch (e) {
       setTestResult({ success: false, message: '删除失败: ' + e.message });
+      error('删除失败: ' + e.message);
     }
   };
 
@@ -187,6 +232,18 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
 
         {/* Body */}
         <div className="p-6 overflow-y-auto min-h-[300px]">
+          {activeTab !== 'saved' && (
+            <div className={`mb-5 rounded-xl border px-4 py-3 text-sm ${
+              verifiedUrl && verifiedUrl === currentUrl
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                : 'border-amber-200 bg-amber-50 text-amber-800'
+            }`}>
+              {verifiedUrl && verifiedUrl === currentUrl
+                ? '当前连接参数已通过测试，可以保存并连接。'
+                : '当前连接参数尚未验证，保存并连接前会自动重新测试。'}
+            </div>
+          )}
+
           {activeTab === 'form' && (
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">

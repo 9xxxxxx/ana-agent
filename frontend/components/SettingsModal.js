@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { CloseIcon, SettingsIcon, UserIcon, InfoIcon, SparklesIcon, SpinnerIcon } from './Icons';
 import { useToast } from './Toast';
 
@@ -15,6 +15,18 @@ export default function SettingsModal({ isOpen, onClose }) {
   const [isTesting, setIsTesting] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const [testSteps, setTestSteps] = useState([]);
+  const [lastTestedFingerprint, setLastTestedFingerprint] = useState('');
+  const [lastTestSuccess, setLastTestSuccess] = useState(false);
+
+  const currentFingerprint = useMemo(
+    () =>
+      JSON.stringify({
+        model: selectedModel.trim(),
+        apiKey: apiKey.trim(),
+        baseUrl: baseUrl.trim(),
+      }),
+    [selectedModel, apiKey, baseUrl]
+  );
 
   // 根据模型获取默认 Base URL
   const getDefaultBaseUrl = (model) => {
@@ -53,6 +65,9 @@ export default function SettingsModal({ isOpen, onClose }) {
     setApiKey(savedApiKey);
     setSelectedModel(savedModel);
     setBaseUrl(savedBaseUrl || getDefaultBaseUrl(savedModel));
+    setLastTestedFingerprint('');
+    setLastTestSuccess(false);
+    setTestSteps([]);
 
     return () => { document.body.style.overflow = ''; };
   }, [isOpen]);
@@ -69,13 +84,18 @@ export default function SettingsModal({ isOpen, onClose }) {
         detail: { model: selectedModel, apiKey, baseUrl, systemPrompt } 
       }));
     }
-    
-    success('AI 设置已保存生效！');
+
+    if (lastTestSuccess && lastTestedFingerprint === currentFingerprint) {
+      success('AI 设置已保存并通过测试。');
+    } else {
+      warning('AI 设置已保存，但当前模型凭据尚未通过最新测试。');
+    }
   };
 
-  const handleTestConnection = async () => {
+  const handleTestConnection = async ({ saveAfterTest = false } = {}) => {
     if (isTesting) return;
     setIsTesting(true);
+    setLastTestSuccess(false);
     setTestSteps([
       { id: 1, status: 'pending', message: '验证配置参数完整性' },
       { id: 2, status: 'pending', message: '建立与 API 服务器的连接' },
@@ -118,11 +138,28 @@ export default function SettingsModal({ isOpen, onClose }) {
       
       await new Promise(resolve => setTimeout(resolve, 300));
       setTestSteps(prev => prev.map(s => s.id === 4 ? { ...s, status: 'completed' } : s));
-      
-      success('✅ 连接测试成功！模型配置正常');
+
+      setLastTestedFingerprint(currentFingerprint);
+      setLastTestSuccess(true);
+
+      if (saveAfterTest) {
+        localStorage.setItem('sqlAgentSystemPrompt', systemPrompt);
+        localStorage.setItem('sqlAgentApiKey', apiKey);
+        localStorage.setItem('sqlAgentBaseUrl', baseUrl);
+        localStorage.setItem('sqlAgentModel', selectedModel);
+        if (window.dispatchEvent) {
+          window.dispatchEvent(new CustomEvent('sql-agent-settings-updated', {
+            detail: { model: selectedModel, apiKey, baseUrl, systemPrompt }
+          }));
+        }
+        success('模型测试通过，设置已保存生效。');
+      } else {
+        success('连接测试成功，当前模型配置可用。');
+      }
     } catch (e) {
       error(`❌ 测试失败: ${e.message}`);
       setTestSteps(prev => prev.map(s => s.status === 'running' ? { ...s, status: 'failed' } : s));
+      setLastTestSuccess(false);
     } finally {
       setIsTesting(false);
     }
@@ -216,6 +253,15 @@ export default function SettingsModal({ isOpen, onClose }) {
                   <div>
                     <h3 className="text-[15px] font-semibold text-foreground mb-2">模型服务商配置</h3>
                     <p className="text-sm text-muted-foreground mb-4">您可以覆盖默认的大模型凭据以使用自己的 API Key。留空则使用本地环境变量默认值。</p>
+                    <div className={`mb-4 rounded-xl border px-4 py-3 text-sm ${
+                      lastTestSuccess && lastTestedFingerprint === currentFingerprint
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                        : 'border-amber-200 bg-amber-50 text-amber-800'
+                    }`}>
+                      {lastTestSuccess && lastTestedFingerprint === currentFingerprint
+                        ? '当前模型配置已通过测试，可以放心使用。'
+                        : '当前模型凭据尚未通过最新测试，建议保存前先验证一次。'}
+                    </div>
                     
                     <div className="space-y-4">
                       <div>
@@ -223,7 +269,7 @@ export default function SettingsModal({ isOpen, onClose }) {
                           <label className="block text-xs font-medium text-muted-foreground">默认分析模型</label>
                           <button 
                             className={`text-[11px] font-semibold flex items-center gap-1 transition-colors ${isTesting ? 'text-gray-400 cursor-not-allowed' : 'text-indigo-600 hover:text-indigo-500'}`}
-                            onClick={handleTestConnection}
+                            onClick={() => handleTestConnection()}
                             disabled={isTesting}
                           >
                             {isTesting ? '测试中...' : '测试连接 (验证 API Key)'}
@@ -317,8 +363,16 @@ export default function SettingsModal({ isOpen, onClose }) {
                   </div>
                   
                   <div className="mt-4 flex justify-end">
+                    <button
+                      onClick={() => handleTestConnection({ saveAfterTest: true })}
+                      disabled={isTesting}
+                      className="mr-3 px-4 py-2 border border-stone-300 bg-white text-stone-700 hover:bg-stone-50 text-sm font-medium rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                    >
+                      {isTesting ? '测试中...' : '测试并保存'}
+                    </button>
                     <button 
                       onClick={handleSavePrompt}
+                      disabled={isTesting}
                       className="px-4 py-2 bg-foreground text-background hover:opacity-90 text-sm font-medium rounded-lg transition-colors shadow-sm"
                       >
                       保存设置
