@@ -29,8 +29,9 @@ import {
   LayersIcon,
   TrashIcon,
 } from '../Icons';
+import { fetchOrchestrationRuntime } from '@/lib/api';
 import { parseChartPayload } from '@/lib/chartData';
-import { createCanvasBlock, getBlockHeading } from '@/lib/reportCanvas';
+import { convertExpertOpinionToBlock, createCanvasBlock, getBlockHeading } from '@/lib/reportCanvas';
 import { reportTemplates } from '@/lib/reportTemplates';
 
 function toneClass(tone = 'default') {
@@ -46,7 +47,7 @@ function stanceTone(stance = 'analysis') {
   return 'bg-sky-50 text-sky-600 border-sky-200';
 }
 
-function CanvasToolbar({ onAddBlock, onApplyTemplate, blockCount }) {
+function CanvasToolbar({ onAddBlock, onApplyTemplate, onInsertRuntime, loadingRuntime, blockCount }) {
   const blockTypes = [
     { key: 'text', label: '文本', icon: <EditIcon size={14} /> },
     { key: 'callout', label: '提示块', icon: <AlertIcon size={14} /> },
@@ -74,6 +75,12 @@ function CanvasToolbar({ onAddBlock, onApplyTemplate, blockCount }) {
               {item.label}
             </button>
           ))}
+          <button
+            className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-stone-50 px-3 py-2 text-sm font-medium text-stone-700 hover:border-stone-300 hover:bg-stone-100 transition"
+            onClick={onInsertRuntime}
+          >
+            {loadingRuntime ? '读取中...' : '编排快照'}
+          </button>
         </div>
       </div>
       <div className="grid gap-3 lg:grid-cols-3">
@@ -93,7 +100,7 @@ function CanvasToolbar({ onAddBlock, onApplyTemplate, blockCount }) {
   );
 }
 
-function SortableBlock({ block, index, onUpdate, onDelete, onDuplicate }) {
+function SortableBlock({ block, index, onUpdate, onDelete, onDuplicate, onTransformExpert }) {
   const {
     attributes,
     listeners,
@@ -129,6 +136,31 @@ function SortableBlock({ block, index, onUpdate, onDelete, onDuplicate }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {block.type === 'expert_opinion' && (
+            <>
+              <button
+                className="rounded-full px-3 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-100 transition"
+                onClick={() => onTransformExpert(block.id, 'action_items')}
+                title="转成行动项"
+              >
+                转行动
+              </button>
+              <button
+                className="rounded-full px-3 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-100 transition"
+                onClick={() => onTransformExpert(block.id, 'callout')}
+                title="转成风险提醒"
+              >
+                转风险
+              </button>
+              <button
+                className="rounded-full px-3 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-100 transition"
+                onClick={() => onTransformExpert(block.id, 'text')}
+                title="转成结论块"
+              >
+                转结论
+              </button>
+            </>
+          )}
           <button
             className="rounded-full p-2 text-stone-500 hover:bg-stone-100 hover:text-stone-900 transition"
             onClick={() => onDuplicate(block.id)}
@@ -550,6 +582,39 @@ function BlockEditor({ block, onUpdate }) {
     );
   }
 
+  if (block.type === 'orchestration_snapshot') {
+    return (
+      <div className="space-y-4">
+        <input
+          className="w-full bg-transparent text-xl font-semibold text-stone-900 outline-none"
+          value={block.title || ''}
+          onChange={(event) => onUpdate(block.id, { title: event.target.value })}
+          placeholder="编排快照标题"
+        />
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="rounded-[22px] border border-stone-200 bg-stone-50/80 p-4">
+            <div className="text-xs uppercase tracking-[0.2em] text-stone-500">Deployments</div>
+            <div className="mt-2 text-3xl font-semibold text-stone-900">{block.summary?.deployment_count ?? 0}</div>
+          </div>
+          <div className="rounded-[22px] border border-stone-200 bg-stone-50/80 p-4">
+            <div className="text-xs uppercase tracking-[0.2em] text-stone-500">Recent Runs</div>
+            <div className="mt-2 text-3xl font-semibold text-stone-900">{block.summary?.recent_run_count ?? 0}</div>
+          </div>
+          <div className="rounded-[22px] border border-stone-200 bg-stone-50/80 p-4">
+            <div className="text-xs uppercase tracking-[0.2em] text-stone-500">Bound Runs</div>
+            <div className="mt-2 text-3xl font-semibold text-stone-900">{block.summary?.deployment_run_count ?? 0}</div>
+          </div>
+        </div>
+        <textarea
+          className="w-full min-h-[120px] resize-none rounded-[24px] border border-stone-200 bg-white px-4 py-3 text-[15px] leading-8 text-stone-800 outline-none"
+          value={block.note || ''}
+          onChange={(event) => onUpdate(block.id, { note: event.target.value })}
+          placeholder="补充这次编排运行状态的解读和下一步动作"
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <input
@@ -569,6 +634,7 @@ function BlockEditor({ block, onUpdate }) {
 }
 
 export default function ReportCanvas({ blocks, onChange }) {
+  const [loadingRuntime, setLoadingRuntime] = useState(false);
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
@@ -688,9 +754,52 @@ export default function ReportCanvas({ blocks, onChange }) {
     onChange(template.build());
   };
 
+  const transformExpert = (blockId, targetType) => {
+    const source = blocks.find((block) => block.id === blockId);
+    if (!source) return;
+    const transformed = convertExpertOpinionToBlock(source, targetType);
+    const next = [];
+    blocks.forEach((block) => {
+      next.push(block);
+      if (block.id === blockId) {
+        next.push(transformed);
+      }
+    });
+    onChange(next);
+  };
+
+  const insertRuntimeSnapshot = async () => {
+    setLoadingRuntime(true);
+    try {
+      const response = await fetchOrchestrationRuntime();
+      if (!response.success) {
+        throw new Error(response.message || '读取编排快照失败');
+      }
+      const stats = response.runtime?.stats || {};
+      onChange([
+        ...blocks,
+        createCanvasBlock('orchestration_snapshot', {
+          title: '任务编排快照',
+          summary: stats,
+          note: '记录当前 Prefect flow / deployment / run 状态，并据此更新执行计划。',
+        }),
+      ]);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoadingRuntime(false);
+    }
+  };
+
   return (
     <div className="space-y-5">
-      <CanvasToolbar onAddBlock={addBlock} onApplyTemplate={applyTemplate} blockCount={blocks.length} />
+      <CanvasToolbar
+        onAddBlock={addBlock}
+        onApplyTemplate={applyTemplate}
+        onInsertRuntime={insertRuntimeSnapshot}
+        loadingRuntime={loadingRuntime}
+        blockCount={blocks.length}
+      />
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={blockIds} strategy={verticalListSortingStrategy}>
@@ -703,6 +812,7 @@ export default function ReportCanvas({ blocks, onChange }) {
                 onUpdate={updateBlock}
                 onDelete={deleteBlock}
                 onDuplicate={duplicateBlock}
+                onTransformExpert={transformExpert}
               />
             ))}
           </div>

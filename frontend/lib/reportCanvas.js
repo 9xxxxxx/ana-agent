@@ -12,6 +12,41 @@ export function createCanvasBlock(type, overrides = {}) {
   };
 }
 
+export function convertExpertOpinionToBlock(expertBlock, targetType = 'action_items') {
+  const title = expertBlock?.title || expertBlock?.role || '专家观点';
+  const content = expertBlock?.content || '';
+
+  if (targetType === 'callout') {
+    return createCanvasBlock('callout', {
+      title: `${title} 风险提炼`,
+      content,
+      tone: 'note',
+    });
+  }
+
+  if (targetType === 'text') {
+    return createCanvasBlock('text', {
+      title: `${title} 结论摘录`,
+      content,
+      tone: 'summary',
+    });
+  }
+
+  return createCanvasBlock('action_items', {
+    title: `${title} 执行动作`,
+    items: [
+      {
+        id: makeId('task'),
+        title: content.split('\n').find(Boolean)?.slice(0, 72) || `跟进 ${title} 建议`,
+        owner: '待分配',
+        dueDate: '待定',
+        status: 'todo',
+        priority: expertBlock?.stance === 'risk' ? 'high' : 'medium',
+      },
+    ],
+  });
+}
+
 function extractChecklistItems(markdown = '') {
   const matches = markdown.match(/^- \[[ xX]\] .+$/gm);
   if (!matches?.length) {
@@ -208,6 +243,16 @@ export function exportCanvasToMarkdown(blocks = []) {
 
       if (block.type === 'expert_opinion') {
         return `## ${block.title || block.role || '专家观点'}\n\n${block.content || ''}`.trim();
+      }
+
+      if (block.type === 'orchestration_snapshot') {
+        const summary = block.summary || {};
+        const rows = [
+          `- Deployments: ${summary.deployment_count ?? 0}`,
+          `- Recent Runs: ${summary.recent_run_count ?? 0}`,
+          `- Bound Runs: ${summary.deployment_run_count ?? 0}`,
+        ].join('\n');
+        return `## ${block.title || '任务编排快照'}\n\n${rows}\n\n${block.note || ''}`.trim();
       }
 
       return `## ${block.title || '内容块'}\n\n${block.content || ''}`.trim();

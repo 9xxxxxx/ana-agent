@@ -236,6 +236,29 @@ function PreviewBlock({ block }) {
     );
   }
 
+  if (block.type === 'orchestration_snapshot') {
+    return (
+      <section className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm">
+        <h2 className="text-xl font-semibold tracking-tight text-stone-950">{block.title}</h2>
+        <div className="mt-5 grid gap-4 md:grid-cols-3">
+          <div className="rounded-[22px] border border-stone-200 bg-stone-50/80 p-4">
+            <div className="text-xs uppercase tracking-[0.2em] text-stone-500">Deployments</div>
+            <div className="mt-2 text-3xl font-semibold text-stone-900">{block.summary?.deployment_count ?? 0}</div>
+          </div>
+          <div className="rounded-[22px] border border-stone-200 bg-stone-50/80 p-4">
+            <div className="text-xs uppercase tracking-[0.2em] text-stone-500">Recent Runs</div>
+            <div className="mt-2 text-3xl font-semibold text-stone-900">{block.summary?.recent_run_count ?? 0}</div>
+          </div>
+          <div className="rounded-[22px] border border-stone-200 bg-stone-50/80 p-4">
+            <div className="text-xs uppercase tracking-[0.2em] text-stone-500">Bound Runs</div>
+            <div className="mt-2 text-3xl font-semibold text-stone-900">{block.summary?.deployment_run_count ?? 0}</div>
+          </div>
+        </div>
+        {block.note && <div className="mt-4 rounded-[22px] bg-stone-50 px-5 py-4 text-sm leading-7 text-stone-700">{block.note}</div>}
+      </section>
+    );
+  }
+
   if (block.type === 'callout') {
     return (
       <section className="rounded-[28px] border border-blue-200 bg-blue-50/70 p-6 shadow-sm">
