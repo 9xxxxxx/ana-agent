@@ -116,6 +116,65 @@ function PreviewBlock({ block }) {
     );
   }
 
+  if (block.type === 'decision_flow') {
+    const columns = [
+      { key: 'specialist', label: '专家观点' },
+      { key: 'evidence', label: '支撑证据' },
+      { key: 'debate', label: '争议保留' },
+      { key: 'action', label: '落地动作' },
+    ];
+
+    const statusTone = (status) => {
+      if (status === 'adopted') return 'bg-emerald-50 text-emerald-700';
+      if (status === 'challenged') return 'bg-rose-50 text-rose-700';
+      return 'bg-amber-50 text-amber-700';
+    };
+
+    const strengthTone = (strength) => {
+      if (strength === 'high') return 'bg-stone-900 text-white';
+      if (strength === 'low') return 'bg-stone-100 text-stone-500';
+      return 'bg-stone-200 text-stone-700';
+    };
+
+    return (
+      <section className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight text-stone-950">{block.title}</h2>
+            <div className="mt-2 text-sm leading-7 text-stone-600">最终决策: {block.decision}</div>
+          </div>
+        </div>
+        <div className="mt-5 grid gap-4 xl:grid-cols-4">
+          {columns.map((column) => {
+            const items = (block.nodes || []).filter((node) => node.kind === column.key);
+            return (
+              <div key={column.key} className="rounded-[24px] border border-stone-200 bg-stone-50/70 p-4">
+                <div className="text-sm font-semibold text-stone-900">{column.label}</div>
+                <div className="mt-3 space-y-3">
+                  {items.map((item) => (
+                    <div key={item.id} className="rounded-[20px] border border-stone-200 bg-white p-4">
+                      <div className="text-sm font-semibold text-stone-900">{item.label}</div>
+                      <div className="mt-2 text-sm leading-6 text-stone-600">{item.detail}</div>
+                      <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
+                        <span className={`rounded-full px-2.5 py-1 ${statusTone(item.status)}`}>{item.status}</span>
+                        <span className={`rounded-full px-2.5 py-1 ${strengthTone(item.strength)}`}>{item.strength}</span>
+                      </div>
+                    </div>
+                  ))}
+                  {items.length === 0 && (
+                    <div className="rounded-[20px] border border-dashed border-stone-200 bg-white/80 px-4 py-5 text-sm text-stone-400">
+                      暂无节点
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+    );
+  }
+
   if (block.type === 'evidence') {
     return (
       <section className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm">

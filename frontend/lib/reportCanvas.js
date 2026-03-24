@@ -235,6 +235,16 @@ export function reportToCanvasBlocks(report) {
     );
   }
 
+  if (report.decisionFlow?.nodes?.length) {
+    blocks.push(
+      createCanvasBlock('decision_flow', {
+        title: report.decisionFlow.title || '决策流追踪',
+        decision: report.decisionFlow.decision || '',
+        nodes: report.decisionFlow.nodes || [],
+      })
+    );
+  }
+
   if (report.evidenceItems?.length) {
     blocks.push(
       createCanvasBlock('evidence', {
@@ -370,6 +380,13 @@ export function exportCanvasToMarkdown(blocks = []) {
           `- 依据: ${block.rationale || ''}`,
           `- 下一步: ${block.nextStep || ''}`,
         ].join('\n').trim();
+      }
+
+      if (block.type === 'decision_flow') {
+        const nodes = (block.nodes || [])
+          .map((item) => `- [${item.kind}] ${item.label} | ${item.status || 'unknown'} | ${item.strength || 'medium'} | ${item.detail || ''}`)
+          .join('\n');
+        return `## ${block.title || '决策流追踪'}\n\n- 最终决策: ${block.decision || ''}\n\n${nodes}`.trim();
       }
 
       if (block.type === 'evidence') {

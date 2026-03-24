@@ -55,6 +55,7 @@ function CanvasToolbar({ onAddBlock, onApplyTemplate, onInsertRuntime, onGenerat
     { key: 'text', label: '文本', icon: <EditIcon size={14} /> },
     { key: 'callout', label: '提示块', icon: <AlertIcon size={14} /> },
     { key: 'decision', label: '决策块', icon: <CheckCircleIcon size={14} /> },
+    { key: 'decision_flow', label: '决策流', icon: <LayersIcon size={14} /> },
     { key: 'evidence', label: '证据块', icon: <LayersIcon size={14} /> },
     { key: 'debate', label: '争议块', icon: <AlertIcon size={14} /> },
     { key: 'checklist', label: '清单', icon: <CheckCircleIcon size={14} /> },
@@ -426,6 +427,106 @@ function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runni
           onChange={(event) => onUpdate(block.id, { nextStep: event.target.value })}
           placeholder="下一步动作"
         />
+      </div>
+    );
+  }
+
+  if (block.type === 'decision_flow') {
+    const statusOptions = [
+      { value: 'adopted', label: '采纳' },
+      { value: 'reserved', label: '保留' },
+      { value: 'challenged', label: '驳回' },
+    ];
+    const strengthOptions = [
+      { value: 'high', label: '高强度' },
+      { value: 'medium', label: '中强度' },
+      { value: 'low', label: '低强度' },
+    ];
+
+    return (
+      <div className="space-y-4">
+        <input
+          className="w-full bg-transparent text-xl font-semibold text-stone-900 outline-none"
+          value={block.title || ''}
+          onChange={(event) => onUpdate(block.id, { title: event.target.value })}
+          placeholder="决策流标题"
+        />
+        <input
+          className="w-full rounded-[24px] border border-stone-200 bg-white px-4 py-3 text-sm text-stone-800 outline-none"
+          value={block.decision || ''}
+          onChange={(event) => onUpdate(block.id, { decision: event.target.value })}
+          placeholder="最终决策"
+        />
+        <div className="grid gap-3 xl:grid-cols-2">
+          {(block.nodes || []).map((item, index) => (
+            <div key={item.id || index} className="rounded-[24px] border border-stone-200 bg-white p-4">
+              <div className="grid gap-3 md:grid-cols-[1fr,0.9fr]">
+                <input
+                  className="rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm font-semibold text-stone-900 outline-none"
+                  value={item.label || ''}
+                  onChange={(event) => {
+                    const nodes = [...(block.nodes || [])];
+                    nodes[index] = { ...nodes[index], label: event.target.value };
+                    onUpdate(block.id, { nodes });
+                  }}
+                  placeholder="节点标题"
+                />
+                <select
+                  className="rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-800 outline-none"
+                  value={item.kind || 'specialist'}
+                  onChange={(event) => {
+                    const nodes = [...(block.nodes || [])];
+                    nodes[index] = { ...nodes[index], kind: event.target.value };
+                    onUpdate(block.id, { nodes });
+                  }}
+                >
+                  <option value="specialist">专家观点</option>
+                  <option value="evidence">支撑证据</option>
+                  <option value="debate">争议保留</option>
+                  <option value="action">落地动作</option>
+                </select>
+              </div>
+              <textarea
+                className="mt-3 w-full min-h-[88px] resize-none rounded-2xl border border-stone-200 bg-stone-50/70 px-3 py-2 text-sm leading-7 text-stone-700 outline-none"
+                value={item.detail || ''}
+                onChange={(event) => {
+                  const nodes = [...(block.nodes || [])];
+                  nodes[index] = { ...nodes[index], detail: event.target.value };
+                  onUpdate(block.id, { nodes });
+                }}
+                placeholder="节点详情"
+              />
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                <select
+                  className="rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-800 outline-none"
+                  value={item.status || 'reserved'}
+                  onChange={(event) => {
+                    const nodes = [...(block.nodes || [])];
+                    nodes[index] = { ...nodes[index], status: event.target.value };
+                    onUpdate(block.id, { nodes });
+                  }}
+                >
+                  {statusOptions.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+                <select
+                  className="rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-800 outline-none"
+                  value={item.strength || 'medium'}
+                  onChange={(event) => {
+                    const nodes = [...(block.nodes || [])];
+                    nodes[index] = { ...nodes[index], strength: event.target.value };
+                    onUpdate(block.id, { nodes });
+                  }}
+                >
+                  {strengthOptions.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -1056,6 +1157,23 @@ export default function ReportCanvas({ blocks, onChange }) {
           verdict: '在这里写一句话结论。',
           rationale: '补充核心依据、证据和边界条件。',
           nextStep: '明确下一步动作。',
+        }),
+      ]);
+      return;
+    }
+
+    if (type === 'decision_flow') {
+      onChange([
+        ...blocks,
+        createCanvasBlock('decision_flow', {
+          title: '新增决策流',
+          decision: '在这里写最终采纳的决策。',
+          nodes: [
+            { id: 'flow-1', kind: 'specialist', label: '专家观点', detail: '补充专家意见。', status: 'adopted', strength: 'high' },
+            { id: 'flow-2', kind: 'evidence', label: '关键证据', detail: '补充数据依据。', status: 'adopted', strength: 'high' },
+            { id: 'flow-3', kind: 'debate', label: '保留争议', detail: '补充未完全解决的争议。', status: 'reserved', strength: 'medium' },
+            { id: 'flow-4', kind: 'action', label: '执行动作', detail: '补充最终落地动作。', status: 'adopted', strength: 'medium' },
+          ],
         }),
       ]);
       return;

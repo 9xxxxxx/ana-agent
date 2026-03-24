@@ -92,6 +92,50 @@ function buildDebateItems(specialists = []) {
   }));
 }
 
+function buildDecisionFlow(specialists = [], evidenceItems = [], debateItems = [], actionItems = [], decision = null) {
+  const specialistNodes = specialists.slice(0, 3).map((item, index) => ({
+    id: `specialist-${index + 1}`,
+    kind: 'specialist',
+    label: item.role,
+    detail: extractLeadSentence(item.content) || '暂无观点',
+    status: index === 0 ? 'adopted' : index === 1 ? 'reserved' : 'challenged',
+    strength: index === 0 ? 'high' : 'medium',
+  }));
+
+  const evidenceNodes = evidenceItems.slice(0, 3).map((item, index) => ({
+    id: `evidence-${index + 1}`,
+    kind: 'evidence',
+    label: item.claim,
+    detail: item.evidence,
+    status: 'adopted',
+    strength: index === 0 ? 'high' : 'medium',
+  }));
+
+  const debateNodes = debateItems.slice(0, 2).map((item, index) => ({
+    id: `debate-${index + 1}`,
+    kind: 'debate',
+    label: item.perspective,
+    detail: item.point,
+    status: 'reserved',
+    strength: 'medium',
+  }));
+
+  const actionNodes = actionItems.slice(0, 3).map((item, index) => ({
+    id: `action-${index + 1}`,
+    kind: 'action',
+    label: item.title,
+    detail: `${item.owner} · ${item.dueDate}`,
+    status: 'adopted',
+    strength: index === 0 ? 'high' : 'medium',
+  }));
+
+  return {
+    title: '决策流追踪',
+    decision: decision?.verdict || '待补充最终决策',
+    nodes: [...specialistNodes, ...evidenceNodes, ...debateNodes, ...actionNodes],
+  };
+}
+
 export function buildDecisionReport(brainstormResult) {
   if (!brainstormResult?.final_report) {
     return null;
@@ -123,6 +167,7 @@ export function buildDecisionReport(brainstormResult) {
       ...buildSpecialistSections(specialists),
     ],
     decision,
+    decisionFlow: buildDecisionFlow(specialists, evidenceItems, debateItems, actionItems, decision),
     evidenceItems,
     debateItems,
     specialists,
