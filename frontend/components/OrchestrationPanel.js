@@ -16,6 +16,7 @@ import {
   SparklesIcon,
 } from './Icons';
 import { useToast } from './Toast';
+import { cn, ui } from './ui';
 
 function formatTime(value) {
   if (!value) return '未记录';
@@ -132,7 +133,7 @@ export default function OrchestrationPanel({ isOpen, onClose }) {
           <div className="flex items-center gap-3">
             <button
               onClick={() => loadRuntime()}
-              className="flex items-center gap-2 rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-foreground transition-all hover:bg-zinc-50"
+              className={cn(ui.buttonSecondary, 'rounded-xl px-4 py-2')}
             >
               <RefreshCwIcon size={16} />
               <span>刷新</span>
@@ -140,12 +141,12 @@ export default function OrchestrationPanel({ isOpen, onClose }) {
             <button
               onClick={handleSync}
               disabled={syncing}
-              className="flex items-center gap-2 rounded-xl bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-zinc-800 disabled:opacity-60"
+              className={cn(ui.buttonPrimary, 'rounded-xl px-4 py-2 disabled:opacity-60')}
             >
               <SparklesIcon size={16} />
               <span>{syncing ? '同步中...' : '同步 Deployments'}</span>
             </button>
-            <button onClick={onClose} className="rounded-full p-2 text-muted-foreground transition hover:bg-zinc-100">
+            <button onClick={onClose} className={ui.iconButton}>
               <CloseIcon size={20} />
             </button>
           </div>
@@ -157,26 +158,26 @@ export default function OrchestrationPanel({ isOpen, onClose }) {
           ) : (
             <div className="space-y-8">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+                <div className={cn(ui.panel, 'p-5')}>
                   <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Flows</div>
                   <div className="mt-3 text-3xl font-bold text-foreground">{runtime?.stats?.flow_count || 0}</div>
                 </div>
-                <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+                <div className={cn(ui.panel, 'p-5')}>
                   <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Deployments</div>
                   <div className="mt-3 text-3xl font-bold text-foreground">{runtime?.stats?.deployment_count || 0}</div>
                 </div>
-                <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+                <div className={cn(ui.panel, 'p-5')}>
                   <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Recent Runs</div>
                   <div className="mt-3 text-3xl font-bold text-foreground">{runtime?.stats?.recent_run_count || 0}</div>
                 </div>
-                <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+                <div className={cn(ui.panel, 'p-5')}>
                   <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Bound Runs</div>
                   <div className="mt-3 text-3xl font-bold text-foreground">{runtime?.stats?.deployment_run_count || 0}</div>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 xl:grid-cols-[1.05fr,1.4fr] gap-6">
-                <section className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
+                <section className={cn(ui.surface, 'p-6')}>
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <h3 className="text-lg font-semibold text-foreground">Flow Catalog</h3>
@@ -185,7 +186,7 @@ export default function OrchestrationPanel({ isOpen, onClose }) {
                   </div>
                   <div className="space-y-3">
                     {(runtime?.flows || []).map((flow) => (
-                      <div key={flow.id} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                      <div key={flow.id} className={cn(ui.card, 'p-4')}>
                         <div className="flex items-center justify-between gap-3">
                           <div>
                             <div className="font-semibold text-foreground">{flow.name}</div>
@@ -200,7 +201,7 @@ export default function OrchestrationPanel({ isOpen, onClose }) {
                   </div>
                 </section>
 
-                <section className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
+                <section className={cn(ui.surface, 'p-6')}>
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <h3 className="text-lg font-semibold text-foreground">Deployments</h3>
@@ -215,7 +216,7 @@ export default function OrchestrationPanel({ isOpen, onClose }) {
                   ) : (
                     <div className="space-y-4">
                       {deployments.map((deployment) => (
-                        <div key={deployment.id} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                        <div key={deployment.id} className={cn(ui.card, 'p-4')}>
                           <div className="flex items-start justify-between gap-4">
                             <div className="min-w-0">
                               <div className="font-semibold text-foreground truncate">{deployment.name}</div>
@@ -237,7 +238,7 @@ export default function OrchestrationPanel({ isOpen, onClose }) {
                             <button
                               onClick={() => handleRunDeployment(deployment.id)}
                               disabled={runningDeploymentId === deployment.id}
-                              className="flex shrink-0 items-center gap-2 rounded-xl bg-zinc-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:opacity-60"
+                              className={cn(ui.buttonPrimary, 'shrink-0 rounded-xl px-3 py-2 disabled:opacity-60')}
                             >
                               <PlayIcon size={14} />
                               <span>{runningDeploymentId === deployment.id ? '触发中...' : '立即运行'}</span>
@@ -250,7 +251,7 @@ export default function OrchestrationPanel({ isOpen, onClose }) {
                 </section>
               </div>
 
-              <section className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
+              <section className={cn(ui.surface, 'p-6')}>
                 <div className="mb-4">
                   <h3 className="text-lg font-semibold text-foreground">Recent Flow Runs</h3>
                   <p className="text-sm text-muted-foreground mt-1">最近的执行记录，便于观察调度是否稳定、是否有失败或排队</p>

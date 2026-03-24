@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { CloseIcon, SettingsIcon, UserIcon, InfoIcon, SparklesIcon, SpinnerIcon } from './Icons';
 import { useToast } from './Toast';
 import { fetchSystemStatus } from '@/lib/api';
+import { cn, ui } from './ui';
 
 export default function SettingsModal({ isOpen, onClose }) {
   const { success, error, warning } = useToast();
@@ -215,7 +216,7 @@ export default function SettingsModal({ isOpen, onClose }) {
         <div className="flex w-full flex-col border-r border-zinc-200 bg-zinc-50 pt-4 md:w-60">
           <div className="flex items-center justify-between px-5 pb-4 md:border-b md:border-zinc-200">
             <h2 className="text-lg font-semibold text-foreground">设置</h2>
-            <button className="md:hidden p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition" onClick={onClose}>
+            <button className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-zinc-100 hover:text-foreground md:hidden" onClick={onClose}>
               <CloseIcon size={18} />
             </button>
           </div>
@@ -257,7 +258,7 @@ export default function SettingsModal({ isOpen, onClose }) {
                       <div className="font-medium text-foreground text-sm">主题模式</div>
                       <div className="text-xs text-muted-foreground mt-1">当前项目锁定为浅色模式，避免主题分叉继续扩散</div>
                     </div>
-                    <div className="px-3 py-1.5 bg-muted border border-border rounded-lg text-sm text-foreground">
+                    <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-sm text-foreground">
                       浅色固定
                     </div>
                   </div>
@@ -305,7 +306,7 @@ export default function SettingsModal({ isOpen, onClose }) {
                           </button>
                         </div>
                         <select 
-                          className="w-full cursor-pointer rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-foreground transition-colors focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-100"
+                          className={cn(ui.select, 'px-3 py-2')}
                           value={selectedModel}
                           onChange={handleModelChange}
                         >
@@ -320,7 +321,7 @@ export default function SettingsModal({ isOpen, onClose }) {
                           <input
                             type={showApiKey ? "text" : "password"}
                             placeholder="sk-..."
-                            className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-foreground transition-colors focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-100"
+                            className={cn(ui.inputMuted, 'px-3 py-2')}
                             value={apiKey}
                             onChange={(e) => setApiKey(e.target.value)}
                           />
@@ -336,7 +337,7 @@ export default function SettingsModal({ isOpen, onClose }) {
                           <input
                             type="text"
                             placeholder="https://api.openai.com/v1"
-                            className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-foreground transition-colors focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-100"
+                            className={cn(ui.inputMuted, 'px-3 py-2')}
                             value={baseUrl}
                             onChange={(e) => setBaseUrl(e.target.value)}
                           />
@@ -389,7 +390,7 @@ export default function SettingsModal({ isOpen, onClose }) {
                     </div>
                     <textarea 
                       rows={6}
-                      className="w-full resize-none rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-foreground transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-100"
+                      className={cn(ui.textareaMuted, 'min-h-[160px] p-4 text-sm leading-7')}
                       value={systemPrompt}
                       onChange={(e) => setSystemPrompt(e.target.value)}
                     />
@@ -399,14 +400,14 @@ export default function SettingsModal({ isOpen, onClose }) {
                     <button
                       onClick={() => handleTestConnection({ saveAfterTest: true })}
                       disabled={isTesting}
-                      className="mr-3 rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 disabled:opacity-50"
+                      className={cn(ui.buttonSecondary, 'mr-3 rounded-xl px-4 py-2 disabled:opacity-50')}
                     >
                       {isTesting ? '测试中...' : '测试并保存'}
                     </button>
                     <button 
                       onClick={handleSavePrompt}
                       disabled={isTesting}
-                      className="rounded-xl bg-zinc-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-zinc-800"
+                      className={cn(ui.buttonPrimary, 'rounded-xl px-4 py-2')}
                       >
                       保存设置
                     </button>
@@ -460,8 +461,8 @@ export default function SettingsModal({ isOpen, onClose }) {
                       <div className="rounded-2xl border border-border bg-muted/40 p-4">
                         <div className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">启动命令</div>
                         <div className="mt-3 space-y-2 text-sm text-foreground">
-                          <div className="rounded-xl bg-popover px-3 py-2 font-mono">{systemStatus.startup?.python}</div>
-                          <div className="rounded-xl bg-popover px-3 py-2 font-mono">{systemStatus.startup?.frontend}</div>
+                          <div className="rounded-xl bg-white px-3 py-2 font-mono">{systemStatus.startup?.python}</div>
+                          <div className="rounded-xl bg-white px-3 py-2 font-mono">{systemStatus.startup?.frontend}</div>
                         </div>
                       </div>
                       <div className="rounded-2xl border border-border bg-muted/40 p-4">

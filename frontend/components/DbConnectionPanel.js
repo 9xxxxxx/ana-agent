@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react';
 import { testDbConnection, saveDbConfig, getDbConfig, deleteDbConfig } from '@/lib/api';
 import { DatabaseIcon, CloseIcon, CheckIcon, TrashIcon } from './Icons';
 import { useToast } from './Toast';
+import { cn, ui } from './ui';
 
 const DB_TYPES = [
   { value: 'postgresql', label: 'PostgreSQL', port: 5432 },
@@ -249,7 +250,7 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-medium text-foreground">数据库类型</label>
                 <select 
-                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-foreground transition-all focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-100"
+                  className={cn(ui.select, 'rounded-xl px-3 py-2')}
                   value={dbType} 
                   onChange={(e) => setDbType(e.target.value)}
                 >
@@ -264,7 +265,7 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
                   <label className="text-sm font-medium text-foreground">数据库文件路径</label>
                   <input
                     type="text"
-                    className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-foreground transition-all focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-100"
+                    className={cn(ui.inputMuted, 'rounded-xl px-3 py-2')}
                     value={sqlitePath}
                     onChange={(e) => setSqlitePath(e.target.value)}
                     placeholder="例如: ./data/mydb.sqlite"
@@ -277,7 +278,7 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
                       <label className="text-sm font-medium text-foreground">主机名</label>
                       <input
                         type="text"
-                        className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-foreground transition-all focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-100"
+                        className={cn(ui.inputMuted, 'rounded-xl px-3 py-2')}
                         value={host}
                         onChange={(e) => setHost(e.target.value)}
                         placeholder="localhost"
@@ -287,7 +288,7 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
                       <label className="text-sm font-medium text-foreground">端口</label>
                       <input
                         type="number"
-                        className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-foreground transition-all focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-100"
+                        className={cn(ui.inputMuted, 'rounded-xl px-3 py-2')}
                         value={port}
                         onChange={(e) => setPort(parseInt(e.target.value) || '')}
                       />
@@ -310,7 +311,7 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
                       <label className="text-sm font-medium text-foreground">用户名</label>
                       <input
                         type="text"
-                        className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-foreground transition-all focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-100"
+                        className={cn(ui.inputMuted, 'rounded-xl px-3 py-2')}
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
                         placeholder="postgres"
@@ -320,7 +321,7 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
                       <label className="text-sm font-medium text-foreground">密码</label>
                       <input
                         type="password"
-                        className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-foreground transition-all focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-100"
+                        className={cn(ui.inputMuted, 'rounded-xl px-3 py-2')}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="••••••••"
@@ -336,7 +337,7 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-foreground">自定义连接 URI</label>
               <textarea
-                className="w-full resize-none rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-foreground transition-all focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-100"
+                className={cn(ui.textareaMuted, 'min-h-[110px] rounded-xl px-3 py-2 text-sm leading-6')}
                 value={customUrl}
                 onChange={(e) => setCustomUrl(e.target.value)}
                 placeholder="例如: postgresql+psycopg2://user:pass@localhost:5432/dbname"
@@ -362,7 +363,7 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <button 
-                        className="flex items-center justify-center rounded-xl bg-zinc-900 px-4 py-1.5 text-xs font-medium text-white shadow-sm transition-colors hover:bg-zinc-800"
+                        className={cn(ui.buttonPrimary, 'rounded-xl px-4 py-1.5 text-xs shadow-sm')}
                         onClick={() => handleUseSaved(config)}
                       >
                         连接
@@ -392,14 +393,14 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
         {activeTab !== 'saved' && (
           <div className="flex items-center justify-end gap-3 border-t border-zinc-200 bg-zinc-50 px-6 py-4">
             <button
-              className="rounded-xl border border-zinc-300 bg-white px-5 py-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-zinc-50 disabled:opacity-50"
+              className={cn(ui.buttonSecondary, 'rounded-xl px-5 py-2 disabled:opacity-50')}
               onClick={handleTest}
               disabled={testing}
             >
               {testing ? '测试中...' : '测试连接'}
             </button>
             <button
-              className="rounded-xl border border-transparent bg-zinc-900 px-5 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-zinc-800 disabled:opacity-50"
+              className={cn(ui.buttonPrimary, 'rounded-xl px-5 py-2 disabled:opacity-50')}
               onClick={handleSaveAndConnect}
               disabled={saving || testing}
             >

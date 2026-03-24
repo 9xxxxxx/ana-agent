@@ -11,6 +11,7 @@ import {
   XCircleIcon,
 } from './Icons';
 import { useToast } from './Toast';
+import { cn, ui } from './ui';
 
 function CheckStatusBadge({ status }) {
   if (status === 'pass') {
@@ -92,12 +93,12 @@ export default function SystemDiagnosticsPanel({ isOpen, onClose }) {
           <div className="flex items-center gap-3">
             <button
               onClick={loadDiagnostics}
-              className="inline-flex items-center gap-2 rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-foreground transition hover:bg-zinc-50"
+              className={cn(ui.buttonSecondary, 'rounded-xl px-4 py-2')}
             >
               <RefreshCwIcon size={14} />
               刷新诊断
             </button>
-            <button onClick={onClose} className="rounded-full p-2 text-muted-foreground transition hover:bg-zinc-100">
+            <button onClick={onClose} className={ui.iconButton}>
               <CloseIcon size={18} />
             </button>
           </div>
@@ -109,15 +110,15 @@ export default function SystemDiagnosticsPanel({ isOpen, onClose }) {
           ) : (
             <div className="space-y-8">
               <div className="grid gap-4 md:grid-cols-3">
-                <div className="rounded-3xl border border-emerald-200 bg-white p-5 shadow-sm">
+                <div className={cn(ui.panel, 'border-emerald-200 p-5')}>
                   <div className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600">Pass</div>
                   <div className="mt-3 text-4xl font-semibold text-zinc-950">{payload?.summary?.pass || 0}</div>
                 </div>
-                <div className="rounded-3xl border border-amber-200 bg-white p-5 shadow-sm">
+                <div className={cn(ui.panel, 'border-amber-200 p-5')}>
                   <div className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">Warn</div>
                   <div className="mt-3 text-4xl font-semibold text-zinc-950">{payload?.summary?.warn || 0}</div>
                 </div>
-                <div className="rounded-3xl border border-rose-200 bg-white p-5 shadow-sm">
+                <div className={cn(ui.panel, 'border-rose-200 p-5')}>
                   <div className="text-xs font-semibold uppercase tracking-[0.2em] text-rose-600">Fail</div>
                   <div className="mt-3 text-4xl font-semibold text-zinc-950">{payload?.summary?.fail || 0}</div>
                 </div>
@@ -130,14 +131,14 @@ export default function SystemDiagnosticsPanel({ isOpen, onClose }) {
                   ['storage', '元数据与文件存储'],
                   ['runtime', '运行时状态'],
                 ].map(([key, label]) => (
-                  <section key={key} className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
+                  <section key={key} className={cn(ui.surface, 'p-6')}>
                     <div className="mb-4 flex items-center gap-2">
                       <InfoIcon size={16} className="text-zinc-500" />
                       <h3 className="text-lg font-semibold text-zinc-950">{label}</h3>
                     </div>
                     <div className="space-y-3">
                       {(groupedChecks[key] || []).map((item) => (
-                        <div key={item.name} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                        <div key={item.name} className={cn(ui.card, 'p-4')}>
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                               <div className="text-sm font-semibold text-zinc-900">{item.name}</div>
@@ -157,7 +158,7 @@ export default function SystemDiagnosticsPanel({ isOpen, onClose }) {
                 ))}
               </div>
 
-              <section className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
+              <section className={cn(ui.surface, 'p-6')}>
                 <h3 className="text-lg font-semibold text-zinc-950">启动命令</h3>
                 <div className="mt-4 grid gap-3 md:grid-cols-3">
                   <div className="rounded-2xl bg-zinc-50 px-4 py-4">

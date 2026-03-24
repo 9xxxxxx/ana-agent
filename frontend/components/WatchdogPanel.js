@@ -16,6 +16,7 @@ import {
   CloseIcon
 } from './Icons';
 import { useToast } from './Toast';
+import { cn, ui } from './ui';
 
 export default function WatchdogPanel({ isOpen, onClose }) {
   const { success, error } = useToast();
@@ -112,12 +113,12 @@ export default function WatchdogPanel({ isOpen, onClose }) {
           <div className="flex items-center gap-3">
             <button 
               onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-2 rounded-xl bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-zinc-800"
+              className={cn(ui.buttonPrimary, 'rounded-xl px-4 py-2')}
             >
               <PlusIcon size={16} />
               <span>新增监控</span>
             </button>
-            <button onClick={onClose} className="rounded-full p-2 text-muted-foreground transition hover:bg-zinc-100">
+            <button onClick={onClose} className={ui.iconButton}>
               <CloseIcon size={20} />
             </button>
           </div>
@@ -135,7 +136,7 @@ export default function WatchdogPanel({ isOpen, onClose }) {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {rules.map(rule => (
-                <div key={rule.id} className="group rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm transition-all hover:shadow-md">
+                <div key={rule.id} className={cn(ui.panel, 'group p-6 transition-all hover:shadow-md')}>
                   <div className="flex justify-between items-start mb-4">
                     <div>
                       <h3 className="font-bold text-foreground transition-colors group-hover:text-emerald-700">{rule.name}</h3>
@@ -194,7 +195,7 @@ export default function WatchdogPanel({ isOpen, onClose }) {
                 <div>
                   <label className="block font-semibold text-foreground mb-1.5 ml-1">规则名称</label>
                   <input 
-                    className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-foreground outline-none transition-all focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100"
+                    className={ui.inputMuted}
                     placeholder="例如: 每日收入异常预警"
                     value={newRule.name}
                     onChange={e => setNewRule({...newRule, name: e.target.value})}
@@ -203,7 +204,7 @@ export default function WatchdogPanel({ isOpen, onClose }) {
                 <div>
                   <label className="block font-semibold text-foreground mb-1.5 ml-1 text-xs">查询 SQL (应返回一个数值)</label>
                   <textarea 
-                    className="h-24 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 font-mono text-[13px] text-foreground outline-none transition-all focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100"
+                    className={cn(ui.textareaMuted, 'h-24 min-h-[96px] font-mono text-[13px] leading-6')}
                     placeholder="SELECT COUNT(*) FROM orders WHERE status='fail'"
                     value={newRule.sql}
                     onChange={e => setNewRule({...newRule, sql: e.target.value})}
@@ -213,7 +214,7 @@ export default function WatchdogPanel({ isOpen, onClose }) {
                   <div>
                     <label className="block font-semibold text-foreground mb-1.5 ml-1 text-xs">判定方式</label>
                     <select 
-                      className="w-full appearance-none rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-foreground outline-none transition-all focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100"
+                      className={cn(ui.select, 'px-4 py-3')}
                       value={newRule.condition}
                       onChange={e => setNewRule({...newRule, condition: e.target.value})}
                     >
@@ -227,7 +228,7 @@ export default function WatchdogPanel({ isOpen, onClose }) {
                     <label className="block font-semibold text-foreground mb-1.5 ml-1 text-xs">阈值</label>
                     <input 
                       type="number"
-                      className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-foreground outline-none transition-all focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100"
+                      className={ui.inputMuted}
                       value={newRule.threshold}
                       onChange={e => setNewRule({...newRule, threshold: parseFloat(e.target.value)})}
                     />
@@ -236,7 +237,7 @@ export default function WatchdogPanel({ isOpen, onClose }) {
                 <div>
                   <label className="block font-semibold text-foreground mb-1.5 ml-1 text-xs">Cron 调度周期 (5段式)</label>
                   <input 
-                    className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 font-mono text-foreground outline-none transition-all focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100"
+                    className={cn(ui.inputMuted, 'font-mono')}
                     value={newRule.schedule}
                     onChange={e => setNewRule({...newRule, schedule: e.target.value})}
                   />
@@ -246,13 +247,13 @@ export default function WatchdogPanel({ isOpen, onClose }) {
               <div className="flex gap-3 mt-4">
                 <button 
                   onClick={() => setShowAddModal(false)}
-                  className="flex-1 rounded-2xl border border-zinc-300 bg-white py-3 font-bold text-foreground transition hover:bg-zinc-50"
+                  className={cn(ui.buttonSecondary, 'flex-1 rounded-2xl justify-center py-3')}
                 >
                   取消
                 </button>
                 <button 
                   onClick={handleAddRule}
-                  className="flex-1 rounded-2xl bg-zinc-900 py-3 font-bold text-white transition hover:bg-zinc-800"
+                  className={cn(ui.buttonPrimary, 'flex-1 rounded-2xl justify-center py-3')}
                 >
                   确认启用
                 </button>
