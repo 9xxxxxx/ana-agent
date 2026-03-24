@@ -17,10 +17,10 @@ from pydantic import BaseModel
 from typing import Optional
 from core.config import settings
 
-from langchain_core.messages import HumanMessage, AIMessageChunk, ToolMessage, AIMessage
+from langchain_core.messages import HumanMessage, AIMessageChunk, ToolMessage, AIMessage, SystemMessage
 
 from core.database import test_connection, set_session_db_url, format_database_error
-from core.agent import create_agent_graph
+from core.agent import GENERAL_SYSTEM_PROMPT, create_agent_graph
 from core.scheduler import start_scheduler, stop_scheduler, add_watchdog_job, remove_job
 from core.watchdog.rules_store import WatchdogRule, load_rules, add_rule, delete_rule
 from core.watchdog.engine import evaluate_rule
@@ -57,6 +57,37 @@ diagnostics_service = SystemDiagnosticsService(
 )
 
 LOOP_SENSITIVE_TOOLS = {"list_schemas_tool", "list_tables_tool", "describe_table_tool"}
+GENERAL_CHAT_PATTERNS = [
+    r"^\s*(你好|您好|嗨|哈喽|hello|hi)\s*[!！。.\s]*$",
+    r"^\s*(你是谁|你是做什么的|你能做什么|help|帮助|怎么用|如何使用)\s*[?？!！。.\s]*$",
+    r"^\s*(谢谢|多谢|谢了|thanks|thank you)\s*[!！。.\s]*$",
+]
+DATABASE_KEYWORDS = {
+    "数据库",
+    "表",
+    "schema",
+    "字段",
+    "列",
+    "行",
+    "sql",
+    "查询",
+    "join",
+    "select",
+    "from",
+    "where",
+    "group by",
+    "order by",
+    "postgres",
+    "postgresql",
+    "mysql",
+    "sqlite",
+    "duckdb",
+    "数据源",
+    "建表",
+    "索引",
+    "主键",
+    "外键",
+}
 
 
 def normalize_tool_input(raw_input: str) -> str:
@@ -71,6 +102,31 @@ def should_abort_tool_loop(tool_name: str, raw_input: str, seen_signatures: dict
     signature = (tool_name, normalize_tool_input(raw_input))
     seen_signatures[signature] = seen_signatures.get(signature, 0) + 1
     return seen_signatures[signature] > 2
+
+
+def detect_general_chat_intent(message: str) -> dict | None:
+    text = (message or "").strip()
+    if not text:
+        return None
+    for pattern in GENERAL_CHAT_PATTERNS:
+        if re.match(pattern, text, re.IGNORECASE):
+            return {"intent": "general_chat"}
+    return None
+
+
+def is_database_related_message(message: str) -> bool:
+    text = (message or "").strip()
+    if not text:
+        return False
+
+    lowered = text.lower()
+    if detect_direct_sql_intent(text) is not None:
+        return True
+
+    if re.search(r"([a-zA-Z_][\w]*)\.([a-zA-Z_][\w]*)", text):
+        return True
+
+    return any(keyword in lowered or keyword in text for keyword in DATABASE_KEYWORDS)
 
 
 def detect_direct_db_intent(message: str) -> dict | None:
@@ -385,6 +441,35 @@ async def execute_multi_table_query_summary(
     return outputs
 
 
+async def execute_general_chat_response(
+    *,
+    message: str,
+    thread_id: str,
+    model_name: str,
+    api_key: str | None,
+    base_url: str | None,
+    custom_system_prompt: str = "",
+) -> str:
+    llm = create_chat_model(
+        model_name=model_name,
+        api_key=api_key,
+        base_url=base_url,
+        temperature=0.2,
+        streaming=False,
+    )
+    conversation = [SystemMessage(content=custom_system_prompt or GENERAL_SYSTEM_PROMPT)]
+    if default_graph is not None:
+        prior_messages = await history_service.get_thread_messages(default_graph, thread_id)
+        for item in prior_messages[-6:]:
+            if item["role"] == "user":
+                conversation.append(HumanMessage(content=item["content"]))
+            elif item["role"] == "assistant":
+                conversation.append(AIMessage(content=item["content"]))
+    conversation.append(HumanMessage(content=message))
+    response = await llm.ainvoke(conversation)
+    return str(response.content).strip()
+
+
 class ModelTestRequest(BaseModel):
     model: str
     apiKey: Optional[str] = None
@@ -489,20 +574,11 @@ async def chat_endpoint(request: Request):
     if database_url:
         set_session_db_url(database_url)
 
-    # 2. 构建 Agent
-    try:
-        request_graph = create_agent_graph(
-            model_name=model,
-            api_key=api_key,
-            base_url=base_url,
-        )
-    except ValueError as e:
-        return JSONResponse({"error": str(e)}, status_code=400)
-
     config = {
         "configurable": {
             "thread_id": thread_id, 
-            "system_prompt": custom_system_prompt
+            "system_prompt": custom_system_prompt,
+            "agent_profile": "database",
         },
         "recursion_limit": 12,
     }
@@ -577,6 +653,31 @@ async def chat_endpoint(request: Request):
                 yield {"event": "tool_end", "data": json.dumps({"id": tool_id, "output": tool_output})}
                 yield {"event": "token", "data": json.dumps({"content": answer_text})}
                 yield {"event": "done", "data": "{}"}
+                return
+
+            general_chat_intent = detect_general_chat_intent(message)
+            if general_chat_intent or not is_database_related_message(message):
+                answer_text = await execute_general_chat_response(
+                    message=message,
+                    thread_id=thread_id,
+                    model_name=model,
+                    api_key=api_key,
+                    base_url=base_url,
+                    custom_system_prompt=custom_system_prompt,
+                )
+                yield {"event": "token", "data": json.dumps({"content": answer_text})}
+                yield {"event": "done", "data": "{}"}
+                return
+
+            try:
+                request_graph = create_agent_graph(
+                    model_name=model,
+                    api_key=api_key,
+                    base_url=base_url,
+                    profile="database",
+                )
+            except ValueError as e:
+                yield {"event": "error", "data": json.dumps({"message": str(e)})}
                 return
 
             # 流式调用
