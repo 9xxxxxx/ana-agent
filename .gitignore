@@ -44,6 +44,7 @@ contexts/
 test_log/
 chroma_data/
 watchdog_rules.json
+.files/logs/
 
 # Generated
 feishu_v2_snippets.txt
