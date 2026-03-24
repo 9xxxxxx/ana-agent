@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react';
 
 import { CloseIcon, SparklesIcon, MessageIcon, CheckIcon } from './Icons';
 import { runBrainstormAnalysis } from '@/lib/api';
+import { buildDecisionReport } from '@/lib/reportBuilder';
 
-export default function BrainstormModal({ isOpen, onClose, onAdopt }) {
+export default function BrainstormModal({ isOpen, onClose, onAdopt, onOpenReport }) {
   const [task, setTask] = useState('');
   const [context, setContext] = useState('');
   const [loading, setLoading] = useState(false);
@@ -108,12 +109,20 @@ export default function BrainstormModal({ isOpen, onClose, onAdopt }) {
               {loading ? '会商进行中...' : '启动多专家会商'}
             </button>
             {result?.final_report && (
-              <button
-                className="w-full px-4 py-3 rounded-2xl border border-border bg-popover text-foreground text-sm font-semibold hover:bg-muted transition"
-                onClick={() => onAdopt?.(result.final_report)}
-              >
-                将结论发送到对话
-              </button>
+              <div className="space-y-2">
+                <button
+                  className="w-full px-4 py-3 rounded-2xl border border-border bg-popover text-foreground text-sm font-semibold hover:bg-muted transition"
+                  onClick={() => onAdopt?.(result.final_report)}
+                >
+                  将结论发送到对话
+                </button>
+                <button
+                  className="w-full px-4 py-3 rounded-2xl border border-border bg-popover text-foreground text-sm font-semibold hover:bg-muted transition"
+                  onClick={() => onOpenReport?.(buildDecisionReport(result))}
+                >
+                  打开结构化报告
+                </button>
+              </div>
             )}
             {error && <div className="text-sm text-red-600">{error}</div>}
           </div>

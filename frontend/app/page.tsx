@@ -11,6 +11,7 @@ import ChatInput from '@/components/ChatInput';
 import DbConnectionPanel from '@/components/DbConnectionPanel';
 import FullReportModal from '@/components/FullReportModal';
 import BrainstormModal from '@/components/BrainstormModal';
+import ReportViewer from '@/components/report/ReportViewer';
 import { TrashIcon, ShareIcon } from '@/components/Icons';
 import { useChat } from '@/hooks/useChat';
 import { checkHealth, setDbConnection, deleteThread } from '@/lib/api';
@@ -37,6 +38,7 @@ export default function Home() {
   const [showDbPanel, setShowDbPanel] = useState(false);
   const [reportMsg, setReportMsg] = useState<ChatMessage | null>(null); // 查看完整报告的消息
   const [showBrainstormModal, setShowBrainstormModal] = useState(false);
+  const [brainstormReport, setBrainstormReport] = useState<Record<string, unknown> | null>(null);
   const [selectedModel, setSelectedModel] = useState('deepseek-chat');
 
   const { messages, isStreaming, sendMessage, stopStreaming, loadHistory, clearMessages } = useChat(threadId);
@@ -232,7 +234,22 @@ export default function Home() {
           setShowBrainstormModal(false);
           sendMessage(`请基于以下多专家会商结论继续形成最终分析与执行方案：\n\n${report}`, selectedModel, dbUrl);
         }}
+        onOpenReport={(report: Record<string, unknown> | null) => {
+          if (!report) return;
+          setShowBrainstormModal(false);
+          setBrainstormReport(report);
+        }}
       />
+
+      {brainstormReport && (
+        <div className="fixed inset-0 z-[10001] bg-background">
+          <ReportViewer
+            report={brainstormReport}
+            onClose={() => setBrainstormReport(null)}
+            onExport={() => {}}
+          />
+        </div>
+      )}
     </div>
   );
 }
