@@ -26,6 +26,7 @@ from core.watchdog.engine import evaluate_rule
 from core.services.brainstorm_service import MultiAgentBrainstormService
 from core.services.history_service import HistoryService
 from core.services.llm_service import create_chat_model, resolve_model_configuration
+from core.services.orchestration_service import OrchestrationService
 from core.services.storage_service import StorageService
 
 # ==================== 应用初始化 ====================
@@ -35,6 +36,7 @@ BASE_DIR = Path(__file__).resolve().parent
 MEMORY_DB_PATH = BASE_DIR / "agent_memory.db"
 storage_service = StorageService(BASE_DIR)
 history_service = HistoryService(MEMORY_DB_PATH)
+orchestration_service = OrchestrationService()
 
 
 class ModelTestRequest(BaseModel):
@@ -55,6 +57,24 @@ class BrainstormRequest(BaseModel):
     model: str = "deepseek-chat"
     api_key: Optional[str] = None
     base_url: Optional[str] = None
+
+
+class DecisionBriefFlowRequest(BaseModel):
+    task: str
+    context: Optional[str] = ""
+    model: str = "deepseek-chat"
+    api_key: Optional[str] = None
+    base_url: Optional[str] = None
+
+
+class DataPipelineFlowRequest(BaseModel):
+    file_path: str
+    table_name: str
+    dataset_name: str = "main"
+    file_type: str = "csv"
+    select: Optional[str] = None
+    run_tests: bool = True
+    target: str = "dev"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -375,6 +395,57 @@ async def brainstorm_analysis(payload: BrainstormRequest):
             base_url=resolved.base_url,
         )
         result = await service.brainstorm(task=payload.task, context=payload.context or "")
+        return {"success": True, "result": result}
+    except Exception as e:
+        return JSONResponse({"success": False, "message": str(e)}, status_code=400)
+
+
+@app.get("/api/orchestration/flows")
+async def list_orchestration_flows():
+    return {"flows": orchestration_service.list_flows()}
+
+
+@app.post("/api/orchestration/flows/decision-brief")
+async def run_decision_brief_flow_api(payload: DecisionBriefFlowRequest):
+    try:
+        resolved = resolve_model_configuration(
+            model_name=payload.model,
+            api_key=payload.api_key,
+            base_url=payload.base_url,
+        )
+        result = await orchestration_service.run_decision_brief_flow(
+            task_text=payload.task,
+            context=payload.context or "",
+            model_name=resolved.model,
+            api_key=resolved.api_key,
+            base_url=resolved.base_url,
+        )
+        return {"success": True, "result": result}
+    except Exception as e:
+        return JSONResponse({"success": False, "message": str(e)}, status_code=400)
+
+
+@app.post("/api/orchestration/flows/data-pipeline")
+async def run_data_pipeline_flow_api(payload: DataPipelineFlowRequest):
+    try:
+        result = orchestration_service.run_data_pipeline_flow(
+            file_path=payload.file_path,
+            table_name=payload.table_name,
+            dataset_name=payload.dataset_name,
+            file_type=payload.file_type,
+            select=payload.select,
+            run_tests=payload.run_tests,
+            target=payload.target,
+        )
+        return {"success": True, "result": result}
+    except Exception as e:
+        return JSONResponse({"success": False, "message": str(e)}, status_code=400)
+
+
+@app.post("/api/orchestration/flows/watchdog/{rule_id}")
+async def run_watchdog_flow_api(rule_id: str):
+    try:
+        result = orchestration_service.run_watchdog_flow(rule_id=rule_id)
         return {"success": True, "result": result}
     except Exception as e:
         return JSONResponse({"success": False, "message": str(e)}, status_code=400)

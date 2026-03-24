@@ -22,6 +22,52 @@ def start_scheduler():
     if not scheduler.running:
         scheduler.start()
         logger.info("APScheduler started successfully with SQLite jobstore.")
+        
+        # 启动时自动加载所有活跃的监控规则
+        try:
+            init_watchdog_jobs()
+            logger.info("✅ 监控巡检规则初始化成功")
+        except Exception as e:
+            logger.error(f"❌ 监控巡检规则初始化失败: {e}")
+
+def init_watchdog_jobs():
+    """从 rules_store 全量同步监控任务到调度器"""
+    from core.watchdog.rules_store import load_rules
+    from core.watchdog.engine import evaluate_rule
+    
+    rules = load_rules()
+    for rule in rules:
+        if rule.enabled:
+            add_watchdog_job(rule)
+
+def add_watchdog_job(rule):
+    """将单条 Watchdog 规则挂载至调度器"""
+    from core.watchdog.engine import evaluate_rule
+    return add_cron_job(
+        job_id=f"watchdog_{rule.id}",
+        func=evaluate_rule,
+        crontab=rule.schedule,
+        args=[rule]
+    )
+
+
+def add_decision_brief_job(job_id: str, task_text: str, crontab: str, model_name: str = "deepseek-chat", context: str = ""):
+    """
+    将 Prefect 决策简报 flow 挂载为 APScheduler 触发任务。
+    APScheduler 负责触发时机，flow 负责实际编排。
+    """
+    from core.tasks import execute_decision_brief_flow
+
+    return add_cron_job(
+        job_id=job_id,
+        func=execute_decision_brief_flow,
+        crontab=crontab,
+        kwargs={
+            "task_text": task_text,
+            "model_name": model_name,
+            "context": context,
+        },
+    )
 
 def stop_scheduler():
     """优雅停止调度服务"""

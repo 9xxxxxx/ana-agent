@@ -25,6 +25,12 @@ dependencies = [
     "uvicorn>=0.41.0",
     "chromadb>=1.5.5",
     "langchain-chroma>=1.1.0",
-    "sentence-transformers>=5.3.0",
+    "sentence-transformers>=3.0.0",
     "langchain-community>=0.4.1",
+    "dbt-core>=1.11.7",
+    "dbt-duckdb>=1.10.1",
+    "dlt[duckdb]>=1.24.0",
+    "pyarrow>=23.0.1",
+    "duckdb-engine>=0.17.0",
+    "prefect>=3.6.23",
 ]

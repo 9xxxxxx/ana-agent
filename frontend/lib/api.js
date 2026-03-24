@@ -346,3 +346,33 @@ export async function runBrainstormAnalysis(payload) {
   });
   return res.json();
 }
+
+export async function fetchOrchestrationFlows() {
+  const res = await fetch(`${API_BASE}/api/orchestration/flows`);
+  return res.json();
+}
+
+export async function runDecisionBriefFlow(payload) {
+  const res = await fetch(`${API_BASE}/api/orchestration/flows/decision-brief`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return res.json();
+}
+
+export async function runDataPipelineFlow(payload) {
+  const res = await fetch(`${API_BASE}/api/orchestration/flows/data-pipeline`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return res.json();
+}
+
+export async function runWatchdogFlow(ruleId) {
+  const res = await fetch(`${API_BASE}/api/orchestration/flows/watchdog/${ruleId}`, {
+    method: 'POST',
+  });
+  return res.json();
+}

@@ -3,6 +3,7 @@ import uuid
 import asyncio
 from langchain_core.messages import HumanMessage
 from core.agent import create_agent_graph
+from core.services.orchestration_service import OrchestrationService
 
 logger = logging.getLogger(__name__)
 
@@ -45,3 +46,23 @@ def execute_scheduled_task(query: str):
     except RuntimeError:
         # 如果当前线程没有运行的 event loop，就用 asyncio.run
         asyncio.run(_run_agent_task(query, thread_id))
+
+
+def execute_decision_brief_flow(task_text: str, model_name: str = "deepseek-chat", context: str = ""):
+    """
+    用于调度器触发 Prefect 决策简报 flow。
+    """
+
+    async def _runner():
+        service = OrchestrationService()
+        return await service.run_decision_brief_flow(
+            task_text=task_text,
+            context=context,
+            model_name=model_name,
+        )
+
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(_runner())
+    except RuntimeError:
+        asyncio.run(_runner())
