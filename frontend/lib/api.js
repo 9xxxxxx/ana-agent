@@ -36,6 +36,11 @@ export async function fetchSystemStatus() {
   return res.json();
 }
 
+export async function fetchSystemDiagnostics() {
+  const res = await fetch(`${API_BASE}/api/system/diagnostics`);
+  return res.json();
+}
+
 /**
  * 测试模型连接
  */

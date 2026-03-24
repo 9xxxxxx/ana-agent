@@ -120,7 +120,71 @@ function normalizeActionItems(items = []) {
     dueDate: item.dueDate || '待定',
     status: item.status || 'todo',
     priority: item.priority || 'medium',
+    linkedDeploymentId: item.linkedDeploymentId || '',
+    linkedDeploymentName: item.linkedDeploymentName || '',
+    linkedRunId: item.linkedRunId || '',
+    lastRunState: item.lastRunState || '',
+    lastSyncedAt: item.lastSyncedAt || '',
   }));
+}
+
+function getActionStatusFromRunState(stateName = '') {
+  const normalized = String(stateName).toLowerCase();
+  if (normalized.includes('completed')) return 'done';
+  if (normalized.includes('running')) return 'doing';
+  if (normalized.includes('scheduled') || normalized.includes('pending')) return 'todo';
+  if (normalized.includes('failed') || normalized.includes('crashed')) return 'todo';
+  return null;
+}
+
+export function syncActionItemsWithRuns(blocks = []) {
+  const runs = blocks
+    .filter((block) => block.type === 'orchestration_snapshot')
+    .flatMap((block) => block.runs || []);
+
+  if (!runs.length) {
+    return blocks;
+  }
+
+  const deploymentLatestRunMap = new Map();
+  for (const run of runs) {
+    if (!run.deployment_id) continue;
+    if (!deploymentLatestRunMap.has(run.deployment_id)) {
+      deploymentLatestRunMap.set(run.deployment_id, run);
+    }
+  }
+
+  return blocks.map((block) => {
+    if (block.type !== 'action_items') {
+      return block;
+    }
+
+    const nextItems = (block.items || []).map((item) => {
+      const linkedRun = item.linkedRunId ? runs.find((run) => run.id === item.linkedRunId) : null;
+      const linkedDeploymentRun = !linkedRun && item.linkedDeploymentId
+        ? deploymentLatestRunMap.get(item.linkedDeploymentId)
+        : null;
+      const targetRun = linkedRun || linkedDeploymentRun;
+      if (!targetRun) {
+        return item;
+      }
+
+      return {
+        ...item,
+        linkedRunId: targetRun.id || item.linkedRunId || '',
+        linkedDeploymentId: targetRun.deployment_id || item.linkedDeploymentId || '',
+        linkedDeploymentName: targetRun.deployment_name || item.linkedDeploymentName || '',
+        lastRunState: targetRun.state_name || item.lastRunState || '',
+        lastSyncedAt: new Date().toLocaleString(),
+        status: getActionStatusFromRunState(targetRun.state_name) || item.status || 'todo',
+      };
+    });
+
+    return {
+      ...block,
+      items: nextItems,
+    };
+  });
 }
 
 export function reportToCanvasBlocks(report) {
@@ -279,7 +343,7 @@ export function exportCanvasToMarkdown(blocks = []) {
 
       if (block.type === 'action_items') {
         const items = (block.items || [])
-          .map((item) => `- [${item.status === 'done' ? 'x' : ' '}] ${item.title} | Owner: ${item.owner} | Due: ${item.dueDate} | Priority: ${item.priority}`)
+          .map((item) => `- [${item.status === 'done' ? 'x' : ' '}] ${item.title} | Owner: ${item.owner} | Due: ${item.dueDate} | Priority: ${item.priority}${item.linkedDeploymentName ? ` | Deployment: ${item.linkedDeploymentName}` : ''}${item.lastRunState ? ` | Run: ${item.lastRunState}` : ''}`)
           .join('\n');
         return `## ${block.title || '执行计划'}\n\n${items}`.trim();
       }

@@ -196,6 +196,12 @@ function PreviewBlock({ block }) {
                         <span className="rounded-full bg-stone-100 px-2.5 py-1 text-stone-600">{item.owner}</span>
                         <span className="rounded-full bg-stone-100 px-2.5 py-1 text-stone-600">{item.dueDate}</span>
                         <span className={`rounded-full px-2.5 py-1 ${priorityTone}`}>{item.priority}</span>
+                        {item.linkedDeploymentName && (
+                          <span className="rounded-full bg-sky-50 px-2.5 py-1 text-sky-700">{item.linkedDeploymentName}</span>
+                        )}
+                        {item.lastRunState && (
+                          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">{item.lastRunState}</span>
+                        )}
                       </div>
                     </div>
                   );

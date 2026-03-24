@@ -31,7 +31,7 @@ import {
 } from '../Icons';
 import { fetchOrchestrationRuntime } from '@/lib/api';
 import { parseChartPayload } from '@/lib/chartData';
-import { convertExpertOpinionToBlock, createCanvasBlock, generateDecisionPackBlocks, getBlockHeading } from '@/lib/reportCanvas';
+import { convertExpertOpinionToBlock, createCanvasBlock, generateDecisionPackBlocks, getBlockHeading, syncActionItemsWithRuns } from '@/lib/reportCanvas';
 import { reportTemplates } from '@/lib/reportTemplates';
 
 function toneClass(tone = 'default') {
@@ -47,7 +47,7 @@ function stanceTone(stance = 'analysis') {
   return 'bg-sky-50 text-sky-600 border-sky-200';
 }
 
-function CanvasToolbar({ onAddBlock, onApplyTemplate, onInsertRuntime, onGenerateDecisionPack, loadingRuntime, blockCount }) {
+function CanvasToolbar({ onAddBlock, onApplyTemplate, onInsertRuntime, onGenerateDecisionPack, onSyncActionStatus, loadingRuntime, blockCount }) {
   const blockTypes = [
     { key: 'text', label: '文本', icon: <EditIcon size={14} /> },
     { key: 'callout', label: '提示块', icon: <AlertIcon size={14} /> },
@@ -87,6 +87,12 @@ function CanvasToolbar({ onAddBlock, onApplyTemplate, onInsertRuntime, onGenerat
           >
             生成决策包
           </button>
+          <button
+            className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-700 hover:border-stone-300 hover:bg-stone-50 transition"
+            onClick={onSyncActionStatus}
+          >
+            回写执行状态
+          </button>
         </div>
       </div>
       <div className="grid gap-3 lg:grid-cols-3">
@@ -106,7 +112,7 @@ function CanvasToolbar({ onAddBlock, onApplyTemplate, onInsertRuntime, onGenerat
   );
 }
 
-function SortableBlock({ block, index, onUpdate, onDelete, onDuplicate, onTransformExpert }) {
+function SortableBlock({ block, index, onUpdate, onDelete, onDuplicate, onTransformExpert, linkOptions }) {
   const {
     attributes,
     listeners,
@@ -185,7 +191,7 @@ function SortableBlock({ block, index, onUpdate, onDelete, onDuplicate, onTransf
       </div>
 
       <div className="mt-5">
-        <BlockEditor block={block} onUpdate={onUpdate} />
+        <BlockEditor block={block} onUpdate={onUpdate} linkOptions={linkOptions} />
       </div>
     </article>
   );
@@ -300,7 +306,7 @@ function ActionItemsBoard({ items = [], editable = false, onChange }) {
   );
 }
 
-function BlockEditor({ block, onUpdate }) {
+function BlockEditor({ block, onUpdate, linkOptions = [] }) {
   const [actionView, setActionView] = useState('board');
   if (block.type === 'hero') {
     return (
@@ -556,6 +562,35 @@ function BlockEditor({ block, onUpdate }) {
                     <option value="done">已完成</option>
                   </select>
                 </div>
+                <div className="mt-3 grid gap-3 lg:grid-cols-[1.3fr,1fr]">
+                  <select
+                    className="rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-800 outline-none"
+                    value={item.linkedDeploymentId || ''}
+                    onChange={(event) => {
+                      const selected = linkOptions.find((option) => option.deployment_id === event.target.value);
+                      const items = [...(block.items || [])];
+                      items[index] = {
+                        ...items[index],
+                        linkedDeploymentId: selected?.deployment_id || '',
+                        linkedDeploymentName: selected?.deployment_name || '',
+                        linkedRunId: '',
+                      };
+                      onUpdate(block.id, { items });
+                    }}
+                  >
+                    <option value="">未绑定执行流</option>
+                    {linkOptions.map((option) => (
+                      <option key={option.deployment_id || option.id} value={option.deployment_id || ''}>
+                        {option.deployment_name || option.name || option.id}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="rounded-2xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-500">
+                    {item.lastRunState
+                      ? `最近运行: ${item.lastRunState}${item.lastSyncedAt ? ` · ${item.lastSyncedAt}` : ''}`
+                      : '尚未回写执行状态'}
+                  </div>
+                </div>
               </div>
             ))}
           </div>
@@ -672,6 +707,22 @@ export default function ReportCanvas({ blocks, onChange }) {
   );
 
   const blockIds = useMemo(() => blocks.map((block) => block.id), [blocks]);
+  const linkOptions = useMemo(() => {
+    const deploymentMap = new Map();
+    blocks
+      .filter((block) => block.type === 'orchestration_snapshot')
+      .flatMap((block) => block.runs || [])
+      .forEach((run) => {
+        if (!run.deployment_id) return;
+        if (!deploymentMap.has(run.deployment_id)) {
+          deploymentMap.set(run.deployment_id, {
+            deployment_id: run.deployment_id,
+            deployment_name: run.deployment_name || run.name || run.deployment_id,
+          });
+        }
+      });
+    return Array.from(deploymentMap.values());
+  }, [blocks]);
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
@@ -832,6 +883,10 @@ export default function ReportCanvas({ blocks, onChange }) {
     onChange(generateDecisionPackBlocks(blocks));
   };
 
+  const syncActionStatus = () => {
+    onChange(syncActionItemsWithRuns(blocks));
+  };
+
   return (
     <div className="space-y-5">
       <CanvasToolbar
@@ -839,6 +894,7 @@ export default function ReportCanvas({ blocks, onChange }) {
         onApplyTemplate={applyTemplate}
         onInsertRuntime={insertRuntimeSnapshot}
         onGenerateDecisionPack={generateDecisionPack}
+        onSyncActionStatus={syncActionStatus}
         loadingRuntime={loadingRuntime}
         blockCount={blocks.length}
       />
@@ -855,6 +911,7 @@ export default function ReportCanvas({ blocks, onChange }) {
                 onDelete={deleteBlock}
                 onDuplicate={duplicateBlock}
                 onTransformExpert={transformExpert}
+                linkOptions={linkOptions}
               />
             ))}
           </div>

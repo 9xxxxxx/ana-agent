@@ -11,7 +11,7 @@ import {
   EditIcon, SearchIcon, DatabaseIcon,
   MoreIcon, StarIcon, ShareIcon, DownloadIcon, TrashIcon,
   SettingsIcon, PanelLeftCloseIcon,
-  SparklesIcon, LayoutGridIcon, BellIcon
+  SparklesIcon, LayoutGridIcon, BellIcon, InfoIcon
 } from './Icons';
 import ConfirmDialog from './ConfirmDialog';
 import SearchModal from './SearchModal';
@@ -19,6 +19,7 @@ import SettingsModal from './SettingsModal';
 import ReportsDashboard from './ReportsDashboard';
 import WatchdogPanel from './WatchdogPanel';
 import OrchestrationPanel from './OrchestrationPanel';
+import SystemDiagnosticsPanel from './SystemDiagnosticsPanel';
 // 移除 ThemeToggle 引用
 
 // 按日期分组对话
@@ -109,6 +110,7 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
   const [showReportsDashboard, setShowReportsDashboard] = useState(false);
   const [showWatchdogPanel, setShowWatchdogPanel] = useState(false);
   const [showOrchestrationPanel, setShowOrchestrationPanel] = useState(false);
+  const [showDiagnosticsPanel, setShowDiagnosticsPanel] = useState(false);
 
   const loadThreads = useCallback(async () => {
     try {
@@ -175,6 +177,13 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
             onClick={() => setShowOrchestrationPanel(true)}
           >
             <LayoutGridIcon size={20} />
+          </button>
+          <button
+            className="p-2.5 hover:bg-sidebar-hover rounded-2xl text-sidebar-foreground transition"
+            title="系统诊断"
+            onClick={() => setShowDiagnosticsPanel(true)}
+          >
+            <InfoIcon size={20} />
           </button>
         </div>
         <div className="mt-auto flex flex-col items-center pb-4 gap-4">
@@ -257,6 +266,14 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
           >
             <LayoutGridIcon size={18} />
             <span className="font-medium">任务编排</span>
+          </button>
+
+          <button
+            className="flex items-center gap-3 w-full px-4 py-3 text-sm text-stone-800 hover:bg-white/80 rounded-2xl transition"
+            onClick={() => setShowDiagnosticsPanel(true)}
+          >
+            <InfoIcon size={18} />
+            <span className="font-medium">系统诊断</span>
           </button>
         </div>
 
@@ -403,6 +420,11 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
       <OrchestrationPanel
         isOpen={showOrchestrationPanel}
         onClose={() => setShowOrchestrationPanel(false)}
+      />
+
+      <SystemDiagnosticsPanel
+        isOpen={showDiagnosticsPanel}
+        onClose={() => setShowDiagnosticsPanel(false)}
       />
     </>
   );

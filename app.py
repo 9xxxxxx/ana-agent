@@ -29,6 +29,7 @@ from core.services.llm_service import create_chat_model, resolve_model_configura
 from core.services.metadata_service import MetadataService
 from core.services.orchestration_service import OrchestrationService
 from core.services.storage_service import StorageService
+from core.services.system_diagnostics_service import SystemDiagnosticsService
 
 # ==================== 应用初始化 ====================
 
@@ -40,6 +41,14 @@ storage_service = StorageService(BASE_DIR)
 history_service = HistoryService(MEMORY_DB_PATH)
 metadata_service = MetadataService(METADATA_DB_PATH, BASE_DIR / "db_configs.json")
 orchestration_service = OrchestrationService()
+from core.scheduler import PREFECT_HOME, PREFECT_SERVER_DB
+diagnostics_service = SystemDiagnosticsService(
+    base_dir=BASE_DIR,
+    memory_db_path=MEMORY_DB_PATH,
+    metadata_db_path=METADATA_DB_PATH,
+    prefect_home=PREFECT_HOME,
+    prefect_db_path=PREFECT_SERVER_DB,
+)
 
 
 class ModelTestRequest(BaseModel):
@@ -271,7 +280,6 @@ async def health_check():
 @app.get("/api/system/status")
 async def get_system_status():
     from core.database import get_session_db_url
-    from core.scheduler import PREFECT_HOME, PREFECT_SERVER_DB
 
     default_database_url = settings.DATABASE_URL
     current_database_url = get_session_db_url() or default_database_url
@@ -309,6 +317,21 @@ async def get_system_status():
                 "默认应用元数据、Agent memory、Prefect 元数据都使用本地 SQLite 文件。",
             ],
         },
+    }
+
+
+@app.get("/api/system/diagnostics")
+async def get_system_diagnostics():
+    from core.database import get_session_db_url
+
+    current_database_url = get_session_db_url() or settings.DATABASE_URL
+    db_connected = test_connection()
+    return {
+        "success": True,
+        "diagnostics": diagnostics_service.build_report(
+            database_connected=db_connected,
+            current_database_url=current_database_url,
+        ),
     }
 
 
