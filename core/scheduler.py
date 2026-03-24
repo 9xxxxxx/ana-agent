@@ -1,3 +1,8 @@
+"""
+兼容型调度触发层。
+当前职责仅限于本地进程内的 cron 触发；真正的业务编排应下沉到 Prefect flows。
+"""
+
 import logging
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore

@@ -1,6 +1,7 @@
 # Environments
 .env
 .venv
+.uv-cache/
 env/
 venv/
 ENV/
@@ -30,12 +31,29 @@ frontend/out/
 *.db
 *.db-shm
 *.db-wal
+*.duckdb
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
 
 # Reports
 reports/
+uploads/
+contexts/
+test_log/
+chroma_data/
 
 # Generated
 feishu_v2_snippets.txt
+db_configs.json
+temp_*.js
+AGENT_DIAGNOSIS_REPORT.md
+diagnose_agent.py
+core/agent_backup.py
+core/agent_optimized.py
+test_api.py
+test_etl_dbt_flow.py
+test_model_switch.py
 
 # Large full DB backups
 /db_backup/demo_backup.sql
