@@ -16,6 +16,7 @@ import { parseChartPayload } from '@/lib/chartData';
 import {
   CopyIcon, CheckIcon, FileIcon, DownloadIcon, BarChartIcon, SparklesIcon, DatabaseIcon, BookOpenIcon, EditIcon, ChevronRightIcon
 } from './Icons';
+import { cn, ui } from './ui';
 
 // 复制按钮组件
 function CopyButton({ text }) {
@@ -33,7 +34,7 @@ function CopyButton({ text }) {
 
   return (
     <button
-      className={`flex items-center justify-center rounded-md p-1.5 transition-colors ${copied ? 'bg-green-50 text-green-600' : 'text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700'}`}
+      className={cn('flex items-center justify-center rounded-md p-1.5 transition-colors', copied ? 'bg-green-50 text-green-600' : 'text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700')}
       onClick={handleCopy}
       title={copied ? '已复制' : '复制代码/文本'}
     >
@@ -108,7 +109,7 @@ const MessageItem = memo(({ msg, isStreaming, isLast, onViewReport, onEditSend }
               {/* 原生编辑和复制入口悬浮 */}
               <div className="flex items-center gap-1 opacity-0 group-hover/user:opacity-100 transition-opacity duration-200">
                 <button
-                  className="rounded-md p-1.5 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700"
+                  className={cn(ui.iconButton, 'rounded-md p-1.5 text-zinc-400')}
                   title="编辑并重新发送"
                   onClick={() => {
                     setEditText(contentObj.text);
@@ -130,9 +131,9 @@ const MessageItem = memo(({ msg, isStreaming, isLast, onViewReport, onEditSend }
                     autoFocus
                   />
                   <div className="flex justify-end gap-2 mt-2">
-                    <button className="rounded-md px-3 py-1.5 text-xs text-zinc-500 transition-colors hover:bg-zinc-100" onClick={() => setIsEditing(false)}>取消</button>
+                    <button className={cn(ui.buttonSecondary, 'rounded-md px-3 py-1.5 text-xs')} onClick={() => setIsEditing(false)}>取消</button>
                     <button 
-                      className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs text-white shadow-sm transition-colors hover:bg-zinc-800"
+                      className={cn(ui.buttonPrimary, 'rounded-md px-3 py-1.5 text-xs shadow-sm')}
                       onClick={() => {
                          if (!editText.trim()) return;
                          setIsEditing(false);

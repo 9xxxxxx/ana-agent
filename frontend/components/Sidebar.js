@@ -20,6 +20,7 @@ import ReportsDashboard from './ReportsDashboard';
 import WatchdogPanel from './WatchdogPanel';
 import OrchestrationPanel from './OrchestrationPanel';
 import SystemDiagnosticsPanel from './SystemDiagnosticsPanel';
+import { cn, ui } from './ui';
 // 移除 ThemeToggle 引用
 
 // 按日期分组对话
@@ -76,12 +77,12 @@ function ThreadActionMenu({ threadId, onClose, onDelete }) {
     >
       {actions.map((action, i) => {
         if (action.divider) {
-          return <div key={i} className="border-t border-gray-100 my-1" />;
+          return <div key={i} className="my-1 border-t border-zinc-100" />;
         }
         return (
           <button
             key={i}
-            className={`flex items-center gap-2.5 w-full px-3 py-2 text-xs transition-colors ${
+              className={`flex w-full items-center gap-2.5 px-3 py-2 text-xs transition-colors ${
               action.danger
                 ? 'text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30'
                 : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-950'
@@ -162,24 +163,24 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
             <EditIcon size={20} />
           </button>
           <button 
-            className="p-2.5 hover:bg-sidebar-hover rounded-2xl text-sidebar-foreground transition" 
+            className="rounded-2xl p-2.5 text-sidebar-foreground transition hover:bg-sidebar-hover" 
             title="搜索聊天"
             onClick={() => setShowSearchModal(true)}
           >
             <SearchIcon size={20} />
           </button>
-          <button className="p-2.5 hover:bg-sidebar-hover rounded-2xl text-sidebar-foreground transition" onClick={onToggleDatabase} title="数据连接参数">
+          <button className="rounded-2xl p-2.5 text-sidebar-foreground transition hover:bg-sidebar-hover" onClick={onToggleDatabase} title="数据连接参数">
             <DatabaseIcon size={20} />
           </button>
           <button
-            className="p-2.5 hover:bg-sidebar-hover rounded-2xl text-sidebar-foreground transition"
+            className="rounded-2xl p-2.5 text-sidebar-foreground transition hover:bg-sidebar-hover"
             title="任务编排"
             onClick={() => setShowOrchestrationPanel(true)}
           >
             <LayoutGridIcon size={20} />
           </button>
           <button
-            className="p-2.5 hover:bg-sidebar-hover rounded-2xl text-sidebar-foreground transition"
+            className="rounded-2xl p-2.5 text-sidebar-foreground transition hover:bg-sidebar-hover"
             title="系统诊断"
             onClick={() => setShowDiagnosticsPanel(true)}
           >
@@ -189,7 +190,7 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
         <div className="mt-auto flex flex-col items-center pb-4 gap-4">
           {/* 移除 ThemeToggle */}
           <button 
-            className="p-2.5 hover:bg-sidebar-hover rounded-2xl text-sidebar-foreground transition" 
+            className="rounded-2xl p-2.5 text-sidebar-foreground transition hover:bg-sidebar-hover" 
             title="系统设置"
             onClick={() => setShowSettingsModal(true)}
           >
@@ -280,7 +281,7 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
         {/* 插件/应用导航区 */}
         <div className="px-4 py-1 flex flex-col gap-1">
           <button 
-            className="flex items-center gap-3 w-full px-4 py-3 text-sm text-stone-800 hover:bg-white/80 rounded-2xl transition"
+            className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm text-zinc-200 transition hover:bg-zinc-800"
             onClick={onToggleDatabase}
           >
             <DatabaseIcon size={18} />
@@ -344,7 +345,7 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
                         
                         {/* 更多操作 */}
                         <button
-                          className="absolute right-2 rounded-xl p-1.5 text-zinc-500 opacity-0 shadow-sm transition hover:bg-zinc-700 hover:text-white group-hover/item:opacity-100"
+                          className={cn(ui.iconButton, 'absolute right-2 rounded-xl p-1.5 text-zinc-500 opacity-0 shadow-sm hover:bg-zinc-700 hover:text-white group-hover/item:opacity-100')}
                           onClick={(e) => {
                             e.stopPropagation();
                             setActiveMenu(activeMenu === t.thread_id ? null : t.thread_id);

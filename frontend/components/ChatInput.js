@@ -8,6 +8,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import Image from 'next/image';
 import { SendIcon, StopIcon, CloseIcon, PlusIcon, PaperclipIcon, ImageIcon } from './Icons';
 import { uploadFile, getUploadUrl } from '@/lib/api';
+import { cn, ui } from './ui';
 
 export default function ChatInput({ onSend, isStreaming, onStop, dbConnected, dbUrl }) {
   const [text, setText] = useState('');
@@ -122,7 +123,7 @@ export default function ChatInput({ onSend, isStreaming, onStop, dbConnected, db
   return (
     <div className="w-full max-w-3xl mx-auto px-6" onDragOver={handleDragOver} onDrop={handleDrop}>
       {/* 数据库状态栏 */}
-      <div className="mx-auto mb-2 flex w-fit items-center gap-2 rounded-full border border-zinc-200 bg-white/90 px-4 py-1.5 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
+      <div className={cn(ui.buttonSecondary, 'mx-auto mb-2 w-fit rounded-full border-zinc-200 bg-white/90 px-4 py-1.5 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300')}>
         <div className={`w-2 h-2 rounded-full ${dbConnected ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]'}`} />
         <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
           {dbConnected ? `已连接数据源: ${displayDbUrl}` : '未连接数据库 (仅纯文本对话模式)'}
@@ -171,7 +172,7 @@ export default function ChatInput({ onSend, isStreaming, onStop, dbConnected, db
         {/* 工具按钮栏 */}
         <div className="flex items-center pb-0.5 shrink-0 relative" ref={menuRef}>
           <button
-            className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-all hover:bg-zinc-100 hover:text-foreground"
+            className={cn(ui.iconButton, 'flex h-8 w-8 items-center justify-center')}
             onClick={() => setShowMenu(!showMenu)}
             disabled={isStreaming || uploading}
             title="添加附件"
@@ -227,7 +228,7 @@ export default function ChatInput({ onSend, isStreaming, onStop, dbConnected, db
         <div className="pb-0.5 shrink-0 pr-1">
           {isStreaming ? (
             <button 
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-900 text-white shadow-sm transition-all hover:bg-zinc-800" 
+              className={cn(ui.buttonPrimary, 'flex h-8 w-8 items-center justify-center rounded-full p-0 shadow-sm')} 
               onClick={onStop} 
               title="停止生成"
             >
@@ -235,7 +236,7 @@ export default function ChatInput({ onSend, isStreaming, onStop, dbConnected, db
             </button>
           ) : (
             <button
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-900 text-white transition-all hover:bg-zinc-800 disabled:bg-zinc-100 disabled:text-zinc-400"
+              className={cn(ui.buttonPrimary, 'flex h-8 w-8 items-center justify-center rounded-full p-0 disabled:border-zinc-100 disabled:bg-zinc-100 disabled:text-zinc-400')}
               onClick={handleSend}
               disabled={(!text.trim() && attachments.length === 0) || uploading}
               title="发送"
