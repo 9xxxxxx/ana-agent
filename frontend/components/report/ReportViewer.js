@@ -19,6 +19,7 @@ import {
 } from '../Icons';
 import { parseChartPayload } from '@/lib/chartData';
 import {
+  exportCanvasToMarkdown,
   getBlockHeading,
   getCanvasStorageKey,
   reportToCanvasBlocks,
@@ -225,6 +226,18 @@ export default function ReportViewer({ report, onExport, onClose }) {
   const hero = blocks.find((block) => block.type === 'hero') || blocks[0];
   const navigableBlocks = blocks.filter((block) => block.type !== 'hero');
 
+  const handleExport = () => {
+    const markdown = exportCanvasToMarkdown(blocks);
+    const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `${hero?.title || report.title || 'report'}.md`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    onExport?.('markdown');
+  };
+
   return (
     <div className="flex h-full w-full bg-[linear-gradient(180deg,#f4ecdf_0%,#efe6d7_30%,#f8f4ea_100%)] text-stone-900">
       <aside className="hidden xl:flex w-[280px] shrink-0 flex-col border-r border-stone-200/80 bg-[#f3ebdc]/90">
@@ -285,7 +298,7 @@ export default function ReportViewer({ report, onExport, onClose }) {
               </div>
               <button
                 className="inline-flex items-center gap-2 rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 hover:border-stone-400 hover:bg-stone-50 transition"
-                onClick={() => onExport?.('markdown')}
+                onClick={handleExport}
               >
                 <DownloadIcon size={14} />
                 导出

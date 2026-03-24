@@ -121,3 +121,44 @@ export function getBlockHeading(block) {
   if (block.type === 'hero') return block.title || '封面';
   return block.title || `${block.type} 模块`;
 }
+
+export function exportCanvasToMarkdown(blocks = []) {
+  return blocks
+    .map((block) => {
+      if (block.type === 'hero') {
+        return `# ${block.title || '未命名报告'}\n\n${block.subtitle || ''}\n\n> ${block.badge || '报告'} · ${block.createdAt || ''}`.trim();
+      }
+
+      if (block.type === 'metrics') {
+        const rows = (block.items || []).map((item) => `- **${item.title || item.label || '指标'}**: ${item.value || '-'}`);
+        return `## ${block.title || '关键指标'}\n\n${rows.join('\n')}`;
+      }
+
+      if (block.type === 'chart') {
+        const note = block.note ? `\n\n${block.note}` : '';
+        return `## ${block.title || '图表分析'}\n\n[图表已在工作台中编排]${note}`;
+      }
+
+      if (block.type === 'table') {
+        const columns = block.columns || [];
+        const rows = block.rows || [];
+        const header = columns.map((column) => column.label || column.key).join(' | ');
+        const divider = columns.map(() => '---').join(' | ');
+        const body = rows
+          .map((row) => columns.map((column) => row[column.key] ?? '').join(' | '))
+          .join('\n');
+        return `## ${block.title || '数据表'}\n\n| ${header} |\n| ${divider} |\n${body ? `| ${body.replace(/\n/g, ' |\n| ')} |` : ''}`;
+      }
+
+      if (block.type === 'checklist') {
+        const items = (block.items || [])
+          .map((item) => `- [${item.checked ? 'x' : ' '}] ${item.text || ''}`)
+          .join('\n');
+        return `## ${block.title || '行动清单'}\n\n${block.content || ''}\n\n${items}`.trim();
+      }
+
+      return `## ${block.title || '内容块'}\n\n${block.content || ''}`.trim();
+    })
+    .filter(Boolean)
+    .join('\n\n');
+}

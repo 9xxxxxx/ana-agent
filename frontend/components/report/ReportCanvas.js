@@ -31,6 +31,7 @@ import {
 } from '../Icons';
 import { parseChartPayload } from '@/lib/chartData';
 import { createCanvasBlock, getBlockHeading } from '@/lib/reportCanvas';
+import { reportTemplates } from '@/lib/reportTemplates';
 
 function toneClass(tone = 'default') {
   if (tone === 'summary') return 'border-blue-200 bg-blue-50/70';
@@ -39,7 +40,7 @@ function toneClass(tone = 'default') {
   return 'border-border bg-white';
 }
 
-function CanvasToolbar({ onAddBlock, blockCount }) {
+function CanvasToolbar({ onAddBlock, onApplyTemplate, blockCount }) {
   const blockTypes = [
     { key: 'text', label: '文本', icon: <EditIcon size={14} /> },
     { key: 'callout', label: '提示块', icon: <AlertIcon size={14} /> },
@@ -49,6 +50,7 @@ function CanvasToolbar({ onAddBlock, blockCount }) {
 
   return (
     <div className="rounded-[28px] border border-stone-200 bg-white/90 px-4 py-4 shadow-sm">
+      <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-4">
         <div>
           <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">Canvas Controls</div>
@@ -66,6 +68,19 @@ function CanvasToolbar({ onAddBlock, blockCount }) {
             </button>
           ))}
         </div>
+      </div>
+      <div className="grid gap-3 lg:grid-cols-3">
+        {reportTemplates.map((template) => (
+          <button
+            key={template.id}
+            className="rounded-[22px] border border-stone-200 bg-[linear-gradient(180deg,#fffdf8_0%,#f7efe0_100%)] p-4 text-left transition hover:border-stone-300 hover:shadow-sm"
+            onClick={() => onApplyTemplate(template.id)}
+          >
+            <div className="text-sm font-semibold text-stone-900">{template.name}</div>
+            <div className="mt-2 text-sm leading-6 text-stone-600">{template.description}</div>
+          </button>
+        ))}
+      </div>
       </div>
     </div>
   );
@@ -464,9 +479,15 @@ export default function ReportCanvas({ blocks, onChange }) {
     ]);
   };
 
+  const applyTemplate = (templateId) => {
+    const template = reportTemplates.find((item) => item.id === templateId);
+    if (!template) return;
+    onChange(template.build());
+  };
+
   return (
     <div className="space-y-5">
-      <CanvasToolbar onAddBlock={addBlock} blockCount={blocks.length} />
+      <CanvasToolbar onAddBlock={addBlock} onApplyTemplate={applyTemplate} blockCount={blocks.length} />
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={blockIds} strategy={verticalListSortingStrategy}>
