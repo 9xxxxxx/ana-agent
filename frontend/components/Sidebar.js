@@ -8,9 +8,9 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { fetchThreads, deleteThread, clearAllHistory } from '@/lib/api';
 import {
-  EditIcon, SearchIcon, DatabaseIcon, MessageIcon, 
+  EditIcon, SearchIcon, DatabaseIcon,
   MoreIcon, StarIcon, ShareIcon, DownloadIcon, TrashIcon,
-  SettingsIcon, PanelLeftCloseIcon, PanelLeftOpenIcon,
+  SettingsIcon, PanelLeftCloseIcon,
   SparklesIcon, LayoutGridIcon, BellIcon
 } from './Icons';
 import ConfirmDialog from './ConfirmDialog';
@@ -108,9 +108,6 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
   const [showReportsDashboard, setShowReportsDashboard] = useState(false);
   const [showWatchdogPanel, setShowWatchdogPanel] = useState(false);
 
-  // 快捷折叠提示窗态
-  const [showTooltip, setShowTooltip] = useState('');
-
   const loadThreads = useCallback(async () => {
     try {
       const data = await fetchThreads();
@@ -128,11 +125,6 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
 
   const handleDelete = (tid) => {
     setConfirmTarget(tid);
-    setConfirmOpen(true);
-  };
-
-  const handleClearAll = () => {
-    setConfirmTarget('__all__');
     setConfirmOpen(true);
   };
 
@@ -279,7 +271,7 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
           {threads.length === 0 ? (
             <div className="px-3 py-4 text-xs text-gray-400">暂无历史记录</div>
           ) : (
-            Object.entries(grouped).map(([label, items], idx) => {
+            Object.entries(grouped).map(([label, items]) => {
               if (items.length === 0) return null;
               return (
                 <div key={label} className="mt-3">

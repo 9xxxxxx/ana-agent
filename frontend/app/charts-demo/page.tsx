@@ -87,6 +87,9 @@ const sampleDatasets = {
   },
 };
 
+type DatasetKey = keyof typeof sampleDatasets;
+type SampleDataset = (typeof sampleDatasets)[DatasetKey];
+
 const libraryInfo = [
   {
     id: 'echarts',
@@ -115,11 +118,12 @@ const libraryInfo = [
 ];
 
 export default function ChartsDemoPage() {
-  const [activeDataset, setActiveDataset] = useState('sales');
-  const [chartType, setChartType] = useState(null);
+  const [activeDataset, setActiveDataset] = useState<DatasetKey>('sales');
+  const [chartType, setChartType] = useState<string | null>(null);
   const [selectedLibrary, setSelectedLibrary] = useState('echarts');
 
-  const currentDataset = sampleDatasets[activeDataset];
+  const currentDataset: SampleDataset = sampleDatasets[activeDataset];
+  const datasetEntries = Object.entries(sampleDatasets) as [DatasetKey, SampleDataset][];
 
   return (
     <div className="charts-demo-page">
@@ -155,7 +159,7 @@ export default function ChartsDemoPage() {
         <div className="control-group">
           <label>选择数据集</label>
           <div className="button-group">
-            {Object.entries(sampleDatasets).map(([key, dataset]) => (
+            {datasetEntries.map(([key, dataset]) => (
               <button
                 key={key}
                 className={`control-btn ${activeDataset === key ? 'active' : ''}`}
@@ -176,16 +180,7 @@ export default function ChartsDemoPage() {
         <SmartChart
           data={currentDataset.data}
           chartType={chartType}
-          title={currentDataset.name}
-          xCol={currentDataset.xCol}
-          yCol={currentDataset.yCol}
-          colorCol={currentDataset.colorCol}
           height={450}
-          showTypeSelector={true}
-          showLibrarySelector={true}
-          defaultLibrary={selectedLibrary}
-          onTypeChange={setChartType}
-          onLibraryChange={setSelectedLibrary}
         />
       </div>
 
@@ -205,8 +200,8 @@ export default function ChartsDemoPage() {
           </div>
           <div className="feature-item">
             <span className="feature-icon">🎨</span>
-            <h4>暗色主题</h4>
-            <p>所有图表库统一暗色主题，与应用完美融合</p>
+            <h4>统一主题</h4>
+            <p>所有图表库遵循统一浅色视觉，不再扩散半成品主题系统</p>
           </div>
           <div className="feature-item">
             <span className="feature-icon">📱</span>

@@ -8,7 +8,7 @@ import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
-  WrenchIcon, CheckCircleIcon, SpinnerIcon,
+  CheckCircleIcon, SpinnerIcon,
   ChevronRightIcon, InputIcon, OutputIcon,
 } from './Icons';
 
@@ -28,18 +28,18 @@ export default function ToolStep({ step }) {
         const keys = Object.keys(parsed[0]);
         if (keys.length > 0) {
           return (
-            <div className="my-2 overflow-x-auto border border-gray-200 rounded-lg shadow-sm">
+            <div className="my-2 overflow-x-auto border border-border rounded-lg shadow-sm">
               <table className="w-full text-left border-collapse text-[13px]">
                 <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200 text-gray-700">
+                  <tr className="bg-muted border-b border-border text-foreground">
                     {keys.map((k, i) => <th key={i} className="px-3 py-2 font-medium whitespace-nowrap">{k}</th>)}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100 bg-white">
+                <tbody className="divide-y divide-border bg-bot-msg">
                   {parsed.slice(0, 10).map((row, i) => (
-                    <tr key={i} className="hover:bg-gray-50/50 transition-colors">
+                    <tr key={i} className="hover:bg-muted/30 transition-colors">
                       {keys.map((k, j) => (
-                        <td key={j} className="px-3 py-1.5 text-gray-600 truncate max-w-[200px]" title={String(row[k])}>
+                        <td key={j} className="px-3 py-1.5 text-muted-foreground truncate max-w-[200px]" title={String(row[k])}>
                           {String(row[k])}
                         </td>
                       ))}
@@ -47,7 +47,7 @@ export default function ToolStep({ step }) {
                   ))}
                   {parsed.length > 10 && (
                     <tr>
-                      <td colSpan={keys.length} className="px-3 py-2 text-center text-gray-400 italic bg-gray-50/50">
+                      <td colSpan={keys.length} className="px-3 py-2 text-center text-muted-foreground italic bg-muted/30">
                         ... 仅展示前 10 行，共 {parsed.length} 行
                       </td>
                     </tr>
@@ -60,7 +60,7 @@ export default function ToolStep({ step }) {
       }
 
       return (
-        <pre className="p-3 bg-gray-50 text-gray-800 border border-gray-200 rounded-xl text-[13px] font-mono overflow-x-auto my-2 shadow-inner">
+        <pre className="p-3 bg-muted/50 text-foreground border border-border rounded-xl text-[13px] font-mono overflow-x-auto my-2 shadow-inner">
           <code>{JSON.stringify(parsed, null, 2)}</code>
         </pre>
       );
@@ -73,7 +73,7 @@ export default function ToolStep({ step }) {
       }
 
       return (
-        <div className="text-sm text-gray-700 font-mono leading-relaxed bg-gray-50 p-3 rounded-lg border border-gray-100 whitespace-pre-wrap word-break">
+        <div className="text-sm text-foreground font-mono leading-relaxed bg-muted/50 p-3 rounded-lg border border-border whitespace-pre-wrap word-break">
           {content}
         </div>
       );
@@ -81,9 +81,9 @@ export default function ToolStep({ step }) {
   };
 
   return (
-    <div className={`mt-1.5 mb-1 w-full max-w-full rounded-xl border overflow-hidden transition-all duration-300 ${isRunning ? 'border-amber-200/50 bg-amber-50/30' : 'border-transparent bg-white shadow-sm hover:shadow-md'}`}>
+    <div className={`mt-1.5 mb-1 w-full max-w-full rounded-xl border overflow-hidden transition-all duration-300 ${isRunning ? 'border-amber-500/30 bg-amber-500/10' : 'border-border bg-bot-msg shadow-sm hover:shadow-md'}`}>
       <div 
-        className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-gray-50 transition-colors select-none"
+        className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-muted/50 transition-colors select-none"
         onClick={() => setExpanded(!expanded)}
       >
         <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -92,7 +92,7 @@ export default function ToolStep({ step }) {
           ) : (
             <CheckCircleIcon size={14} className="text-emerald-500 shrink-0" />
           )}
-          <span className="font-semibold text-[13px] text-gray-700 truncate tracking-wide">{step.name}</span>
+          <span className="font-semibold text-[13px] text-foreground truncate tracking-wide">{step.name}</span>
         </div>
         <div className="flex items-center gap-2 shrink-0 pl-2">
           <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-md ${isRunning ? 'text-amber-600' : 'text-gray-400'}`}>
@@ -106,7 +106,7 @@ export default function ToolStep({ step }) {
       </div>
       
       {expanded && (
-        <div className="px-4 pb-4 pt-1 border-t border-gray-100 bg-white">
+        <div className="px-4 pb-4 pt-1 border-t border-border bg-bot-msg font-sans overflow-hidden">
           {step.input && (
             <div className="mt-3">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-brand-600 uppercase tracking-wide mb-2">

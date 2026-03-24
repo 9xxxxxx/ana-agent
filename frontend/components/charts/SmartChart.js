@@ -9,9 +9,10 @@
  * 4. 提供图表类型手动切换 UI，以及丰富的色彩主题切换
  */
 
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import EChartsRenderer, { inferChartType } from './EChartsRenderer';
-import { DatabaseIcon, BarChartIcon, SettingsIcon, SparklesIcon, ChevronDownIcon, CheckIcon, SaveIcon, DownloadIcon } from '../Icons';
+import { DatabaseIcon, BarChartIcon, SettingsIcon, SparklesIcon, SaveIcon, DownloadIcon } from '../Icons';
+import { useToast } from '../Toast';
 
 // 图表类型字典 (仅用于 UI 显示和切换器)
 const chartTypes = [
@@ -64,14 +65,10 @@ function parseChartData(data) {
 export default function SmartChart({
   data: rawData,
   chartType: explicitType,
-  title,
-  xCol,
-  yCol,
-  colorCol,
-  sizeCol,
   height = 400,
   readonly = false,
 }) {
+  const { success, info } = useToast();
   const [selectedType, setSelectedType] = useState(explicitType);
   const [selectedTheme, setSelectedTheme] = useState('default');
   const [activeTab, setActiveTab] = useState(null); // 'type' | 'color' | 'advanced' | null
@@ -132,7 +129,7 @@ export default function SmartChart({
   const handleSavePreset = () => {
     try {
       localStorage.setItem('smartChartPreset', JSON.stringify({ theme: selectedTheme, advanced: advancedSettings }));
-      alert('图表偏好预设已保存！');
+      success('图表偏好预设已保存！');
     } catch(e) {
       console.warn(e);
     }
@@ -145,8 +142,9 @@ export default function SmartChart({
         const preset = JSON.parse(presetStr);
         if (preset.theme) setSelectedTheme(preset.theme);
         if (preset.advanced) setAdvancedSettings(preset.advanced);
+        success('图表偏好预设加载成功！');
       } else {
-        alert('暂无保存的预设配置');
+        info('暂无保存的预设配置');
       }
     } catch(e) {
       console.warn(e);
@@ -156,7 +154,7 @@ export default function SmartChart({
   const renderChart = () => {
     if (!actualData || actualData.length === 0 || !finalConfig) {
       return (
-        <div className="flex flex-col items-center justify-center p-8 bg-gray-50 border border-gray-200 rounded-xl text-gray-400">
+        <div className="flex flex-col items-center justify-center p-8 bg-muted/30 border border-border rounded-xl text-muted-foreground">
           <DatabaseIcon size={32} className="mb-2 opacity-50" />
           <span className="text-sm">暂无有效格式的图表数据</span>
         </div>
@@ -169,25 +167,25 @@ export default function SmartChart({
       return (
         <div className="w-full overflow-x-auto">
           <table className="w-full text-sm text-left border-collapse">
-            <thead className="bg-gray-50 text-gray-600 font-medium border-b border-gray-200">
+            <thead className="bg-muted text-muted-foreground font-medium border-b border-border">
               <tr>
                 {columns.map(col => (
                   <th key={col} className="px-4 py-2 whitespace-nowrap">{col}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-border">
               {actualData.slice(0, 500).map((row, i) => (
-                <tr key={i} className="hover:bg-gray-50/50 transition-colors">
+                <tr key={i} className="hover:bg-muted/30 transition-colors">
                   {columns.map(col => (
-                    <td key={col} className="px-4 py-2 text-gray-700 whitespace-nowrap">{String(row[col] ?? '')}</td>
+                    <td key={col} className="px-4 py-2 text-foreground whitespace-nowrap">{String(row[col] ?? '')}</td>
                   ))}
                 </tr>
               ))}
             </tbody>
           </table>
           {actualData.length > 500 && (
-            <div className="text-center py-2 text-xs text-gray-400">仅显示前 500 行，完整数据请导出</div>
+            <div className="text-center py-2 text-xs text-muted-foreground">仅显示前 500 行，完整数据请导出</div>
           )}
         </div>
       );
@@ -208,27 +206,27 @@ export default function SmartChart({
   const currentTypeMeta = chartTypes.find((t) => t.value === inferredType) || chartTypes[0];
 
   return (
-    <div className="w-full bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 transition-all font-sans">
+    <div className="w-full bg-bot-msg rounded-2xl overflow-hidden shadow-sm border border-border transition-all font-sans">
       
       {/* 极简顶栏 */}
       {finalConfig?.xCol && finalConfig?.yCol && !readonly && (
-        <div className="flex flex-col border-b border-gray-100 bg-gray-50/30">
+        <div className="flex flex-col border-b border-border bg-muted/30">
           <div className="flex items-center justify-between px-4 py-3">
             <div className="flex items-center gap-2">
-              <span className="text-gray-500">{currentTypeMeta?.icon}</span>
-              <span className="font-semibold text-[13px] text-gray-800 tracking-wide">{advancedSettings.titleOverride || finalConfig.title || currentTypeMeta?.label || '数据可视化'}</span>
+              <span className="text-muted-foreground">{currentTypeMeta?.icon}</span>
+              <span className="font-semibold text-[13px] text-foreground tracking-wide">{advancedSettings.titleOverride || finalConfig.title || currentTypeMeta?.label || '数据可视化'}</span>
             </div>
             
             <div className="flex items-center gap-2">
               <button
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border ${activeTab === 'type' ? 'bg-white border-gray-200 text-brand-600 shadow-sm' : 'border-transparent text-gray-600 hover:bg-gray-200/50'}`}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border ${activeTab === 'type' ? 'bg-popover border-border text-foreground shadow-sm' : 'border-transparent text-muted-foreground hover:bg-muted/50'}`}
                 onClick={() => setActiveTab(activeTab === 'type' ? null : 'type')}
               >
                 <BarChartIcon size={14} />
                 图表类型
               </button>
               <button
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border ${activeTab === 'color' ? 'bg-white border-gray-200 text-brand-600 shadow-sm' : 'border-transparent text-gray-600 hover:bg-gray-200/50'}`}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border ${activeTab === 'color' ? 'bg-popover border-border text-foreground shadow-sm' : 'border-transparent text-muted-foreground hover:bg-muted/50'}`}
                 onClick={() => setActiveTab(activeTab === 'color' ? null : 'color')}
                 disabled={inferredType === 'table'}
               >
@@ -236,7 +234,7 @@ export default function SmartChart({
                 配色方案
               </button>
               <button
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border ${activeTab === 'advanced' ? 'bg-white border-gray-200 text-brand-600 shadow-sm' : 'border-transparent text-gray-600 hover:bg-gray-200/50'}`}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border ${activeTab === 'advanced' ? 'bg-popover border-border text-foreground shadow-sm' : 'border-transparent text-muted-foreground hover:bg-muted/50'}`}
                 onClick={() => setActiveTab(activeTab === 'advanced' ? null : 'advanced')}
                 disabled={inferredType === 'table'}
               >
@@ -248,8 +246,8 @@ export default function SmartChart({
 
           {/* 展开的平铺格栅内容 */}
           {activeTab === 'type' && (
-            <div className="px-4 py-4 bg-white border-t border-gray-100 animate-in fade-in slide-in-from-top-1 duration-200">
-              <div className="text-xs font-bold text-gray-400 mb-2.5">基本数据与图表</div>
+            <div className="px-4 py-4 bg-popover border-t border-border animate-in fade-in slide-in-from-top-1 duration-200">
+              <div className="text-xs font-bold text-muted-foreground mb-2.5">基本数据与图表</div>
               <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2 mb-5">
                 {chartTypes.filter(t => t.category === 'basic').map(t => (
                   <button
@@ -257,8 +255,8 @@ export default function SmartChart({
                     onClick={() => setSelectedType(t.value)}
                     className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all ${
                       inferredType === t.value 
-                        ? 'bg-brand-50 border-brand-200 text-brand-700 shadow-sm' 
-                        : 'bg-gray-50/50 border-gray-100 hover:bg-gray-100 hover:border-gray-200 text-gray-600'
+                        ? 'bg-muted border-border text-foreground shadow-sm' 
+                        : 'bg-muted/30 border-border/50 hover:bg-muted hover:border-border text-muted-foreground'
                     }`}
                   >
                     <span className="text-[1.2rem] mb-1">{t.icon}</span>
@@ -266,7 +264,7 @@ export default function SmartChart({
                   </button>
                 ))}
               </div>
-              <div className="text-xs font-bold text-gray-400 mb-2.5">高级复杂图表</div>
+              <div className="text-xs font-bold text-muted-foreground mb-2.5">高级复杂图表</div>
               <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
                 {chartTypes.filter(t => t.category === 'advanced').map(t => (
                   <button
@@ -274,8 +272,8 @@ export default function SmartChart({
                     onClick={() => { setSelectedType(t.value); if(t.value !== 'table' && !selectedTheme) setSelectedTheme('default'); }}
                     className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all ${
                       inferredType === t.value 
-                        ? 'bg-brand-50 border-brand-200 text-brand-700 shadow-sm' 
-                        : 'bg-gray-50/50 border-gray-100 hover:bg-gray-100 hover:border-gray-200 text-gray-600'
+                        ? 'bg-muted border-border text-foreground shadow-sm' 
+                        : 'bg-muted/30 border-border/50 hover:bg-muted hover:border-border text-muted-foreground'
                     }`}
                   >
                     <span className="text-[1.2rem] mb-1">{t.icon}</span>
@@ -287,7 +285,7 @@ export default function SmartChart({
           )}
 
           {activeTab === 'color' && (
-            <div className="px-4 py-4 bg-white border-t border-gray-100 animate-in fade-in slide-in-from-top-1 duration-200">
+            <div className="px-4 py-4 bg-popover border-t border-border animate-in fade-in slide-in-from-top-1 duration-200">
               <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-9 gap-2">
                 {colorThemesList.map(t => (
                   <button
@@ -295,8 +293,8 @@ export default function SmartChart({
                     onClick={() => setSelectedTheme(t.value)}
                     className={`flex flex-col items-center justify-center p-2.5 rounded-xl border transition-all ${
                       selectedTheme === t.value 
-                        ? 'bg-gray-50 border-gray-300 shadow-sm text-gray-800' 
-                        : 'border-transparent hover:bg-gray-50 hover:border-gray-200 text-gray-500'
+                        ? 'bg-muted border-border shadow-sm text-foreground' 
+                        : 'border-transparent hover:bg-muted hover:border-border text-muted-foreground'
                     }`}
                   >
                     <div className="w-6 h-6 rounded-full mb-1.5 shadow-sm ring-1 ring-black/5" style={{ backgroundColor: t.color }} />
@@ -308,14 +306,14 @@ export default function SmartChart({
           )}
 
           {activeTab === 'advanced' && (
-            <div className="px-6 py-5 bg-white border-t border-gray-100 animate-in fade-in slide-in-from-top-1 duration-200">
+            <div className="px-6 py-5 bg-popover border-t border-border animate-in fade-in slide-in-from-top-1 duration-200">
               <div className="flex items-center justify-between mb-4">
-                <div className="text-sm font-bold text-gray-800">自定义基础属性</div>
+                <div className="text-sm font-bold text-foreground">自定义基础属性</div>
                 <div className="flex items-center gap-2">
-                  <button onClick={handleLoadPreset} className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded transition">
+                  <button onClick={handleLoadPreset} className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-muted-foreground bg-muted hover:bg-muted/80 rounded transition">
                     <DownloadIcon size={12} /> 加载配置
                   </button>
-                  <button onClick={handleSavePreset} className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-white bg-gray-800 hover:bg-black rounded transition">
+                  <button onClick={handleSavePreset} className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-background bg-foreground hover:opacity-80 rounded transition">
                     <SaveIcon size={12} /> 保存为预设
                   </button>
                 </div>
@@ -323,31 +321,31 @@ export default function SmartChart({
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-gray-600">重写主标题</label>
-                  <input type="text" className="px-3 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 transition" placeholder={finalConfig.title || '如：年度销量分析'} value={advancedSettings.titleOverride} onChange={e => setAdvancedSettings(s => ({ ...s, titleOverride: e.target.value }))} />
+                  <label className="text-xs font-medium text-muted-foreground">重写主标题</label>
+                  <input type="text" className="px-3 py-1.5 text-sm bg-muted border border-border rounded-lg focus:bg-popover focus:outline-none focus:ring-1 focus:ring-foreground/20 transition" placeholder={finalConfig.title || '如：年度销量分析'} value={advancedSettings.titleOverride} onChange={e => setAdvancedSettings(s => ({ ...s, titleOverride: e.target.value }))} />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-gray-600">数值显示格式</label>
-                  <select className="px-3 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 transition" value={advancedSettings.valueFormat} onChange={e => setAdvancedSettings(s => ({ ...s, valueFormat: e.target.value }))}>
+                  <label className="text-xs font-medium text-muted-foreground">数值显示格式</label>
+                  <select className="px-3 py-1.5 text-sm bg-muted border border-border rounded-lg focus:bg-popover focus:outline-none focus:ring-1 focus:ring-foreground/20 transition" value={advancedSettings.valueFormat} onChange={e => setAdvancedSettings(s => ({ ...s, valueFormat: e.target.value }))}>
                     <option value="auto">自动映射 (Auto)</option>
                     <option value="percent">百分比比例 (%)</option>
                   </select>
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-gray-600">类别轴名称 (X Axis)</label>
-                  <input type="text" className="px-3 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 transition" placeholder={finalConfig.xCol || '默认'} value={advancedSettings.xAxisName} onChange={e => setAdvancedSettings(s => ({ ...s, xAxisName: e.target.value }))} />
+                  <label className="text-xs font-medium text-muted-foreground">类别轴名称 (X Axis)</label>
+                  <input type="text" className="px-3 py-1.5 text-sm bg-muted border border-border rounded-lg focus:bg-popover focus:outline-none focus:ring-1 focus:ring-foreground/20 transition" placeholder={finalConfig.xCol || '默认'} value={advancedSettings.xAxisName} onChange={e => setAdvancedSettings(s => ({ ...s, xAxisName: e.target.value }))} />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-gray-600">数值轴名称 (Y Axis)</label>
-                  <input type="text" className="px-3 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 transition" placeholder={finalConfig.yCol || '默认'} value={advancedSettings.yAxisName} onChange={e => setAdvancedSettings(s => ({ ...s, yAxisName: e.target.value }))} />
+                  <label className="text-xs font-medium text-muted-foreground">数值轴名称 (Y Axis)</label>
+                  <input type="text" className="px-3 py-1.5 text-sm bg-muted border border-border rounded-lg focus:bg-popover focus:outline-none focus:ring-1 focus:ring-foreground/20 transition" placeholder={finalConfig.yCol || '默认'} value={advancedSettings.yAxisName} onChange={e => setAdvancedSettings(s => ({ ...s, yAxisName: e.target.value }))} />
                 </div>
               </div>
 
-              <div className="mt-5 pt-4 border-t border-gray-100 flex items-center justify-between">
-                 <div className="text-xs font-medium text-gray-600">直接显示数值标签</div>
+              <div className="mt-5 pt-4 border-t border-border flex items-center justify-between">
+                 <div className="text-xs font-medium text-muted-foreground">直接显示数值标签</div>
                  <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" className="sr-only peer" checked={advancedSettings.showDataLabel} onChange={e => setAdvancedSettings(s => ({...s, showDataLabel: e.target.checked}))} />
-                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                    <div className="w-9 h-5 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-background after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-foreground"></div>
                   </label>
               </div>
             </div>
@@ -356,7 +354,7 @@ export default function SmartChart({
       )}
 
       {/* 渲染区域 */}
-      <div className={`relative bg-white ${inferredType !== 'table' ? 'p-3' : 'p-0'}`}>
+      <div className={`relative bg-transparent ${inferredType !== 'table' ? 'p-3' : 'p-0'}`}>
         {renderChart()}
       </div>
     </div>

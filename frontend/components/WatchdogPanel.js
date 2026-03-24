@@ -13,14 +13,12 @@ import {
   TrashIcon, 
   PlayIcon, 
   PlusIcon, 
-  CloseIcon,
-  AlertIcon,
-  CheckCircleIcon
+  CloseIcon
 } from './Icons';
 import { useToast } from './Toast';
 
 export default function WatchdogPanel({ isOpen, onClose }) {
-  const { success, error, info } = useToast();
+  const { success, error } = useToast();
   const [rules, setRules] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);

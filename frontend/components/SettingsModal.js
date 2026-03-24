@@ -5,7 +5,7 @@ import { CloseIcon, SettingsIcon, UserIcon, InfoIcon, SparklesIcon, SpinnerIcon 
 import { useToast } from './Toast';
 
 export default function SettingsModal({ isOpen, onClose }) {
-  const { success, error, info } = useToast();
+  const { success, error } = useToast();
   const [activeTab, setActiveTab] = useState('general');
   const [systemPrompt, setSystemPrompt] = useState('');
   const [apiKey, setApiKey] = useState('');
@@ -15,7 +15,6 @@ export default function SettingsModal({ isOpen, onClose }) {
   const [isTesting, setIsTesting] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const [testSteps, setTestSteps] = useState([]);
-  const [currentStep, setCurrentStep] = useState(0);
 
   // 根据模型获取默认 Base URL
   const getDefaultBaseUrl = (model) => {
@@ -39,32 +38,22 @@ export default function SettingsModal({ isOpen, onClose }) {
 
   // 弹窗打开时加载本地存储
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-      const savedPrompt = localStorage.getItem('sqlAgentSystemPrompt');
-      if (savedPrompt) {
-        setSystemPrompt(savedPrompt);
-      }
-      const savedApiKey = localStorage.getItem('sqlAgentApiKey');
-      if (savedApiKey) {
-        setApiKey(savedApiKey);
-      }
-      const savedBaseUrl = localStorage.getItem('sqlAgentBaseUrl');
-      if (savedBaseUrl) {
-        setBaseUrl(savedBaseUrl);
-      }
-      const savedModel = localStorage.getItem('sqlAgentModel');
-      if (savedModel) {
-        setSelectedModel(savedModel);
-        if (!savedBaseUrl && getDefaultBaseUrl(savedModel)) {
-          setBaseUrl(getDefaultBaseUrl(savedModel));
-        }
-      } else if (!baseUrl) {
-        setBaseUrl(getDefaultBaseUrl(selectedModel));
-      }
-    } else {
+    if (!isOpen) {
       document.body.style.overflow = '';
+      return () => { document.body.style.overflow = ''; };
     }
+
+    document.body.style.overflow = 'hidden';
+    const savedPrompt = localStorage.getItem('sqlAgentSystemPrompt') || '';
+    const savedApiKey = localStorage.getItem('sqlAgentApiKey') || '';
+    const savedBaseUrl = localStorage.getItem('sqlAgentBaseUrl') || '';
+    const savedModel = localStorage.getItem('sqlAgentModel') || 'deepseek-chat';
+
+    setSystemPrompt(savedPrompt);
+    setApiKey(savedApiKey);
+    setSelectedModel(savedModel);
+    setBaseUrl(savedBaseUrl || getDefaultBaseUrl(savedModel));
+
     return () => { document.body.style.overflow = ''; };
   }, [isOpen]);
 
@@ -87,7 +76,6 @@ export default function SettingsModal({ isOpen, onClose }) {
   const handleTestConnection = async () => {
     if (isTesting) return;
     setIsTesting(true);
-    setCurrentStep(0);
     setTestSteps([
       { id: 1, status: 'pending', message: '验证配置参数完整性' },
       { id: 2, status: 'pending', message: '建立与 API 服务器的连接' },
@@ -106,18 +94,16 @@ export default function SettingsModal({ isOpen, onClose }) {
       
       await new Promise(resolve => setTimeout(resolve, 300));
       setTestSteps(prev => prev.map(s => s.id === 1 ? { ...s, status: 'completed' } : s));
-      setCurrentStep(1);
 
       // 步骤 2: 建立连接
       await new Promise(resolve => setTimeout(resolve, 500));
       setTestSteps(prev => prev.map(s => s.id === 2 ? { ...s, status: 'running' } : s));
       
       const { testModelConnection } = await import('@/lib/api');
-      const result = await testModelConnection(selectedModel, apiKey, baseUrl);
+      await testModelConnection(selectedModel, apiKey, baseUrl);
       
       await new Promise(resolve => setTimeout(resolve, 300));
       setTestSteps(prev => prev.map(s => s.id === 2 ? { ...s, status: 'completed' } : s));
-      setCurrentStep(2);
 
       // 步骤 3: 验证 API Key
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -125,7 +111,6 @@ export default function SettingsModal({ isOpen, onClose }) {
       
       await new Promise(resolve => setTimeout(resolve, 300));
       setTestSteps(prev => prev.map(s => s.id === 3 ? { ...s, status: 'completed' } : s));
-      setCurrentStep(3);
 
       // 步骤 4: 测试模型响应
       await new Promise(resolve => setTimeout(resolve, 500));
