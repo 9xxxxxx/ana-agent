@@ -54,6 +54,9 @@ function CanvasToolbar({ onAddBlock, onApplyTemplate, onInsertRuntime, onGenerat
   const blockTypes = [
     { key: 'text', label: '文本', icon: <EditIcon size={14} /> },
     { key: 'callout', label: '提示块', icon: <AlertIcon size={14} /> },
+    { key: 'decision', label: '决策块', icon: <CheckCircleIcon size={14} /> },
+    { key: 'evidence', label: '证据块', icon: <LayersIcon size={14} /> },
+    { key: 'debate', label: '争议块', icon: <AlertIcon size={14} /> },
     { key: 'checklist', label: '清单', icon: <CheckCircleIcon size={14} /> },
     { key: 'metrics', label: '指标组', icon: <LayersIcon size={14} /> },
     { key: 'action_items', label: '执行块', icon: <LayersIcon size={14} /> },
@@ -388,6 +391,115 @@ function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runni
                   onUpdate(block.id, { items });
                 }}
                 placeholder="指标值"
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (block.type === 'decision') {
+    return (
+      <div className="space-y-4">
+        <input
+          className="w-full bg-transparent text-xl font-semibold text-stone-900 outline-none"
+          value={block.title || ''}
+          onChange={(event) => onUpdate(block.id, { title: event.target.value })}
+          placeholder="决策块标题"
+        />
+        <input
+          className="w-full rounded-[24px] border border-stone-200 bg-white px-4 py-3 text-base font-semibold text-stone-900 outline-none"
+          value={block.verdict || ''}
+          onChange={(event) => onUpdate(block.id, { verdict: event.target.value })}
+          placeholder="一句话结论"
+        />
+        <textarea
+          className="w-full min-h-[110px] resize-none rounded-[24px] border border-stone-200 bg-stone-50/80 px-4 py-3 text-sm leading-7 text-stone-700 outline-none"
+          value={block.rationale || ''}
+          onChange={(event) => onUpdate(block.id, { rationale: event.target.value })}
+          placeholder="核心依据"
+        />
+        <input
+          className="w-full rounded-[24px] border border-stone-200 bg-white px-4 py-3 text-sm text-stone-800 outline-none"
+          value={block.nextStep || ''}
+          onChange={(event) => onUpdate(block.id, { nextStep: event.target.value })}
+          placeholder="下一步动作"
+        />
+      </div>
+    );
+  }
+
+  if (block.type === 'evidence') {
+    return (
+      <div className="space-y-4">
+        <input
+          className="w-full bg-transparent text-xl font-semibold text-stone-900 outline-none"
+          value={block.title || ''}
+          onChange={(event) => onUpdate(block.id, { title: event.target.value })}
+          placeholder="证据块标题"
+        />
+        <div className="space-y-3">
+          {(block.items || []).map((item, index) => (
+            <div key={index} className="rounded-[24px] border border-stone-200 bg-white p-4">
+              <input
+                className="w-full rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm font-semibold text-stone-900 outline-none"
+                value={item.claim || ''}
+                onChange={(event) => {
+                  const items = [...(block.items || [])];
+                  items[index] = { ...items[index], claim: event.target.value };
+                  onUpdate(block.id, { items });
+                }}
+                placeholder="证据标题"
+              />
+              <textarea
+                className="mt-3 w-full min-h-[90px] resize-none rounded-2xl border border-stone-200 bg-stone-50/70 px-3 py-2 text-sm leading-7 text-stone-700 outline-none"
+                value={item.evidence || ''}
+                onChange={(event) => {
+                  const items = [...(block.items || [])];
+                  items[index] = { ...items[index], evidence: event.target.value };
+                  onUpdate(block.id, { items });
+                }}
+                placeholder="支撑证据"
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (block.type === 'debate') {
+    return (
+      <div className="space-y-4">
+        <input
+          className="w-full bg-transparent text-xl font-semibold text-stone-900 outline-none"
+          value={block.title || ''}
+          onChange={(event) => onUpdate(block.id, { title: event.target.value })}
+          placeholder="争议块标题"
+        />
+        <div className="space-y-3">
+          {(block.items || []).map((item, index) => (
+            <div key={index} className="rounded-[24px] border border-stone-200 bg-white p-4">
+              <input
+                className="w-full rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm font-semibold text-stone-900 outline-none"
+                value={item.perspective || ''}
+                onChange={(event) => {
+                  const items = [...(block.items || [])];
+                  items[index] = { ...items[index], perspective: event.target.value };
+                  onUpdate(block.id, { items });
+                }}
+                placeholder="观点方"
+              />
+              <textarea
+                className="mt-3 w-full min-h-[90px] resize-none rounded-2xl border border-stone-200 bg-stone-50/70 px-3 py-2 text-sm leading-7 text-stone-700 outline-none"
+                value={item.point || ''}
+                onChange={(event) => {
+                  const items = [...(block.items || [])];
+                  items[index] = { ...items[index], point: event.target.value };
+                  onUpdate(block.id, { items });
+                }}
+                placeholder="争议点"
               />
             </div>
           ))}
@@ -930,6 +1042,47 @@ export default function ReportCanvas({ blocks, onChange }) {
             { label: '指标一', value: '0' },
             { label: '指标二', value: '0' },
             { label: '指标三', value: '0' },
+          ],
+        }),
+      ]);
+      return;
+    }
+
+    if (type === 'decision') {
+      onChange([
+        ...blocks,
+        createCanvasBlock('decision', {
+          title: '新增决策建议',
+          verdict: '在这里写一句话结论。',
+          rationale: '补充核心依据、证据和边界条件。',
+          nextStep: '明确下一步动作。',
+        }),
+      ]);
+      return;
+    }
+
+    if (type === 'evidence') {
+      onChange([
+        ...blocks,
+        createCanvasBlock('evidence', {
+          title: '新增关键证据',
+          items: [
+            { claim: '证据 1', evidence: '补充支撑结论的数据或事实。' },
+            { claim: '证据 2', evidence: '补充第二条支撑证据。' },
+          ],
+        }),
+      ]);
+      return;
+    }
+
+    if (type === 'debate') {
+      onChange([
+        ...blocks,
+        createCanvasBlock('debate', {
+          title: '新增争议点',
+          items: [
+            { perspective: '观点 A', point: '补充该观点的主张。' },
+            { perspective: '观点 B', point: '补充与之冲突或互补的观点。' },
           ],
         }),
       ]);

@@ -224,6 +224,35 @@ export function reportToCanvasBlocks(report) {
     );
   }
 
+  if (report.decision) {
+    blocks.push(
+      createCanvasBlock('decision', {
+        title: '决策建议',
+        verdict: report.decision.verdict || '',
+        rationale: report.decision.rationale || '',
+        nextStep: report.decision.nextStep || '',
+      })
+    );
+  }
+
+  if (report.evidenceItems?.length) {
+    blocks.push(
+      createCanvasBlock('evidence', {
+        title: '关键证据',
+        items: report.evidenceItems,
+      })
+    );
+  }
+
+  if (report.debateItems?.length) {
+    blocks.push(
+      createCanvasBlock('debate', {
+        title: '关键争议点',
+        items: report.debateItems,
+      })
+    );
+  }
+
   if (report.metrics?.length) {
     blocks.push(
       createCanvasBlock('metrics', {
@@ -331,6 +360,30 @@ export function exportCanvasToMarkdown(blocks = []) {
       if (block.type === 'metrics') {
         const rows = (block.items || []).map((item) => `- **${item.title || item.label || '指标'}**: ${item.value || '-'}`);
         return `## ${block.title || '关键指标'}\n\n${rows.join('\n')}`;
+      }
+
+      if (block.type === 'decision') {
+        return [
+          `## ${block.title || '决策建议'}`,
+          '',
+          `- 结论: ${block.verdict || ''}`,
+          `- 依据: ${block.rationale || ''}`,
+          `- 下一步: ${block.nextStep || ''}`,
+        ].join('\n').trim();
+      }
+
+      if (block.type === 'evidence') {
+        const items = (block.items || [])
+          .map((item) => `- ${item.claim || '证据'}: ${item.evidence || ''}`)
+          .join('\n');
+        return `## ${block.title || '关键证据'}\n\n${items}`.trim();
+      }
+
+      if (block.type === 'debate') {
+        const items = (block.items || [])
+          .map((item) => `- ${item.perspective || '观点'}: ${item.point || ''}`)
+          .join('\n');
+        return `## ${block.title || '关键争议点'}\n\n${items}`.trim();
       }
 
       if (block.type === 'chart') {

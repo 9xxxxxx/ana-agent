@@ -30,11 +30,65 @@ function extractActionItems(text = '') {
   }));
 }
 
+function extractBulletPoints(text = '', limit = 4) {
+  const bulletLines = text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => /^[-*]\s+/.test(line) || /^\d+\.\s+/.test(line));
+
+  if (!bulletLines.length) {
+    return [];
+  }
+
+  return bulletLines.slice(0, limit).map((line) => line.replace(/^[-*]\s+/, '').replace(/^\d+\.\s+/, ''));
+}
+
+function extractLeadSentence(text = '') {
+  return text
+    .split('\n')
+    .map((line) => line.trim())
+    .find(Boolean) || '';
+}
+
 function buildSpecialistSections(specialists = []) {
   return specialists.map((item, index) => ({
     title: `专家观点 ${index + 1}: ${item.role}`,
     content: item.content,
     tone: item.role?.includes('风险') ? 'note' : 'section',
+  }));
+}
+
+function buildDecisionSummary(finalReport = '', actionItems = []) {
+  const summaryPoints = extractBulletPoints(finalReport, 3);
+  return {
+    verdict: extractLeadSentence(finalReport) || '需要补充更多证据以形成明确结论。',
+    rationale: summaryPoints.length ? summaryPoints.join('\n') : finalReport,
+    nextStep: actionItems[0]?.title || '补充下一步动作。',
+  };
+}
+
+function buildEvidenceItems(finalReport = '', specialists = []) {
+  const finalBullets = extractBulletPoints(finalReport, 4).map((item, index) => ({
+    claim: `联合结论 ${index + 1}`,
+    evidence: item,
+  }));
+
+  const specialistBullets = specialists.slice(0, 3).map((item) => ({
+    claim: item.role,
+    evidence: extractLeadSentence(item.content) || '该专家暂无可提炼证据。',
+  }));
+
+  return [...finalBullets, ...specialistBullets].slice(0, 6);
+}
+
+function buildDebateItems(specialists = []) {
+  if (!specialists.length) {
+    return [];
+  }
+
+  return specialists.slice(0, 3).map((item) => ({
+    perspective: item.role,
+    point: extractLeadSentence(item.content) || '暂无观点',
   }));
 }
 
@@ -45,6 +99,9 @@ export function buildDecisionReport(brainstormResult) {
 
   const specialists = brainstormResult.specialists || [];
   const actionItems = extractActionItems(brainstormResult.final_report);
+  const decision = buildDecisionSummary(brainstormResult.final_report, actionItems);
+  const evidenceItems = buildEvidenceItems(brainstormResult.final_report, specialists);
+  const debateItems = buildDebateItems(specialists);
   return {
     id: `decision-${Date.now()}`,
     type: '决策简报',
@@ -65,6 +122,9 @@ export function buildDecisionReport(brainstormResult) {
       },
       ...buildSpecialistSections(specialists),
     ],
+    decision,
+    evidenceItems,
+    debateItems,
     specialists,
     actionItems,
     conclusion: brainstormResult.final_report,

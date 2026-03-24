@@ -104,6 +104,50 @@ function PreviewBlock({ block }) {
     );
   }
 
+  if (block.type === 'decision') {
+    return (
+      <section className="rounded-[28px] border border-emerald-200 bg-[linear-gradient(180deg,#ffffff_0%,#effaf4_100%)] p-6 shadow-sm">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-emerald-600">Decision</div>
+        <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-950">{block.title}</h2>
+        <div className="mt-5 rounded-[24px] bg-white px-5 py-4 text-lg font-semibold text-stone-950">{block.verdict}</div>
+        <div className="mt-4 rounded-[24px] bg-white/80 px-5 py-4 text-sm leading-7 text-stone-700">{block.rationale}</div>
+        <div className="mt-4 rounded-[24px] bg-emerald-50 px-5 py-4 text-sm font-medium text-emerald-800">下一步: {block.nextStep}</div>
+      </section>
+    );
+  }
+
+  if (block.type === 'evidence') {
+    return (
+      <section className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm">
+        <h2 className="text-xl font-semibold tracking-tight text-stone-950">{block.title}</h2>
+        <div className="mt-5 grid gap-3">
+          {(block.items || []).map((item, index) => (
+            <div key={index} className="rounded-[24px] border border-stone-200 bg-stone-50/70 p-4">
+              <div className="text-sm font-semibold text-stone-900">{item.claim}</div>
+              <div className="mt-2 text-sm leading-7 text-stone-700">{item.evidence}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  if (block.type === 'debate') {
+    return (
+      <section className="rounded-[28px] border border-amber-200 bg-white p-6 shadow-sm">
+        <h2 className="text-xl font-semibold tracking-tight text-stone-950">{block.title}</h2>
+        <div className="mt-5 grid gap-3 md:grid-cols-2">
+          {(block.items || []).map((item, index) => (
+            <div key={index} className="rounded-[24px] border border-amber-100 bg-amber-50/60 p-4">
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">{item.perspective}</div>
+              <div className="mt-2 text-sm leading-7 text-stone-700">{item.point}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
   if (block.type === 'chart') {
     return (
       <section className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm">
