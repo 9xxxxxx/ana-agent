@@ -2,6 +2,7 @@
 .env
 .venv
 .uv-cache/
+.prefect/
 env/
 venv/
 ENV/

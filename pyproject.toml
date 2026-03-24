@@ -5,7 +5,6 @@ description = "SQL Agent with FastAPI backend and React frontend"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "apscheduler>=3.11.2",
     "duckdb>=1.2.0",
     "asyncpg>=0.31.0",
     "fastapi>=0.135.1",

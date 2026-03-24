@@ -1,122 +1,181 @@
 """
-兼容型调度触发层。
-当前职责仅限于本地进程内的 cron 触发；真正的业务编排应下沉到 Prefect flows。
+Prefect 原生调度服务。
+负责将本地规则同步为 Prefect deployments，并用 Runner 在后台持续轮询执行。
 """
 
+from __future__ import annotations
+
+import asyncio
 import logging
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
-from apscheduler.triggers.cron import CronTrigger
 import os
+import threading
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+PREFECT_HOME = BASE_DIR / ".prefect"
+PREFECT_SERVER_DB = PREFECT_HOME / "prefect.db"
+WATCHDOG_DEPLOYMENT_PREFIX = "sql-agent-watchdog-"
+
+
+def _configure_prefect_runtime() -> None:
+    PREFECT_HOME.mkdir(parents=True, exist_ok=True)
+    os.environ.setdefault("PREFECT_HOME", str(PREFECT_HOME))
+    os.environ.setdefault(
+        "PREFECT_SERVER_DATABASE_CONNECTION_URL",
+        f"sqlite+aiosqlite:///{PREFECT_SERVER_DB.as_posix()}",
+    )
+    os.environ.setdefault("PREFECT_SERVER_ANALYTICS_ENABLED", "false")
+
+
+_configure_prefect_runtime()
+
+from prefect.client.orchestration import get_client
+from prefect.runner import Runner
+
+from core.orchestration.prefect_flows import watchdog_evaluation_flow
+from core.watchdog.rules_store import load_rules
 
 logger = logging.getLogger(__name__)
 
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))
-DB_PATH = os.path.join(BASE_DIR, "scheduler.sqlite")
 
-# 配置基于 SQLite 的永久任务存储，以便重启应用后任务依然存在
-jobstores = {
-    'default': SQLAlchemyJobStore(url=f'sqlite:///{DB_PATH}')
-}
+class PrefectSchedulerService:
+    def __init__(self) -> None:
+        self._lock = threading.RLock()
+        self._runner: Runner | None = None
+        self._thread: threading.Thread | None = None
 
-# 实例化基于 asyncio 的后台调度器
-scheduler = AsyncIOScheduler(jobstores=jobstores)
+    def start(self) -> None:
+        with self._lock:
+            if self._thread and self._thread.is_alive():
+                return
+            _configure_prefect_runtime()
+            active_rule_ids = self._get_active_rule_ids()
+            if not active_rule_ids:
+                logger.info("No active scheduled Prefect deployments to start.")
+                return
+            self._runner = self._build_runner()
+            self._thread = threading.Thread(
+                target=self._run_runner,
+                name="prefect-runner-thread",
+                daemon=True,
+            )
+            self._thread.start()
+            logger.info("Prefect runner started for SQL Agent schedules.")
 
-def start_scheduler():
-    """启动全局任务调度服务"""
-    if not scheduler.running:
-        scheduler.start()
-        logger.info("APScheduler started successfully with SQLite jobstore.")
-        
-        # 启动时自动加载所有活跃的监控规则
+    def stop(self) -> None:
+        with self._lock:
+            runner = self._runner
+            thread = self._thread
+            self._runner = None
+            self._thread = None
+
+        if runner is not None:
+            try:
+                runner.stop()
+            except RuntimeError:
+                logger.info("Prefect runner stop skipped because runner was not fully started.")
+            except Exception:
+                logger.exception("Failed to stop Prefect runner cleanly.")
+
+        if thread is not None and thread.is_alive():
+            thread.join(timeout=10)
+
+    def reload(self) -> None:
+        with self._lock:
+            should_restart = self._thread is not None
+        if should_restart:
+            self.stop()
+        self._cleanup_orphaned_watchdog_deployments(active_rule_ids=self._get_active_rule_ids())
+        self.start()
+
+    def list_jobs(self) -> list[dict[str, str]]:
+        jobs = []
+        for rule in load_rules():
+            if not rule.enabled:
+                continue
+            jobs.append(
+                {
+                    "id": self._deployment_name(rule.id),
+                    "name": rule.name,
+                    "schedule": rule.schedule,
+                    "flow": "watchdog-evaluation-flow",
+                }
+            )
+        return jobs
+
+    def _run_runner(self) -> None:
+        runner = self._runner
+        if runner is None:
+            return
         try:
-            init_watchdog_jobs()
-            logger.info("✅ 监控巡检规则初始化成功")
-        except Exception as e:
-            logger.error(f"❌ 监控巡检规则初始化失败: {e}")
+            asyncio.run(runner.start(webserver=False))
+        except Exception:
+            logger.exception("Prefect runner crashed.")
 
-def init_watchdog_jobs():
-    """从 rules_store 全量同步监控任务到调度器"""
-    from core.watchdog.rules_store import load_rules
-    from core.watchdog.engine import evaluate_rule
-    
-    rules = load_rules()
-    for rule in rules:
-        if rule.enabled:
-            add_watchdog_job(rule)
+    def _build_runner(self) -> Runner:
+        runner = Runner(name="sql-agent-runner", pause_on_shutdown=True, webserver=False)
+        for rule in load_rules():
+            if not rule.enabled:
+                continue
+            runner.add_flow(
+                watchdog_evaluation_flow,
+                name=self._deployment_name(rule.id),
+                cron=rule.schedule,
+                parameters={"rule_id": rule.id},
+                tags=["sql-agent", "watchdog"],
+                description=f"Watchdog rule: {rule.name}",
+            )
+        return runner
 
-def add_watchdog_job(rule):
-    """将单条 Watchdog 规则挂载至调度器"""
-    from core.watchdog.engine import evaluate_rule
-    return add_cron_job(
-        job_id=f"watchdog_{rule.id}",
-        func=evaluate_rule,
-        crontab=rule.schedule,
-        args=[rule]
-    )
+    @staticmethod
+    def _deployment_name(rule_id: str) -> str:
+        return f"{WATCHDOG_DEPLOYMENT_PREFIX}{rule_id}"
+
+    @staticmethod
+    def _get_active_rule_ids() -> set[str]:
+        return {rule.id for rule in load_rules() if rule.enabled}
+
+    def _cleanup_orphaned_watchdog_deployments(self, active_rule_ids: set[str]) -> None:
+        async def _cleanup() -> None:
+            async with get_client() as client:
+                deployments = await client.read_deployments(limit=200)
+                active_names = {self._deployment_name(rule_id) for rule_id in active_rule_ids}
+                for deployment in deployments:
+                    if deployment.name.startswith(WATCHDOG_DEPLOYMENT_PREFIX) and deployment.name not in active_names:
+                        await client.delete_deployment(deployment.id)
+
+        try:
+            asyncio.run(_cleanup())
+        except Exception:
+            logger.exception("Failed to cleanup orphaned Prefect watchdog deployments.")
 
 
-def add_decision_brief_job(job_id: str, task_text: str, crontab: str, model_name: str = "deepseek-chat", context: str = ""):
-    """
-    将 Prefect 决策简报 flow 挂载为 APScheduler 触发任务。
-    APScheduler 负责触发时机，flow 负责实际编排。
-    """
-    from core.tasks import execute_decision_brief_flow
+_service = PrefectSchedulerService()
 
-    return add_cron_job(
-        job_id=job_id,
-        func=execute_decision_brief_flow,
-        crontab=crontab,
-        kwargs={
-            "task_text": task_text,
-            "model_name": model_name,
-            "context": context,
-        },
-    )
 
-def stop_scheduler():
-    """优雅停止调度服务"""
-    if scheduler.running:
-        scheduler.shutdown()
-        logger.info("APScheduler stopped.")
+def start_scheduler() -> None:
+    _service.start()
 
-def add_cron_job(job_id: str, func, crontab: str, args=None, kwargs=None):
-    """
-    添加或更新一个标准 Cron 语法的任务
-    crontab: 例如 "0 9 * * *" 代表每天早上 9:00
-    """
-    args = args or []
-    kwargs = kwargs or {}
-    
-    parts = crontab.split()
-    if len(parts) != 5:
-        raise ValueError("无效的 crontab 表达式，必须是标准的 5 段式，如 '0 9 * * *'")
-    
-    trigger = CronTrigger(
-        minute=parts[0],
-        hour=parts[1],
-        day=parts[2],
-        month=parts[3],
-        day_of_week=parts[4]
-    )
 
-    job = scheduler.add_job(
-        func,
-        trigger=trigger,
-        id=job_id,
-        args=args,
-        kwargs=kwargs,
-        replace_existing=True
-    )
-    logger.info(f"添加/更新了定时任务: {job_id} 执行频率: {crontab}")
-    return job
+def stop_scheduler() -> None:
+    _service.stop()
 
-def remove_job(job_id: str):
-    """移除指定任务"""
-    if scheduler.get_job(job_id):
-        scheduler.remove_job(job_id)
-        logger.info(f"任务已注销: {job_id}")
+
+def init_watchdog_jobs() -> None:
+    _service.reload()
+
+
+def add_watchdog_job(_rule) -> None:
+    _service.reload()
+
+
+def add_decision_brief_job(*_args, **_kwargs):
+    raise NotImplementedError("决策简报定时调度将统一通过 Prefect deployment 管理。")
+
+
+def remove_job(_job_id: str) -> None:
+    _service.reload()
+
 
 def get_jobs():
-    """获取所有已注册任务信息"""
-    return scheduler.get_jobs()
+    return _service.list_jobs()

@@ -12,22 +12,11 @@ from core.orchestration.prefect_flows import (
     decision_brief_flow,
     watchdog_evaluation_flow,
 )
-from core.services.brainstorm_service import MultiAgentBrainstormService
-from core.services.dbt_service import DbtService
-from core.services.etl_service import EtlService
-from core.watchdog.engine import evaluate_rule
-from core.watchdog.rules_store import load_rules
 
 
 class OrchestrationService:
-    def __init__(
-        self,
-        *,
-        etl_service: EtlService | None = None,
-        dbt_service: DbtService | None = None,
-    ):
-        self.etl_service = etl_service or EtlService()
-        self.dbt_service = dbt_service or DbtService()
+    def __init__(self):
+        pass
 
     @staticmethod
     def list_flows() -> list[dict[str, Any]]:
@@ -61,14 +50,11 @@ class OrchestrationService:
         api_key: str | None = None,
         base_url: str | None = None,
     ) -> dict[str, Any]:
-        brainstorm_service = MultiAgentBrainstormService(
+        return await decision_brief_flow(
+            task_text=task_text,
             model_name=model_name,
             api_key=api_key,
             base_url=base_url,
-        )
-        return await decision_brief_flow(
-            brainstorm_service,
-            task_text=task_text,
             context=context,
         )
 
@@ -84,8 +70,6 @@ class OrchestrationService:
         target: str = "dev",
     ) -> dict[str, Any]:
         return data_pipeline_flow(
-            self.etl_service,
-            self.dbt_service,
             file_path=file_path,
             table_name=table_name,
             dataset_name=dataset_name,
@@ -96,7 +80,4 @@ class OrchestrationService:
         )
 
     def run_watchdog_flow(self, *, rule_id: str) -> dict[str, Any]:
-        rule = next((item for item in load_rules() if item.id == rule_id), None)
-        if rule is None:
-            raise ValueError(f"监控规则不存在: {rule_id}")
-        return watchdog_evaluation_flow(evaluate_rule, rule)
+        return watchdog_evaluation_flow(rule_id=rule_id)
