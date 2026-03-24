@@ -25,7 +25,11 @@ from core.watchdog.rules_store import WatchdogRule, load_rules, add_rule, delete
 from core.watchdog.engine import evaluate_rule
 from core.services.brainstorm_service import MultiAgentBrainstormService
 from core.services.history_service import HistoryService
-from core.services.llm_service import create_chat_model, resolve_model_configuration
+from core.services.llm_service import (
+    create_chat_model,
+    looks_like_placeholder_api_key,
+    resolve_model_configuration,
+)
 from core.services.metadata_service import MetadataService
 from core.services.orchestration_service import OrchestrationService
 from core.services.storage_service import StorageService
@@ -95,15 +99,20 @@ class DeploymentRunRequest(BaseModel):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用启动/关闭生命周期"""
-    print("🚀 SQL Agent API 启动中...")
+    print("SQL Agent API 启动中...")
     from core.agent import init_memory, create_agent_graph
     await init_memory()
     global default_graph
-    default_graph = create_agent_graph()
+    try:
+        default_graph = create_agent_graph()
+    except ValueError as exc:
+        default_graph = None
+        print(f"[warn] 默认 Agent 未初始化：{exc}")
+        print("[info] 后端仍会继续启动；请在系统设置中配置有效模型与 API Key 后再发起对话。")
     start_scheduler()
     yield
     stop_scheduler()
-    print("🛑 SQL Agent API 已关闭")
+    print("SQL Agent API 已关闭")
 
 app = FastAPI(
     title="SQL Agent API",
@@ -290,6 +299,7 @@ async def get_system_status():
         "runtime": {
             "backend_url": "http://localhost:8000",
             "frontend_url": os.getenv("NEXT_PUBLIC_APP_URL", "http://localhost:3000"),
+            "default_llm_ready": not looks_like_placeholder_api_key(settings.OPENAI_API_KEY),
             "prefect_embedded": True,
             "prefect_home": str(PREFECT_HOME),
             "prefect_db_path": str(PREFECT_SERVER_DB),

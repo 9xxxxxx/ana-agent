@@ -45,6 +45,8 @@ class HistoryService:
             await conn.close()
 
     async def get_thread_messages(self, graph, thread_id: str) -> list[dict]:
+        if graph is None:
+            return []
         config = {"configurable": {"thread_id": thread_id}}
         state = await graph.aget_state(config)
         if not state or not hasattr(state, "values"):

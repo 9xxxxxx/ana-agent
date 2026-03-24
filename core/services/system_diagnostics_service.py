@@ -9,6 +9,7 @@ import importlib.util
 from pathlib import Path
 
 from core.config import settings
+from core.services.llm_service import looks_like_placeholder_api_key
 
 
 class SystemDiagnosticsService:
@@ -45,8 +46,10 @@ class SystemDiagnosticsService:
         env_checks = [
             self._check(
                 "OPENAI_API_KEY",
-                "pass" if settings.OPENAI_API_KEY.strip() else "warn",
-                "已配置模型 API Key。" if settings.OPENAI_API_KEY.strip() else "未在 .env 中配置默认 API Key。",
+                "pass" if not looks_like_placeholder_api_key(settings.OPENAI_API_KEY) else "warn",
+                "已配置默认模型 API Key。"
+                if not looks_like_placeholder_api_key(settings.OPENAI_API_KEY)
+                else "未在 .env 中配置可用的默认 API Key。",
                 "在 .env 中设置 OPENAI_API_KEY，或在前端系统设置中填写模型凭据。",
                 "environment",
             ),
