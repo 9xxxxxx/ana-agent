@@ -1,0 +1,1 @@
+SELECT * FROM raw_orders WHERE amount > 200

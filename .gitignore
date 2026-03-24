@@ -43,6 +43,7 @@ uploads/
 contexts/
 test_log/
 chroma_data/
+watchdog_rules.json
 
 # Generated
 feishu_v2_snippets.txt
@@ -55,6 +56,9 @@ core/agent_optimized.py
 test_api.py
 test_etl_dbt_flow.py
 test_model_switch.py
+dbt_project/logs/
+dbt_project/target/
+dbt_project/.user.yml
 
 # Large full DB backups
 /db_backup/demo_backup.sql

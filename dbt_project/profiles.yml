@@ -1,0 +1,18 @@
+my_dbt_profile:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: '../dbt_data.duckdb'
+      extensions:
+        - httpfs
+        - parquet
+    prod:
+      type: postgres
+      host: localhost
+      user: "{{ env_var('POSTGRES_USER', 'postgres') }}"
+      pass: "{{ env_var('POSTGRES_PASSWORD', 'postgres') }}"
+      port: 5432
+      dbname: demo
+      schema: public
+      threads: 4

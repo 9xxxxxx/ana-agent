@@ -7,7 +7,6 @@ import { useToast } from './Toast';
 export default function SettingsModal({ isOpen, onClose }) {
   const { success, error, info } = useToast();
   const [activeTab, setActiveTab] = useState('general');
-  const [theme, setTheme] = useState('light');
   const [systemPrompt, setSystemPrompt] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [baseUrl, setBaseUrl] = useState('');
@@ -205,17 +204,11 @@ export default function SettingsModal({ isOpen, onClose }) {
                   <div className="flex items-center justify-between py-3 border-b border-border">
                     <div>
                       <div className="font-medium text-foreground text-sm">主题模式</div>
-                      <div className="text-xs text-muted-foreground mt-1">切换应用的色彩风格</div>
+                      <div className="text-xs text-muted-foreground mt-1">当前项目锁定为浅色模式，避免主题分叉继续扩散</div>
                     </div>
-                    <select 
-                      className="px-3 py-1.5 bg-muted border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-foreground/10"
-                      value={theme}
-                      onChange={(e) => setTheme(e.target.value)}
-                    >
-                      <option value="light">浅色 (Light)</option>
-                      <option value="dark">深色 (Dark)</option>
-                      <option value="system">跟随系统</option>
-                    </select>
+                    <div className="px-3 py-1.5 bg-muted border border-border rounded-lg text-sm text-foreground">
+                      浅色固定
+                    </div>
                   </div>
                   <div className="flex items-center justify-between py-3 border-b border-border">
                     <div>
@@ -294,10 +287,10 @@ export default function SettingsModal({ isOpen, onClose }) {
 
                   {/* 测试进度显示 */}
                   {isTesting && testSteps.length > 0 && (
-                    <div className="mt-4 p-4 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30 border border-indigo-200 dark:border-indigo-800 rounded-xl">
+                    <div className="mt-4 p-4 bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl">
                       <div className="flex items-center gap-2 mb-3">
                         <SpinnerIcon size={16} className="animate-spin text-indigo-600" />
-                        <span className="text-sm font-medium text-indigo-900 dark:text-indigo-100">连接测试进行中...</span>
+                        <span className="text-sm font-medium text-indigo-900">连接测试进行中...</span>
                       </div>
                       <div className="space-y-2">
                         {testSteps.map((step, index) => (
@@ -313,10 +306,10 @@ export default function SettingsModal({ isOpen, onClose }) {
                                index + 1}
                             </div>
                             <div className="flex-1">
-                              <p className={`text-sm ${step.status === 'running' ? 'text-indigo-700 dark:text-indigo-300 font-medium' : 
-                                step.status === 'completed' ? 'text-green-700 dark:text-green-300' : 
-                                step.status === 'failed' ? 'text-red-700 dark:text-red-300' : 
-                                'text-gray-600 dark:text-gray-400'}`}>
+                              <p className={`text-sm ${step.status === 'running' ? 'text-indigo-700 font-medium' : 
+                                step.status === 'completed' ? 'text-green-700' : 
+                                step.status === 'failed' ? 'text-red-700' : 
+                                'text-gray-600'}`}>
                                 {step.message}
                               </p>
                             </div>

@@ -25,6 +25,8 @@ import {
   Paperclip,
   Image as ImageIconComponent,
   X,
+  XCircle,
+  AlertCircle,
   ChevronRight,
   ChevronDown,
   Wrench,
@@ -47,7 +49,9 @@ import {
   LayoutGrid,
   AlertTriangle,
   Info,
-  Save
+  Save,
+  Sun,
+  Moon
 } from 'lucide-react';
 
 export const UserIcon = User;
@@ -73,6 +77,9 @@ export const StopIcon = Square;
 export const PaperclipIcon = Paperclip;
 export const ImageIcon = ImageIconComponent;
 export const CloseIcon = X;
+export const XIcon = X;
+export const XCircleIcon = XCircle;
+export const AlertCircleIcon = AlertCircle;
 export const ChevronRightIcon = ChevronRight;
 export const ChevronDownIcon = ChevronDown;
 export const ChevronLeftIcon = ChevronLeft;
@@ -81,6 +88,7 @@ export const CheckCircleIcon = CheckCircle;
 export const SpinnerIcon = Loader2;
 export const InputIcon = Play;
 export const OutputIcon = Terminal;
+export const PlayIcon = Play;
 export const AlarmClockIcon = AlarmClock;
 export const MoreIcon = MoreHorizontal;
 export const StarIcon = Star;
@@ -96,3 +104,5 @@ export const LayoutGridIcon = LayoutGrid;
 export const AlertIcon = AlertTriangle;
 export const InfoIcon = Info;
 export const SaveIcon = Save;
+export const SunIcon = Sun;
+export const MoonIcon = Moon;
