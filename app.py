@@ -26,6 +26,7 @@ from core.watchdog.engine import evaluate_rule
 from core.services.brainstorm_service import MultiAgentBrainstormService
 from core.services.history_service import HistoryService
 from core.services.llm_service import create_chat_model, resolve_model_configuration
+from core.services.metadata_service import MetadataService
 from core.services.orchestration_service import OrchestrationService
 from core.services.storage_service import StorageService
 
@@ -34,8 +35,10 @@ from core.services.storage_service import StorageService
 default_graph = None
 BASE_DIR = Path(__file__).resolve().parent
 MEMORY_DB_PATH = BASE_DIR / "agent_memory.db"
+METADATA_DB_PATH = BASE_DIR / "app_metadata.db"
 storage_service = StorageService(BASE_DIR)
 history_service = HistoryService(MEMORY_DB_PATH)
+metadata_service = MetadataService(METADATA_DB_PATH, BASE_DIR / "db_configs.json")
 orchestration_service = OrchestrationService()
 
 
@@ -265,6 +268,50 @@ async def health_check():
     }
 
 
+@app.get("/api/system/status")
+async def get_system_status():
+    from core.database import get_session_db_url
+    from core.scheduler import PREFECT_HOME, PREFECT_SERVER_DB
+
+    default_database_url = settings.DATABASE_URL
+    current_database_url = get_session_db_url() or default_database_url
+    metadata_summary = metadata_service.get_system_summary()
+
+    return {
+        "success": True,
+        "runtime": {
+            "backend_url": "http://localhost:8000",
+            "frontend_url": os.getenv("NEXT_PUBLIC_APP_URL", "http://localhost:3000"),
+            "prefect_embedded": True,
+            "prefect_home": str(PREFECT_HOME),
+            "prefect_db_path": str(PREFECT_SERVER_DB),
+            "prefect_db_exists": PREFECT_SERVER_DB.exists(),
+            "agent_memory_db_path": str(MEMORY_DB_PATH),
+            "agent_memory_db_exists": MEMORY_DB_PATH.exists(),
+            "metadata_db_path": metadata_summary["metadata_db_path"],
+            "metadata_db_exists": Path(metadata_summary["metadata_db_path"]).exists(),
+            "db_config_count": metadata_summary["db_config_count"],
+            "legacy_db_configs_exists": metadata_summary["legacy_db_configs_exists"],
+            "database_url": current_database_url,
+            "default_database_url": default_database_url,
+            "database_connected": test_connection(),
+            "storage": {
+                "reports_dir": str(storage_service.reports_dir),
+                "uploads_dir": str(storage_service.uploads_dir),
+            },
+        },
+        "startup": {
+            "python": "uv run uvicorn app:app --reload --host 0.0.0.0 --port 8000",
+            "frontend": "cd frontend && npm run dev",
+            "notes": [
+                "Prefect 已内嵌到后端启动流程，不需要额外单独启动 prefect server 或 worker。",
+                "Watchdog 定时 deployment 由后端内嵌 Runner 托管。",
+                "默认应用元数据、Agent memory、Prefect 元数据都使用本地 SQLite 文件。",
+            ],
+        },
+    }
+
+
 @app.post("/api/models/test")
 async def test_model_connection_api(payload: ModelTestRequest):
     try:
@@ -340,18 +387,18 @@ async def connect_db_api(request: Request):
 
 @app.get("/api/db/config")
 async def get_db_config():
-    return storage_service.load_db_configs()
+    return metadata_service.list_db_configs()
 
 
 @app.post("/api/db/config")
 async def save_db_config(payload: DbConfigPayload):
-    item = storage_service.append_db_config(payload.name, payload.url, payload.type)
+    item = metadata_service.save_db_config(name=payload.name, url=payload.url, db_type=payload.type)
     return {"success": True, "config": item}
 
 
 @app.delete("/api/db/config/{config_id}")
 async def delete_db_config(config_id: str):
-    storage_service.delete_db_config(config_id)
+    metadata_service.delete_db_config(config_id)
     return {"success": True}
 
 

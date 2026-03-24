@@ -3,9 +3,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { CloseIcon, SettingsIcon, UserIcon, InfoIcon, SparklesIcon, SpinnerIcon } from './Icons';
 import { useToast } from './Toast';
+import { fetchSystemStatus } from '@/lib/api';
 
 export default function SettingsModal({ isOpen, onClose }) {
-  const { success, error } = useToast();
+  const { success, error, warning } = useToast();
   const [activeTab, setActiveTab] = useState('general');
   const [systemPrompt, setSystemPrompt] = useState('');
   const [apiKey, setApiKey] = useState('');
@@ -17,6 +18,8 @@ export default function SettingsModal({ isOpen, onClose }) {
   const [testSteps, setTestSteps] = useState([]);
   const [lastTestedFingerprint, setLastTestedFingerprint] = useState('');
   const [lastTestSuccess, setLastTestSuccess] = useState(false);
+  const [systemStatus, setSystemStatus] = useState(null);
+  const [loadingStatus, setLoadingStatus] = useState(false);
 
   const currentFingerprint = useMemo(
     () =>
@@ -71,6 +74,32 @@ export default function SettingsModal({ isOpen, onClose }) {
 
     return () => { document.body.style.overflow = ''; };
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || activeTab !== 'about') return;
+    let cancelled = false;
+    setLoadingStatus(true);
+    fetchSystemStatus()
+      .then((data) => {
+        if (!cancelled) {
+          setSystemStatus(data.success ? data : null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSystemStatus(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoadingStatus(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, activeTab]);
 
   const handleSavePrompt = () => {
     localStorage.setItem('sqlAgentSystemPrompt', systemPrompt);
@@ -402,18 +431,83 @@ export default function SettingsModal({ isOpen, onClose }) {
 
             {/* 关于 Tab */}
             {activeTab === 'about' && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-right-2 duration-300 flex flex-col items-center justify-center pt-8 text-center">
-                <div className="w-16 h-16 rounded-2xl bg-foreground text-background flex items-center justify-center shadow-lg mb-4">
-                  <SparklesIcon size={28} />
+              <div className="space-y-6 animate-in fade-in slide-in-from-right-2 duration-300">
+                <div className="flex flex-col items-center justify-center pt-2 text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-foreground text-background flex items-center justify-center shadow-lg mb-4">
+                    <SparklesIcon size={28} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-foreground tracking-tight">SQL Agent</h3>
+                    <p className="text-sm text-muted-foreground mt-1">Version 2.0.0 (Phase J)</p>
+                  </div>
+                  <div className="text-sm text-muted-foreground space-y-2 max-w-sm mt-4">
+                    <p>当前运行态已经接入内嵌 Prefect、可编排报告画布与多专家会商链路。</p>
+                    <p>下面这块直接读取后端真实状态，不再靠静态说明文案。</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold text-foreground tracking-tight">SQL Agent</h3>
-                  <p className="text-sm text-muted-foreground mt-1">Version 2.0.0 (Phase J)</p>
-                </div>
-                <div className="text-sm text-muted-foreground space-y-2 max-w-sm mt-4">
-                  <p>感谢您体验这款融合 AI 与极简美学设计的智能数据分析助手。</p>
-                  <p>本应用构建于 LangGraph + Next.js，为您提供极速的图表大盘与数据洞察能力。</p>
-                </div>
+
+                {loadingStatus ? (
+                  <div className="rounded-2xl border border-border bg-muted/40 px-4 py-8 text-center text-sm text-muted-foreground">
+                    正在读取系统状态...
+                  </div>
+                ) : systemStatus?.runtime ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="rounded-2xl border border-border bg-muted/40 p-4">
+                        <div className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">启动命令</div>
+                        <div className="mt-3 space-y-2 text-sm text-foreground">
+                          <div className="rounded-xl bg-popover px-3 py-2 font-mono">{systemStatus.startup?.python}</div>
+                          <div className="rounded-xl bg-popover px-3 py-2 font-mono">{systemStatus.startup?.frontend}</div>
+                        </div>
+                      </div>
+                      <div className="rounded-2xl border border-border bg-muted/40 p-4">
+                        <div className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">运行拓扑</div>
+                        <div className="mt-3 space-y-2 text-sm text-foreground">
+                          <div>Prefect: {systemStatus.runtime.prefect_embedded ? '内嵌后端 Runner' : '外部服务'}</div>
+                          <div>数据库连接已配置: {systemStatus.runtime.database_connected ? '是' : '否'}</div>
+                          <div>已保存数据源: {systemStatus.runtime.db_config_count}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-border bg-muted/40 p-4">
+                      <div className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">元数据与存储</div>
+                      <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-foreground">
+                        <div className="rounded-xl bg-popover px-3 py-3">
+                          <div className="font-semibold">Agent Memory</div>
+                          <div className="mt-1 break-all text-muted-foreground">{systemStatus.runtime.agent_memory_db_path}</div>
+                        </div>
+                        <div className="rounded-xl bg-popover px-3 py-3">
+                          <div className="font-semibold">App Metadata</div>
+                          <div className="mt-1 break-all text-muted-foreground">{systemStatus.runtime.metadata_db_path}</div>
+                        </div>
+                        <div className="rounded-xl bg-popover px-3 py-3">
+                          <div className="font-semibold">Prefect Metadata</div>
+                          <div className="mt-1 break-all text-muted-foreground">{systemStatus.runtime.prefect_db_path}</div>
+                        </div>
+                        <div className="rounded-xl bg-popover px-3 py-3">
+                          <div className="font-semibold">当前业务数据库</div>
+                          <div className="mt-1 break-all text-muted-foreground">{systemStatus.runtime.database_url || '未配置'}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-border bg-muted/40 p-4">
+                      <div className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">启动说明</div>
+                      <div className="mt-3 space-y-2 text-sm text-foreground">
+                        {(systemStatus.startup?.notes || []).map((note, index) => (
+                          <div key={index} className="rounded-xl bg-popover px-3 py-2 text-muted-foreground">
+                            {note}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-800">
+                    系统状态暂时不可用，请确认后端已经启动。
+                  </div>
+                )}
               </div>
             )}
             

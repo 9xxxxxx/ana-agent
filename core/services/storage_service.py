@@ -4,7 +4,6 @@
 
 from __future__ import annotations
 
-import json
 import re
 from dataclasses import dataclass
 from datetime import datetime
@@ -23,42 +22,10 @@ class StorageService:
         self.base_dir = base_dir
         self.reports_dir = base_dir / "reports"
         self.uploads_dir = base_dir / "uploads"
-        self.db_configs_file = base_dir / "db_configs.json"
 
     def ensure_directory(self, path: Path) -> Path:
         path.mkdir(parents=True, exist_ok=True)
         return path
-
-    def load_db_configs(self) -> list[dict]:
-        if not self.db_configs_file.exists():
-            return []
-        try:
-            return json.loads(self.db_configs_file.read_text(encoding="utf-8"))
-        except Exception:
-            return []
-
-    def save_db_configs(self, configs: list[dict]) -> None:
-        self.db_configs_file.write_text(
-            json.dumps(configs, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
-
-    def append_db_config(self, name: str, url: str, db_type: str) -> dict:
-        configs = self.load_db_configs()
-        item = {
-            "id": str(int(datetime.now().timestamp() * 1000)),
-            "name": name,
-            "url": url,
-            "type": db_type,
-            "created_at": datetime.now().isoformat(),
-        }
-        configs.append(item)
-        self.save_db_configs(configs)
-        return item
-
-    def delete_db_config(self, config_id: str) -> None:
-        configs = [item for item in self.load_db_configs() if item.get("id") != config_id]
-        self.save_db_configs(configs)
 
     def save_upload(self, filename: str | None, data: bytes) -> dict:
         uploads_dir = self.ensure_directory(self.uploads_dir)

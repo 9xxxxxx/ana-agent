@@ -31,6 +31,11 @@ export async function checkHealth() {
   return res.json();
 }
 
+export async function fetchSystemStatus() {
+  const res = await fetch(`${API_BASE}/api/system/status`);
+  return res.json();
+}
+
 /**
  * 测试模型连接
  */
