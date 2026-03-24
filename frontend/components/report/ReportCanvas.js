@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   closestCenter,
   DndContext,
@@ -38,6 +38,12 @@ function toneClass(tone = 'default') {
   if (tone === 'section') return 'border-stone-200 bg-white';
   if (tone === 'note') return 'border-amber-200 bg-amber-50/70';
   return 'border-border bg-white';
+}
+
+function stanceTone(stance = 'analysis') {
+  if (stance === 'risk') return 'bg-rose-50 text-rose-600 border-rose-200';
+  if (stance === 'strategy') return 'bg-violet-50 text-violet-600 border-violet-200';
+  return 'bg-sky-50 text-sky-600 border-sky-200';
 }
 
 function CanvasToolbar({ onAddBlock, onApplyTemplate, blockCount }) {
@@ -200,7 +206,64 @@ function CanvasChart({ chartData }) {
   return <div className="rounded-2xl bg-stone-50 p-8 text-center text-sm text-stone-500">暂不支持该图表格式</div>;
 }
 
+function ActionItemsBoard({ items = [], editable = false, onChange }) {
+  const columns = [
+    { key: 'todo', label: '待办' },
+    { key: 'doing', label: '进行中' },
+    { key: 'done', label: '已完成' },
+  ];
+
+  return (
+    <div className="grid gap-3 lg:grid-cols-3">
+      {columns.map((column) => {
+        const columnItems = items.filter((item) => (item.status || 'todo') === column.key);
+        return (
+          <div key={column.key} className="rounded-[24px] border border-stone-200 bg-stone-50/70 p-4">
+            <div className="text-sm font-semibold text-stone-900">{column.label}</div>
+            <div className="mt-3 space-y-3">
+              {columnItems.length === 0 && (
+                <div className="rounded-2xl border border-dashed border-stone-200 bg-white/70 px-4 py-5 text-sm text-stone-400">
+                  暂无事项
+                </div>
+              )}
+              {columnItems.map((item, index) => (
+                <div key={item.id || `${column.key}-${index}`} className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
+                  <div className="text-sm font-semibold text-stone-900">{item.title}</div>
+                  <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold">
+                    <span className="rounded-full bg-stone-100 px-2.5 py-1 text-stone-600">{item.owner}</span>
+                    <span className="rounded-full bg-stone-100 px-2.5 py-1 text-stone-600">{item.dueDate}</span>
+                    <span className={`rounded-full px-2.5 py-1 ${item.priority === 'high' ? 'bg-rose-50 text-rose-600' : item.priority === 'low' ? 'bg-stone-100 text-stone-500' : 'bg-amber-50 text-amber-700'}`}>
+                      {item.priority}
+                    </span>
+                  </div>
+                  {editable && onChange && (
+                    <select
+                      className="mt-3 w-full rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-700 outline-none"
+                      value={item.status || 'todo'}
+                      onChange={(event) => {
+                        const next = items.map((current) =>
+                          current.id === item.id ? { ...current, status: event.target.value } : current
+                        );
+                        onChange(next);
+                      }}
+                    >
+                      <option value="todo">待办</option>
+                      <option value="doing">进行中</option>
+                      <option value="done">已完成</option>
+                    </select>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function BlockEditor({ block, onUpdate }) {
+  const [actionView, setActionView] = useState('board');
   if (block.type === 'hero') {
     return (
       <div className="grid gap-4 md:grid-cols-[1.6fr,1fr]">
@@ -365,76 +428,124 @@ function BlockEditor({ block, onUpdate }) {
   if (block.type === 'action_items') {
     return (
       <div className="space-y-4">
-        <input
-          className="w-full bg-transparent text-xl font-semibold text-stone-900 outline-none"
-          value={block.title || ''}
-          onChange={(event) => onUpdate(block.id, { title: event.target.value })}
-          placeholder="执行计划标题"
-        />
-        <div className="space-y-3">
-          {(block.items || []).map((item, index) => (
-            <div key={item.id || index} className="rounded-[24px] border border-stone-200 bg-white p-4">
-              <div className="grid gap-3 lg:grid-cols-[1.8fr,1fr,1fr,0.8fr,0.8fr]">
-                <input
-                  className="rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-800 outline-none"
-                  value={item.title || ''}
-                  onChange={(event) => {
-                    const items = [...(block.items || [])];
-                    items[index] = { ...items[index], title: event.target.value };
-                    onUpdate(block.id, { items });
-                  }}
-                  placeholder="行动项"
-                />
-                <input
-                  className="rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-800 outline-none"
-                  value={item.owner || ''}
-                  onChange={(event) => {
-                    const items = [...(block.items || [])];
-                    items[index] = { ...items[index], owner: event.target.value };
-                    onUpdate(block.id, { items });
-                  }}
-                  placeholder="负责人"
-                />
-                <input
-                  className="rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-800 outline-none"
-                  value={item.dueDate || ''}
-                  onChange={(event) => {
-                    const items = [...(block.items || [])];
-                    items[index] = { ...items[index], dueDate: event.target.value };
-                    onUpdate(block.id, { items });
-                  }}
-                  placeholder="截止时间"
-                />
-                <select
-                  className="rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-800 outline-none"
-                  value={item.priority || 'medium'}
-                  onChange={(event) => {
-                    const items = [...(block.items || [])];
-                    items[index] = { ...items[index], priority: event.target.value };
-                    onUpdate(block.id, { items });
-                  }}
-                >
-                  <option value="high">高</option>
-                  <option value="medium">中</option>
-                  <option value="low">低</option>
-                </select>
-                <select
-                  className="rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-800 outline-none"
-                  value={item.status || 'todo'}
-                  onChange={(event) => {
-                    const items = [...(block.items || [])];
-                    items[index] = { ...items[index], status: event.target.value };
-                    onUpdate(block.id, { items });
-                  }}
-                >
-                  <option value="todo">待办</option>
-                  <option value="doing">进行中</option>
-                  <option value="done">已完成</option>
-                </select>
-              </div>
-            </div>
-          ))}
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <input
+            className="w-full bg-transparent text-xl font-semibold text-stone-900 outline-none"
+            value={block.title || ''}
+            onChange={(event) => onUpdate(block.id, { title: event.target.value })}
+            placeholder="执行计划标题"
+          />
+          <div className="inline-flex rounded-full border border-stone-200 bg-stone-50 p-1">
+            <button
+              className={`rounded-full px-3 py-1.5 text-xs font-semibold ${actionView === 'board' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500'}`}
+              onClick={() => setActionView('board')}
+            >
+              看板
+            </button>
+            <button
+              className={`rounded-full px-3 py-1.5 text-xs font-semibold ${actionView === 'table' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500'}`}
+              onClick={() => setActionView('table')}
+            >
+              明细
+            </button>
+          </div>
         </div>
+        {actionView === 'board' ? (
+          <ActionItemsBoard
+            items={block.items || []}
+            editable
+            onChange={(items) => onUpdate(block.id, { items })}
+          />
+        ) : (
+          <div className="space-y-3">
+            {(block.items || []).map((item, index) => (
+              <div key={item.id || index} className="rounded-[24px] border border-stone-200 bg-white p-4">
+                <div className="grid gap-3 lg:grid-cols-[1.8fr,1fr,1fr,0.8fr,0.8fr]">
+                  <input
+                    className="rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-800 outline-none"
+                    value={item.title || ''}
+                    onChange={(event) => {
+                      const items = [...(block.items || [])];
+                      items[index] = { ...items[index], title: event.target.value };
+                      onUpdate(block.id, { items });
+                    }}
+                    placeholder="行动项"
+                  />
+                  <input
+                    className="rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-800 outline-none"
+                    value={item.owner || ''}
+                    onChange={(event) => {
+                      const items = [...(block.items || [])];
+                      items[index] = { ...items[index], owner: event.target.value };
+                      onUpdate(block.id, { items });
+                    }}
+                    placeholder="负责人"
+                  />
+                  <input
+                    className="rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-800 outline-none"
+                    value={item.dueDate || ''}
+                    onChange={(event) => {
+                      const items = [...(block.items || [])];
+                      items[index] = { ...items[index], dueDate: event.target.value };
+                      onUpdate(block.id, { items });
+                    }}
+                    placeholder="截止时间"
+                  />
+                  <select
+                    className="rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-800 outline-none"
+                    value={item.priority || 'medium'}
+                    onChange={(event) => {
+                      const items = [...(block.items || [])];
+                      items[index] = { ...items[index], priority: event.target.value };
+                      onUpdate(block.id, { items });
+                    }}
+                  >
+                    <option value="high">高</option>
+                    <option value="medium">中</option>
+                    <option value="low">低</option>
+                  </select>
+                  <select
+                    className="rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-800 outline-none"
+                    value={item.status || 'todo'}
+                    onChange={(event) => {
+                      const items = [...(block.items || [])];
+                      items[index] = { ...items[index], status: event.target.value };
+                      onUpdate(block.id, { items });
+                    }}
+                  >
+                    <option value="todo">待办</option>
+                    <option value="doing">进行中</option>
+                    <option value="done">已完成</option>
+                  </select>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (block.type === 'expert_opinion') {
+    return (
+      <div className="space-y-4">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <input
+            className="w-full bg-transparent text-xl font-semibold text-stone-900 outline-none"
+            value={block.title || ''}
+            onChange={(event) => onUpdate(block.id, { title: event.target.value })}
+            placeholder="专家名称"
+          />
+          <div className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold ${stanceTone(block.stance)}`}>
+            {block.role || '专家观点'}
+          </div>
+        </div>
+        <textarea
+          className="w-full min-h-[180px] resize-none rounded-[24px] border border-stone-200 bg-white px-4 py-3 text-[15px] leading-8 text-stone-800 outline-none"
+          value={block.content || ''}
+          onChange={(event) => onUpdate(block.id, { content: event.target.value })}
+          placeholder="输入专家观点、依据和建议"
+        />
       </div>
     );
   }

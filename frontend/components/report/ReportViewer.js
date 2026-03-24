@@ -165,40 +165,72 @@ function PreviewBlock({ block }) {
   }
 
   if (block.type === 'action_items') {
+    const grouped = {
+      todo: (block.items || []).filter((item) => (item.status || 'todo') === 'todo'),
+      doing: (block.items || []).filter((item) => item.status === 'doing'),
+      done: (block.items || []).filter((item) => item.status === 'done'),
+    };
     return (
       <section className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm">
         <h2 className="text-xl font-semibold tracking-tight text-stone-950">{block.title}</h2>
-        <div className="mt-5 space-y-3">
-          {(block.items || []).map((item, index) => {
-            const tone = item.status === 'done'
-              ? 'bg-emerald-50 text-emerald-700'
-              : item.status === 'doing'
-                ? 'bg-sky-50 text-sky-700'
-                : 'bg-stone-100 text-stone-600';
-            const priorityTone = item.priority === 'high'
-              ? 'bg-rose-50 text-rose-600'
-              : item.priority === 'low'
-                ? 'bg-stone-100 text-stone-500'
-                : 'bg-amber-50 text-amber-700';
+        <div className="mt-5 grid gap-4 xl:grid-cols-3">
+          {[
+            { key: 'todo', label: '待办' },
+            { key: 'doing', label: '进行中' },
+            { key: 'done', label: '已完成' },
+          ].map((column) => (
+            <div key={column.key} className="rounded-[24px] border border-stone-200 bg-stone-50/70 p-4">
+              <div className="text-sm font-semibold text-stone-900">{column.label}</div>
+              <div className="mt-3 space-y-3">
+                {grouped[column.key].map((item, index) => {
+                  const priorityTone = item.priority === 'high'
+                    ? 'bg-rose-50 text-rose-600'
+                    : item.priority === 'low'
+                      ? 'bg-stone-100 text-stone-500'
+                      : 'bg-amber-50 text-amber-700';
 
-            return (
-              <div key={item.id || index} className="rounded-[24px] border border-stone-200 bg-stone-50/60 p-4">
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                  <div>
-                    <div className="text-base font-semibold text-stone-900">{item.title}</div>
-                    <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold">
-                      <span className="rounded-full bg-white px-3 py-1 text-stone-600 border border-stone-200">Owner · {item.owner}</span>
-                      <span className="rounded-full bg-white px-3 py-1 text-stone-600 border border-stone-200">Due · {item.dueDate}</span>
+                  return (
+                    <div key={item.id || index} className="rounded-[20px] border border-stone-200 bg-white p-4">
+                      <div className="text-sm font-semibold text-stone-900">{item.title}</div>
+                      <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold">
+                        <span className="rounded-full bg-stone-100 px-2.5 py-1 text-stone-600">{item.owner}</span>
+                        <span className="rounded-full bg-stone-100 px-2.5 py-1 text-stone-600">{item.dueDate}</span>
+                        <span className={`rounded-full px-2.5 py-1 ${priorityTone}`}>{item.priority}</span>
+                      </div>
                     </div>
+                  );
+                })}
+                {grouped[column.key].length === 0 && (
+                  <div className="rounded-[20px] border border-dashed border-stone-200 bg-white/80 px-4 py-5 text-sm text-stone-400">
+                    暂无事项
                   </div>
-                  <div className="flex flex-wrap gap-2 text-xs font-semibold">
-                    <span className={`rounded-full px-3 py-1 ${priorityTone}`}>Priority · {item.priority}</span>
-                    <span className={`rounded-full px-3 py-1 ${tone}`}>Status · {item.status}</span>
-                  </div>
-                </div>
+                )}
               </div>
-            );
-          })}
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  if (block.type === 'expert_opinion') {
+    const tone =
+      block.stance === 'risk'
+        ? 'border-rose-200 bg-rose-50/60'
+        : block.stance === 'strategy'
+          ? 'border-violet-200 bg-violet-50/60'
+          : 'border-sky-200 bg-sky-50/60';
+
+    return (
+      <section className={`rounded-[28px] border p-6 shadow-sm ${tone}`}>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-xl font-semibold tracking-tight text-stone-950">{block.title || block.role}</h2>
+          <div className="rounded-full border border-white/80 bg-white/80 px-3 py-1 text-xs font-semibold text-stone-600">
+            {block.role || '专家'}
+          </div>
+        </div>
+        <div className="prose mt-4 max-w-none text-stone-700">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{block.content || ''}</ReactMarkdown>
         </div>
       </section>
     );

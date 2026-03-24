@@ -65,6 +65,7 @@ export function buildDecisionReport(brainstormResult) {
       },
       ...buildSpecialistSections(specialists),
     ],
+    specialists,
     actionItems,
     conclusion: brainstormResult.final_report,
   };

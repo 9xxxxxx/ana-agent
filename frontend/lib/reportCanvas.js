@@ -76,7 +76,23 @@ export function reportToCanvasBlocks(report) {
     );
   }
 
+  if (report.specialists?.length) {
+    report.specialists.forEach((item, index) => {
+      blocks.push(
+        createCanvasBlock('expert_opinion', {
+          title: item.role || `专家 ${index + 1}`,
+          content: item.content || '',
+          role: item.role || `专家 ${index + 1}`,
+          stance: item.role?.includes('风险') ? 'risk' : item.role?.includes('策略') ? 'strategy' : 'analysis',
+        })
+      );
+    });
+  }
+
   report.sections?.forEach((section) => {
+    if (section.title?.startsWith('专家观点 ')) {
+      return;
+    }
     blocks.push(
       createCanvasBlock('text', {
         title: section.title,
@@ -188,6 +204,10 @@ export function exportCanvasToMarkdown(blocks = []) {
           .map((item) => `- [${item.status === 'done' ? 'x' : ' '}] ${item.title} | Owner: ${item.owner} | Due: ${item.dueDate} | Priority: ${item.priority}`)
           .join('\n');
         return `## ${block.title || '执行计划'}\n\n${items}`.trim();
+      }
+
+      if (block.type === 'expert_opinion') {
+        return `## ${block.title || block.role || '专家观点'}\n\n${block.content || ''}`.trim();
       }
 
       return `## ${block.title || '内容块'}\n\n${block.content || ''}`.trim();

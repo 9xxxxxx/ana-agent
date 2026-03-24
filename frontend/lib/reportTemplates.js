@@ -31,13 +31,12 @@ export const reportTemplates = [
           content: '这里写一句最关键的判断，要求能直接进入领导摘要。',
           tone: 'note',
         }),
-        createCanvasBlock('checklist', {
+        createCanvasBlock('action_items', {
           title: '行动计划',
           items: [
-            { id: 'todo-a', text: '确认负责人与资源', checked: false },
-            { id: 'todo-b', text: '制定 2 周内落地计划', checked: false },
+            { id: 'task-a', title: '确认负责人与资源', owner: '待分配', dueDate: '本周', status: 'todo', priority: 'high' },
+            { id: 'task-b', title: '制定 2 周内落地计划', owner: '待分配', dueDate: '两周内', status: 'todo', priority: 'medium' },
           ],
-          content: '把行动项按负责人、截止时间、依赖条件补全。',
         }),
       ];
     },
@@ -69,13 +68,12 @@ export const reportTemplates = [
           content: '哪些做得对，哪些地方低估了复杂度，下一次怎么避免。',
           tone: 'note',
         }),
-        createCanvasBlock('checklist', {
+        createCanvasBlock('action_items', {
           title: '后续修正项',
           items: [
-            { id: 'todo-c', text: '补充监控指标', checked: false },
-            { id: 'todo-d', text: '修正文档与流程', checked: false },
+            { id: 'task-c', title: '补充监控指标', owner: '数据团队', dueDate: '本周', status: 'todo', priority: 'high' },
+            { id: 'task-d', title: '修正文档与流程', owner: '项目负责人', dueDate: '下周', status: 'todo', priority: 'medium' },
           ],
-          content: '',
         }),
       ];
     },
@@ -110,14 +108,13 @@ export const reportTemplates = [
           content: '把会阻塞交付的依赖提前写出来，而不是到执行期才暴露。',
           tone: 'note',
         }),
-        createCanvasBlock('checklist', {
+        createCanvasBlock('action_items', {
           title: '本周动作',
           items: [
-            { id: 'todo-e', text: '确认需求边界', checked: false },
-            { id: 'todo-f', text: '落实负责人', checked: false },
-            { id: 'todo-g', text: '确定验收指标', checked: false },
+            { id: 'task-e', title: '确认需求边界', owner: '产品', dueDate: '周三', status: 'todo', priority: 'high' },
+            { id: 'task-f', title: '落实负责人', owner: '项目经理', dueDate: '周三', status: 'doing', priority: 'high' },
+            { id: 'task-g', title: '确定验收指标', owner: '数据分析', dueDate: '周五', status: 'todo', priority: 'medium' },
           ],
-          content: '',
         }),
       ];
     },
