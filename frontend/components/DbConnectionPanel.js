@@ -1,14 +1,12 @@
 'use client';
 
-/**
- * 数据库连接配置面板 (Tailwind 版本)
- */
-
 import { useState, useEffect } from 'react';
 import { testDbConnection, saveDbConfig, getDbConfig, deleteDbConfig } from '@/lib/api';
-import { DatabaseIcon, CloseIcon, CheckIcon, TrashIcon } from './Icons';
+import { DatabaseIcon, CheckIcon, TrashIcon, CloseIcon } from './Icons';
+import ModalShell from './ModalShell';
 import { useToast } from './Toast';
-import { cn, ui } from './ui';
+import { cn, ui, SectionCard, ToolbarButton } from './ui';
+import { EmptyState, InlineFeedback, LoadingState, StatusBadge } from './status';
 
 const DB_TYPES = [
   { value: 'postgresql', label: 'PostgreSQL', port: 5432 },
@@ -29,10 +27,12 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
   const [customUrl, setCustomUrl] = useState('');
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [loadingSaved, setLoadingSaved] = useState(false);
   const [testResult, setTestResult] = useState(null);
   const [savedConfigs, setSavedConfigs] = useState([]);
   const [activeTab, setActiveTab] = useState('form');
   const [verifiedUrl, setVerifiedUrl] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -41,18 +41,21 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
   }, [isOpen]);
 
   useEffect(() => {
-    const db = DB_TYPES.find(t => t.value === dbType);
+    const db = DB_TYPES.find((t) => t.value === dbType);
     if (db?.port) {
       setPort(db.port);
     }
   }, [dbType]);
 
   const loadSavedConfigs = async () => {
+    setLoadingSaved(true);
     try {
       const configs = await getDbConfig();
       setSavedConfigs(configs || []);
     } catch (e) {
       console.error('加载配置失败:', e);
+    } finally {
+      setLoadingSaved(false);
     }
   };
 
@@ -70,7 +73,29 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
     }
 
     const driver = dbType === 'postgresql' ? 'postgresql+psycopg2' : 'mysql+pymysql';
-    return `${driver}://${username}:${password}@${host}:${port}/${database}`;
+    const encodedUsername = encodeURIComponent(username);
+    const encodedPassword = encodeURIComponent(password);
+    const encodedDatabase = encodeURIComponent(database);
+    return `${driver}://${encodedUsername}:${encodedPassword}@${host}:${port}/${encodedDatabase}`;
+  };
+
+  const validateConnectionForm = () => {
+    if (activeTab === 'custom') {
+      if (!customUrl.trim()) return '请填写自定义连接 URI';
+      return '';
+    }
+
+    if (dbType === 'sqlite' || dbType === 'duckdb') {
+      if (!sqlitePath.trim()) return '请填写数据库文件路径';
+      return '';
+    }
+
+    if (!host.trim()) return '请填写主机名';
+    if (!port) return '请填写端口';
+    if (!database.trim()) return '请填写数据库名称';
+    if (!username.trim()) return '请填写用户名';
+    if (!password.trim()) return '请填写密码';
+    return '';
   };
 
   const currentUrl = buildConnectionUrl();
@@ -82,6 +107,12 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
   }, [currentUrl, verifiedUrl]);
 
   const handleTest = async () => {
+    const validationMessage = validateConnectionForm();
+    if (validationMessage) {
+      setTestResult({ success: false, message: validationMessage });
+      return;
+    }
+
     const url = currentUrl;
     if (!url) {
       setTestResult({ success: false, message: '请填写完整的连接信息' });
@@ -110,6 +141,13 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
   };
 
   const handleSaveAndConnect = async () => {
+    const validationMessage = validateConnectionForm();
+    if (validationMessage) {
+      setTestResult({ success: false, message: validationMessage });
+      warning(validationMessage);
+      return;
+    }
+
     const url = currentUrl;
     if (!url) {
       warning('请先填写完整的数据库连接信息。');
@@ -132,7 +170,7 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
 
       setVerifiedUrl(url);
       const saved = await saveDbConfig({
-        name: `${DB_TYPES.find(t => t.value === dbType)?.label || 'Custom'} - ${database || 'default'}`,
+        name: `${DB_TYPES.find((t) => t.value === dbType)?.label || 'Custom'} - ${database || 'default'}`,
         url,
         type: dbType,
       });
@@ -149,28 +187,25 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
   };
 
   const handleUseSaved = async (config) => {
-    // 先测试连接，给用户明确的反馈
     setTesting(true);
     setTestResult(null);
     try {
       const result = await testDbConnection(config.url);
       if (result.success) {
-        // 连接成功后才调用 onConnect 并关闭面板
         await onConnect?.(config.url);
         setVerifiedUrl(config.url);
-        setTestResult({ success: true, message: '连接成功！' });
+        setTestResult({ success: true, message: '连接成功。' });
         success(`已连接到 ${config.name}`);
         setTimeout(() => {
           onClose();
-        }, 800); // 短暂显示成功消息后关闭
+        }, 800);
       } else {
-        // 连接失败，显示错误，保持面板打开
         setTestResult({ success: false, message: result.message || '连接失败' });
         error(result.message || '连接失败');
       }
     } catch (e) {
-      setTestResult({ success: false, message: '测试连接时出错: ' + e.message });
-      error('测试连接时出错: ' + e.message);
+      setTestResult({ success: false, message: `测试连接时出错: ${e.message}` });
+      error(`测试连接时出错: ${e.message}`);
     } finally {
       setTesting(false);
     }
@@ -179,82 +214,70 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
   const handleDeleteSaved = async (id) => {
     try {
       await deleteDbConfig(id);
-      setSavedConfigs(savedConfigs.filter(c => c.id !== id));
+      setSavedConfigs(savedConfigs.filter((c) => c.id !== id));
       success('已删除保存的数据库配置。');
     } catch (e) {
-      setTestResult({ success: false, message: '删除失败: ' + e.message });
-      error('删除失败: ' + e.message);
+      setTestResult({ success: false, message: `删除失败: ${e.message}` });
+      error(`删除失败: ${e.message}`);
     }
   };
 
-  if (!isOpen) return null;
+  const tabClass = (key) =>
+    `flex-1 border-b-2 py-3 text-sm font-medium transition-colors ${
+      activeTab === key
+        ? 'border-emerald-600 bg-white text-emerald-700'
+        : 'border-transparent text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900'
+    }`;
 
   return (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="flex max-h-[90vh] w-full max-w-[560px] flex-col overflow-hidden rounded-[28px] border border-zinc-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.2)] animate-in slide-in-from-bottom-4 duration-300">
-        
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-zinc-200 bg-zinc-50 px-6 py-4">
-          <div className="flex items-center gap-2">
-            <div className="rounded-lg bg-emerald-50 p-1.5 text-emerald-700">
-              <DatabaseIcon size={18} />
-            </div>
-            <h3 className="text-[1.1rem] font-semibold text-foreground">数据库连接配置</h3>
+    <ModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      maxWidth="max-w-[620px]"
+      heightClass="max-h-[90vh]"
+      bodyClass="bg-zinc-50"
+      title={
+        <div className="flex items-center gap-3">
+          <div className="rounded-xl bg-emerald-50 p-2 text-emerald-700">
+            <DatabaseIcon size={18} />
           </div>
-          <button 
-            className="rounded-lg p-1.5 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900"
-            onClick={onClose}
-          >
-            <CloseIcon size={20} />
-          </button>
+          <div>
+            <div className="text-[1.1rem] font-semibold text-foreground">数据库连接配置</div>
+            <p className="mt-1 text-sm text-zinc-500">统一管理测试、保存和切换你的数据源连接。</p>
+          </div>
         </div>
-
-        {/* Tabs */}
-        <div className="flex border-b border-zinc-200 bg-zinc-50">
-          <button
-            className={`flex-1 border-b-2 py-3 text-sm font-medium transition-colors ${activeTab === 'form' ? 'border-emerald-600 bg-white text-emerald-700' : 'border-transparent text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900'}`}
-            onClick={() => setActiveTab('form')}
-          >
-            表单配置
-          </button>
-          <button
-            className={`flex-1 border-b-2 py-3 text-sm font-medium transition-colors ${activeTab === 'custom' ? 'border-emerald-600 bg-white text-emerald-700' : 'border-transparent text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900'}`}
-            onClick={() => setActiveTab('custom')}
-          >
-            自定义URL
-          </button>
-          <button
-            className={`flex-1 border-b-2 py-3 text-sm font-medium transition-colors ${activeTab === 'saved' ? 'border-emerald-600 bg-white text-emerald-700' : 'border-transparent text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900'}`}
-            onClick={() => setActiveTab('saved')}
-          >
-            已保存 ({savedConfigs.length})
-          </button>
+      }
+    >
+      <div className="border-b border-zinc-200 bg-zinc-50">
+        <div className="flex">
+          <button className={tabClass('form')} onClick={() => setActiveTab('form')}>表单配置</button>
+          <button className={tabClass('custom')} onClick={() => setActiveTab('custom')}>自定义 URL</button>
+          <button className={tabClass('saved')} onClick={() => setActiveTab('saved')}>已保存 ({savedConfigs.length})</button>
         </div>
+      </div>
 
-        {/* Body */}
-        <div className="p-6 overflow-y-auto min-h-[300px]">
-          {activeTab !== 'saved' && (
-            <div className={`mb-5 rounded-2xl border px-4 py-3 text-sm ${
-              verifiedUrl && verifiedUrl === currentUrl
-                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                : 'border-zinc-200 bg-zinc-50 text-zinc-700'
-            }`}>
-              {verifiedUrl && verifiedUrl === currentUrl
-                ? '当前连接参数已通过测试，可以保存并连接。'
-                : '当前连接参数尚未验证，保存并连接前会自动重新测试。'}
-            </div>
-          )}
+      <div className="min-h-[340px] overflow-y-auto p-6">
+        {activeTab !== 'saved' && (
+          <div className="mb-5">
+            <InlineFeedback
+              tone={verifiedUrl && verifiedUrl === currentUrl ? 'success' : 'info'}
+              title={verifiedUrl && verifiedUrl === currentUrl ? '连接已验证' : '等待验证'}
+              message={
+                verifiedUrl && verifiedUrl === currentUrl
+                  ? '当前连接参数已通过测试，可以直接保存并连接。'
+                  : '当前连接参数尚未验证，保存并连接前会自动重新测试。'
+              }
+            />
+          </div>
+        )}
 
-          {activeTab === 'form' && (
+        {activeTab === 'form' && (
+          <SectionCard title="表单连接参数" description="适合 PostgreSQL、MySQL、SQLite 和 DuckDB。">
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-medium text-foreground">数据库类型</label>
-                <select 
-                  className={cn(ui.select, 'rounded-xl px-3 py-2')}
-                  value={dbType} 
-                  onChange={(e) => setDbType(e.target.value)}
-                >
-                  {DB_TYPES.map(t => (
+                <select className={cn(ui.select, 'rounded-xl px-3 py-2')} value={dbType} onChange={(e) => setDbType(e.target.value)}>
+                  {DB_TYPES.map((t) => (
                     <option key={t.value} value={t.value}>{t.label}</option>
                   ))}
                 </select>
@@ -290,7 +313,7 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
                         type="number"
                         className={cn(ui.inputMuted, 'rounded-xl px-3 py-2')}
                         value={port}
-                        onChange={(e) => setPort(parseInt(e.target.value) || '')}
+                        onChange={(e) => setPort(parseInt(e.target.value, 10) || '')}
                       />
                     </div>
                   </div>
@@ -299,7 +322,7 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
                     <label className="text-sm font-medium text-foreground">数据库名称</label>
                     <input
                       type="text"
-                      className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                      className={cn(ui.inputMuted, 'rounded-xl px-3 py-2')}
                       value={database}
                       onChange={(e) => setDatabase(e.target.value)}
                       placeholder="database_name"
@@ -319,23 +342,34 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
                     </div>
                     <div className="flex flex-col gap-1.5">
                       <label className="text-sm font-medium text-foreground">密码</label>
-                      <input
-                        type="password"
-                        className={cn(ui.inputMuted, 'rounded-xl px-3 py-2')}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="••••••••"
-                      />
+                      <div className="relative">
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          className={cn(ui.inputMuted, 'rounded-xl px-3 py-2 pr-16')}
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="••••••••"
+                        />
+                        <button
+                          type="button"
+                          className="absolute inset-y-0 right-3 text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-900"
+                          onClick={() => setShowPassword((value) => !value)}
+                        >
+                          {showPassword ? '隐藏' : '查看'}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
               )}
             </div>
-          )}
+          </SectionCard>
+        )}
 
-          {activeTab === 'custom' && (
+        {activeTab === 'custom' && (
+          <SectionCard title="自定义连接 URI" description="直接填写标准 SQLAlchemy 连接字符串。">
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-foreground">自定义连接 URI</label>
+              <label className="text-sm font-medium text-foreground">连接 URI</label>
               <textarea
                 className={cn(ui.textareaMuted, 'min-h-[110px] rounded-xl px-3 py-2 text-sm leading-6')}
                 value={customUrl}
@@ -345,71 +379,89 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
               />
               <div className="mt-1 text-xs text-emerald-700">支持标准 SQLAlchemy 连接字符串格式</div>
             </div>
-          )}
+          </SectionCard>
+        )}
 
-          {activeTab === 'saved' && (
-            <div className="flex flex-col gap-3">
-              {savedConfigs.length === 0 ? (
-                <div className="py-12 flex flex-col items-center justify-center text-muted-foreground">
-                  <DatabaseIcon size={32} className="mb-3 opacity-30" />
-                  <span className="text-sm">暂无保存的连接配置</span>
-                </div>
-              ) : (
-                savedConfigs.map(config => (
+        {activeTab === 'saved' && (
+          <SectionCard title="已保存的数据源" description="先测试再连接，避免无效配置直接接入工作区。">
+            {loadingSaved ? (
+              <LoadingState title="正在加载已保存连接" description="读取本地元数据中的数据库配置。" />
+            ) : savedConfigs.length === 0 ? (
+              <EmptyState
+                icon={<DatabaseIcon size={28} />}
+                title="暂无保存的连接配置"
+                description="先在表单配置或自定义 URL 里保存一条数据源，后续就可以一键复用。"
+              />
+            ) : (
+              <div className="flex flex-col gap-3">
+                {savedConfigs.map((config) => (
                   <div key={config.id} className="flex items-center justify-between rounded-2xl border border-zinc-200 bg-zinc-50 p-3.5 transition-colors hover:border-zinc-300 hover:bg-zinc-100">
-                    <div className="flex flex-col min-w-0 pr-4">
-                      <div className="text-sm font-semibold text-foreground truncate">{config.name}</div>
-                      <div className="mt-0.5 text-xs uppercase tracking-wider text-zinc-500">{config.type}</div>
+                    <div className="min-w-0 pr-4">
+                      <div className="flex items-center gap-2">
+                        <div className="truncate text-sm font-semibold text-foreground">{config.name}</div>
+                        <StatusBadge>{config.type}</StatusBadge>
+                      </div>
+                      <div className="mt-1 text-xs text-zinc-500">保存后会在连接前自动做测试。</div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button 
-                        className={cn(ui.buttonPrimary, 'rounded-xl px-4 py-1.5 text-xs shadow-sm')}
-                        onClick={() => handleUseSaved(config)}
-                      >
+                    <div className="shrink-0 flex items-center gap-2">
+                      <ToolbarButton variant="primary" className="rounded-xl px-4 py-1.5 text-xs shadow-sm" onClick={() => handleUseSaved(config)}>
                         连接
-                      </button>
-                      <button 
-                        className="rounded-lg border border-transparent p-1.5 text-zinc-500 transition-all hover:border-red-500/20 hover:bg-red-500/10 hover:text-red-500"
+                      </ToolbarButton>
+                      <button
+                        className="rounded-lg border border-transparent p-1.5 text-zinc-500 transition-all hover:border-rose-200 hover:bg-rose-50 hover:text-rose-500"
                         onClick={() => handleDeleteSaved(config.id)}
                       >
                         <TrashIcon size={14} />
                       </button>
                     </div>
                   </div>
-                ))
-              )}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </SectionCard>
+        )}
 
-          {testResult && (
-            <div className={`mt-6 flex items-start gap-2 rounded-xl border p-3 text-sm ${testResult.success ? 'border-green-200 bg-green-50 text-green-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
-              {testResult.success ? <CheckIcon size={16} className="mt-0.5 shrink-0" /> : <CloseIcon size={16} className="mt-0.5 shrink-0" />}
-              <span className="leading-relaxed whitespace-pre-wrap">{testResult.message}</span>
-            </div>
-          )}
-        </div>
+        {testResult && (
+          <div className="mt-6">
+            <InlineFeedback
+              tone={testResult.success ? 'success' : 'danger'}
+              title={testResult.success ? '连接测试通过' : '连接测试失败'}
+              message={testResult.message}
+            />
+          </div>
+        )}
+      </div>
 
-        {/* Footer */}
-        {activeTab !== 'saved' && (
-          <div className="flex items-center justify-end gap-3 border-t border-zinc-200 bg-zinc-50 px-6 py-4">
-            <button
-              className={cn(ui.buttonSecondary, 'rounded-xl px-5 py-2 disabled:opacity-50')}
-              onClick={handleTest}
-              disabled={testing}
-            >
+      {activeTab !== 'saved' && (
+        <div className="flex items-center justify-between gap-3 border-t border-zinc-200 bg-zinc-50 px-6 py-4">
+          <div className="flex items-center gap-2 text-xs text-zinc-500">
+            {verifiedUrl && verifiedUrl === currentUrl ? (
+              <>
+                <CheckIcon size={14} className="text-emerald-600" />
+                当前配置已验证
+              </>
+            ) : (
+              <>
+                <CloseIcon size={14} className="text-zinc-400" />
+                当前配置尚未验证
+              </>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <ToolbarButton className="rounded-xl px-5 py-2 disabled:opacity-50" onClick={handleTest} disabled={testing}>
               {testing ? '测试中...' : '测试连接'}
-            </button>
-            <button
-              className={cn(ui.buttonPrimary, 'rounded-xl px-5 py-2 disabled:opacity-50')}
+            </ToolbarButton>
+            <ToolbarButton
+              variant="primary"
+              className="rounded-xl px-5 py-2 disabled:opacity-50"
               onClick={handleSaveAndConnect}
               disabled={saving || testing}
             >
               {saving ? '保存中...' : '保存并连接'}
-            </button>
+            </ToolbarButton>
           </div>
-        )}
-        
-      </div>
-    </div>
+        </div>
+      )}
+    </ModalShell>
   );
 }

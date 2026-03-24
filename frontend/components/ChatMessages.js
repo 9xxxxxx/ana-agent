@@ -17,6 +17,7 @@ import {
   CopyIcon, CheckIcon, FileIcon, DownloadIcon, BarChartIcon, SparklesIcon, DatabaseIcon, BookOpenIcon, EditIcon, ChevronRightIcon
 } from './Icons';
 import { cn, ui } from './ui';
+import { EmptyState, StatusBadge } from './status';
 
 // 复制按钮组件
 function CopyButton({ text }) {
@@ -434,17 +435,19 @@ export default function ChatMessages({ messages, isStreaming, onViewReport, onEd
 
   if (messages.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="flex flex-col items-center max-w-2xl w-full">
-          <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-zinc-200 bg-white shadow-sm">
-            <SparklesIcon size={32} className="text-emerald-600" />
+      <div className="flex flex-1 items-center justify-center p-8">
+        <div className="flex w-full max-w-2xl flex-col items-center">
+          <EmptyState
+            icon={<SparklesIcon size={32} className="text-emerald-600" />}
+            title="SQL Agent"
+            description="你的智能数据分析助手。通过自然语言对话，轻松完成数据库查询、可视化图表和业务报告撰写。"
+          />
+
+          <div className="mb-4 -mt-3">
+            <StatusBadge tone="info">你可以直接从下面的提示开始</StatusBadge>
           </div>
-          <h1 className="text-2xl font-bold text-foreground mb-3">SQL Agent</h1>
-          <p className="text-muted-foreground text-center mb-10 text-sm leading-relaxed max-w-md">
-            你的智能数据分析助手。通过自然语言对话，轻松完成数据库查询、可视化图表和业务报告撰写。
-          </p>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+
+          <div className="grid w-full grid-cols-1 gap-4 md:grid-cols-2">
             {[
               { icon: <DatabaseIcon size={20} />, title: "查询数据库", desc: "连接并分析任意数据源", prompt: "查看所有数据库表结构" },
               { icon: <BarChartIcon size={20} />, title: "生成图表", desc: "10多种图表支持", prompt: "对比各部门的业绩并画柱状图" },
