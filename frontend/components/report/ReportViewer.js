@@ -164,6 +164,46 @@ function PreviewBlock({ block }) {
     );
   }
 
+  if (block.type === 'action_items') {
+    return (
+      <section className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm">
+        <h2 className="text-xl font-semibold tracking-tight text-stone-950">{block.title}</h2>
+        <div className="mt-5 space-y-3">
+          {(block.items || []).map((item, index) => {
+            const tone = item.status === 'done'
+              ? 'bg-emerald-50 text-emerald-700'
+              : item.status === 'doing'
+                ? 'bg-sky-50 text-sky-700'
+                : 'bg-stone-100 text-stone-600';
+            const priorityTone = item.priority === 'high'
+              ? 'bg-rose-50 text-rose-600'
+              : item.priority === 'low'
+                ? 'bg-stone-100 text-stone-500'
+                : 'bg-amber-50 text-amber-700';
+
+            return (
+              <div key={item.id || index} className="rounded-[24px] border border-stone-200 bg-stone-50/60 p-4">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <div className="text-base font-semibold text-stone-900">{item.title}</div>
+                    <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold">
+                      <span className="rounded-full bg-white px-3 py-1 text-stone-600 border border-stone-200">Owner · {item.owner}</span>
+                      <span className="rounded-full bg-white px-3 py-1 text-stone-600 border border-stone-200">Due · {item.dueDate}</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-xs font-semibold">
+                    <span className={`rounded-full px-3 py-1 ${priorityTone}`}>Priority · {item.priority}</span>
+                    <span className={`rounded-full px-3 py-1 ${tone}`}>Status · {item.status}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+    );
+  }
+
   if (block.type === 'callout') {
     return (
       <section className="rounded-[28px] border border-blue-200 bg-blue-50/70 p-6 shadow-sm">

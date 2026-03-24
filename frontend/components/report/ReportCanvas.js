@@ -46,6 +46,7 @@ function CanvasToolbar({ onAddBlock, onApplyTemplate, blockCount }) {
     { key: 'callout', label: '提示块', icon: <AlertIcon size={14} /> },
     { key: 'checklist', label: '清单', icon: <CheckCircleIcon size={14} /> },
     { key: 'metrics', label: '指标组', icon: <LayersIcon size={14} /> },
+    { key: 'action_items', label: '执行块', icon: <LayersIcon size={14} /> },
   ];
 
   return (
@@ -361,6 +362,83 @@ function BlockEditor({ block, onUpdate }) {
     );
   }
 
+  if (block.type === 'action_items') {
+    return (
+      <div className="space-y-4">
+        <input
+          className="w-full bg-transparent text-xl font-semibold text-stone-900 outline-none"
+          value={block.title || ''}
+          onChange={(event) => onUpdate(block.id, { title: event.target.value })}
+          placeholder="执行计划标题"
+        />
+        <div className="space-y-3">
+          {(block.items || []).map((item, index) => (
+            <div key={item.id || index} className="rounded-[24px] border border-stone-200 bg-white p-4">
+              <div className="grid gap-3 lg:grid-cols-[1.8fr,1fr,1fr,0.8fr,0.8fr]">
+                <input
+                  className="rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-800 outline-none"
+                  value={item.title || ''}
+                  onChange={(event) => {
+                    const items = [...(block.items || [])];
+                    items[index] = { ...items[index], title: event.target.value };
+                    onUpdate(block.id, { items });
+                  }}
+                  placeholder="行动项"
+                />
+                <input
+                  className="rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-800 outline-none"
+                  value={item.owner || ''}
+                  onChange={(event) => {
+                    const items = [...(block.items || [])];
+                    items[index] = { ...items[index], owner: event.target.value };
+                    onUpdate(block.id, { items });
+                  }}
+                  placeholder="负责人"
+                />
+                <input
+                  className="rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-800 outline-none"
+                  value={item.dueDate || ''}
+                  onChange={(event) => {
+                    const items = [...(block.items || [])];
+                    items[index] = { ...items[index], dueDate: event.target.value };
+                    onUpdate(block.id, { items });
+                  }}
+                  placeholder="截止时间"
+                />
+                <select
+                  className="rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-800 outline-none"
+                  value={item.priority || 'medium'}
+                  onChange={(event) => {
+                    const items = [...(block.items || [])];
+                    items[index] = { ...items[index], priority: event.target.value };
+                    onUpdate(block.id, { items });
+                  }}
+                >
+                  <option value="high">高</option>
+                  <option value="medium">中</option>
+                  <option value="low">低</option>
+                </select>
+                <select
+                  className="rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-800 outline-none"
+                  value={item.status || 'todo'}
+                  onChange={(event) => {
+                    const items = [...(block.items || [])];
+                    items[index] = { ...items[index], status: event.target.value };
+                    onUpdate(block.id, { items });
+                  }}
+                >
+                  <option value="todo">待办</option>
+                  <option value="doing">进行中</option>
+                  <option value="done">已完成</option>
+                </select>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <input
@@ -464,6 +542,20 @@ export default function ReportCanvas({ blocks, onChange }) {
           title: '关键提醒',
           content: '在这里放入风险、依赖、阻塞或关键约束。',
           tone: 'note',
+        }),
+      ]);
+      return;
+    }
+
+    if (type === 'action_items') {
+      onChange([
+        ...blocks,
+        createCanvasBlock('action_items', {
+          title: '新增执行计划',
+          items: [
+            { id: 'task-1', title: '定义第一个执行动作', owner: '待分配', dueDate: '本周', status: 'todo', priority: 'high' },
+            { id: 'task-2', title: '定义第二个执行动作', owner: '待分配', dueDate: '下周', status: 'todo', priority: 'medium' },
+          ],
         }),
       ]);
       return;

@@ -28,6 +28,23 @@ function extractChecklistItems(markdown = '') {
   }));
 }
 
+function normalizeActionItems(items = []) {
+  if (!items.length) {
+    return [
+      { id: makeId('task'), title: '补充行动项', owner: '待分配', dueDate: '待定', status: 'todo', priority: 'high' },
+    ];
+  }
+
+  return items.map((item) => ({
+    id: item.id || makeId('task'),
+    title: item.title || item.text || '未命名行动项',
+    owner: item.owner || '待分配',
+    dueDate: item.dueDate || '待定',
+    status: item.status || 'todo',
+    priority: item.priority || 'medium',
+  }));
+}
+
 export function reportToCanvasBlocks(report) {
   if (!report) return [];
 
@@ -98,6 +115,15 @@ export function reportToCanvasBlocks(report) {
     }
   });
 
+  if (report.actionItems?.length) {
+    blocks.push(
+      createCanvasBlock('action_items', {
+        title: '执行计划',
+        items: normalizeActionItems(report.actionItems),
+      })
+    );
+  }
+
   if (report.conclusion) {
     blocks.push(
       createCanvasBlock('checklist', {
@@ -155,6 +181,13 @@ export function exportCanvasToMarkdown(blocks = []) {
           .map((item) => `- [${item.checked ? 'x' : ' '}] ${item.text || ''}`)
           .join('\n');
         return `## ${block.title || '行动清单'}\n\n${block.content || ''}\n\n${items}`.trim();
+      }
+
+      if (block.type === 'action_items') {
+        const items = (block.items || [])
+          .map((item) => `- [${item.status === 'done' ? 'x' : ' '}] ${item.title} | Owner: ${item.owner} | Due: ${item.dueDate} | Priority: ${item.priority}`)
+          .join('\n');
+        return `## ${block.title || '执行计划'}\n\n${items}`.trim();
       }
 
       return `## ${block.title || '内容块'}\n\n${block.content || ''}`.trim();
