@@ -5,11 +5,41 @@
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
+function parseSSEEvent(rawEvent) {
+  const event = { type: 'message', data: '' };
+
+  for (const line of rawEvent.split(/\r?\n/)) {
+    if (!line || line.startsWith(':')) continue;
+    if (line.startsWith('event:')) {
+      event.type = line.slice(6).trim();
+      continue;
+    }
+    if (line.startsWith('data:')) {
+      const value = line.slice(5).trim();
+      event.data = event.data ? `${event.data}\n${value}` : value;
+    }
+  }
+
+  return event;
+}
+
 /**
  * 健康检查
  */
 export async function checkHealth() {
   const res = await fetch(`${API_BASE}/api/health`);
+  return res.json();
+}
+
+/**
+ * 测试模型连接
+ */
+export async function testModelConnection(model, apiKey, baseUrl) {
+  const res = await fetch(`${API_BASE}/api/models/test`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model, apiKey, baseUrl }),
+  });
   return res.json();
 }
 
@@ -26,6 +56,9 @@ export async function fetchThreads() {
  */
 export async function fetchMessages(threadId) {
   const res = await fetch(`${API_BASE}/api/history/${threadId}`);
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+  }
   return res.json();
 }
 
@@ -76,15 +109,24 @@ export async function uploadFile(file) {
  * SSE 流式对话
  * 返回一个 EventSource 包装对象
  */
-export function streamChat(message, threadId, model, systemPrompt, callbacks) {
+export function streamChat(message, threadId, model, systemPrompt, apiKey, baseUrl, databaseUrl, callbacks) {
   const { onToken, onReasoning, onToolStart, onToolInput, onToolEnd, onChart, onFile, onCodeOutput, onDone, onError } = callbacks;
 
   const controller = new AbortController();
+  let completed = false;
 
   fetch(`${API_BASE}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message, thread_id: threadId, model, system_prompt: systemPrompt }),
+    body: JSON.stringify({ 
+      message, 
+      thread_id: threadId, 
+      model, 
+      system_prompt: systemPrompt,
+      api_key: apiKey,
+      base_url: baseUrl,
+      database_url: databaseUrl
+    }),
     signal: controller.signal,
   })
     .then((response) => {
@@ -95,77 +137,40 @@ export function streamChat(message, threadId, model, systemPrompt, callbacks) {
       const decoder = new TextDecoder();
       let buffer = '';
 
+      function finishOnce() {
+        if (!completed) {
+          completed = true;
+          onDone?.();
+        }
+      }
+
       function processChunk() {
         reader.read().then(({ done, value }) => {
           if (done) {
-            // 处理缓冲区中剩余的数据
             if (buffer.trim()) {
-              const lines = buffer.split('\n');
-              let currentEvent = { type: '', data: '' };
-              for (const line of lines) {
-                const trimmed = line.trim();
-                if (trimmed.startsWith('event:')) {
-                  if (currentEvent.type && currentEvent.data) {
-                    processSSEEvent(currentEvent.type, currentEvent.data);
-                  }
-                  currentEvent = { type: trimmed.slice(6).trim(), data: '' };
-                } else if (trimmed.startsWith('data:')) {
-                  currentEvent.data = trimmed.slice(5).trim();
-                  if (currentEvent.type) {
-                    processSSEEvent(currentEvent.type, currentEvent.data);
-                    currentEvent = { type: '', data: '' };
-                  }
-                }
-              }
+              const lastEvent = parseSSEEvent(buffer);
+              processSSEEvent(lastEvent.type, lastEvent.data);
             }
-            onDone?.();
+            finishOnce();
             return;
           }
 
           buffer += decoder.decode(value, { stream: true });
 
-          // 按换行符分割所有行
-          const lines = buffer.split('\n');
-          
-          // 找到最后一个不完整的行（没有 event: 或 data: 前缀的）
-          let lastCompleteIndex = lines.length;
-          for (let i = lines.length - 1; i >= 0; i--) {
-            const line = lines[i].trim();
-            if (line.startsWith('event:') || line.startsWith('data:')) {
-              lastCompleteIndex = i + 1;
-              break;
-            }
-          }
-          
-          // 提取完整的事件行
-          const completeLines = lines.slice(0, lastCompleteIndex);
-          // 保留不完整的行在缓冲区
-          buffer = lines.slice(lastCompleteIndex).join('\n');
+          const events = buffer.split(/\r?\n\r?\n/);
+          buffer = events.pop() ?? '';
 
-          // 解析事件
-          let currentEvent = { type: '', data: '' };
-          for (const line of completeLines) {
-            const trimmed = line.trim();
-            if (trimmed.startsWith('event:')) {
-              // 如果之前有事件，先处理
-              if (currentEvent.type && currentEvent.data) {
-                processSSEEvent(currentEvent.type, currentEvent.data);
-              }
-              currentEvent = { type: trimmed.slice(6).trim(), data: '' };
-            } else if (trimmed.startsWith('data:')) {
-              currentEvent.data = trimmed.slice(5).trim();
-              // 处理当前事件
-              if (currentEvent.type) {
-                processSSEEvent(currentEvent.type, currentEvent.data);
-                currentEvent = { type: '', data: '' };
-              }
-            }
+          for (const rawEvent of events) {
+            const parsed = parseSSEEvent(rawEvent);
+            processSSEEvent(parsed.type, parsed.data);
           }
 
           processChunk();
         }).catch((err) => {
           console.error('[api] Error reading stream:', err);
-          onError?.(err.message);
+          if (err.name !== 'AbortError') {
+            onError?.(err.message);
+          }
         });
       }
 
@@ -218,7 +223,7 @@ export function streamChat(message, threadId, model, systemPrompt, callbacks) {
               onCodeOutput?.(data.id, data.stdout, data.images);
               break;
             case 'done':
-              onDone?.();
+              finishOnce();
               break;
             case 'error':
               onError?.(data.message);
@@ -290,6 +295,54 @@ export async function setDbConnection(url) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ url }),
+  });
+  return res.json();
+}
+/**
+ * 获取监控规则列表
+ */
+export async function fetchWatchdogRules() {
+  const res = await fetch(`${API_BASE}/api/watchdog/rules`);
+  return res.json();
+}
+
+/**
+ * 新增监控规则
+ */
+export async function addWatchdogRule(rule) {
+  const res = await fetch(`${API_BASE}/api/watchdog/rules`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(rule),
+  });
+  return res.json();
+}
+
+/**
+ * 删除监控规则
+ */
+export async function deleteWatchdogRule(id) {
+  const res = await fetch(`${API_BASE}/api/watchdog/rules/${id}`, {
+    method: 'DELETE',
+  });
+  return res.json();
+}
+
+/**
+ * 手动测试监控规则
+ */
+export async function testWatchdogRule(id) {
+  const res = await fetch(`${API_BASE}/api/watchdog/rules/${id}/test`, {
+    method: 'POST',
+  });
+  return res.json();
+}
+
+export async function runBrainstormAnalysis(payload) {
+  const res = await fetch(`${API_BASE}/api/analysis/brainstorm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
   });
   return res.json();
 }

@@ -9,6 +9,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import SmartChart from './charts/SmartChart';
+import { parseChartPayload } from '@/lib/chartData';
 import {
   CloseIcon, DownloadIcon, CopyIcon, CheckIcon,
   BookOpenIcon, BarChartIcon, FileIcon, ChevronRightIcon
@@ -50,7 +51,7 @@ export default function FullReportModal({ isOpen, onClose, message }) {
     if (!message?.charts) return [];
     return message.charts.map(c => {
       try {
-        const parsed = typeof c.json === 'string' ? JSON.parse(c.json) : c.json;
+        const parsed = parseChartPayload(c.json);
         return { id: c.id, data: parsed };
       } catch {
         return null;
@@ -149,12 +150,12 @@ export default function FullReportModal({ isOpen, onClose, message }) {
   if (!isOpen || !message) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="flex w-full h-full bg-white animate-in slide-in-from-bottom-4 duration-300">
+    <div className="fixed inset-0 z-50 flex bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="flex w-full h-full bg-popover animate-in slide-in-from-bottom-4 duration-300">
         {/* 左侧大纲导航 */}
-        <div className="w-[240px] shrink-0 bg-gray-50/80 border-r border-gray-200 flex flex-col">
-          <div className="px-4 pt-5 pb-3 border-b border-gray-100">
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+        <div className="w-[240px] shrink-0 bg-muted/50 border-r border-border flex flex-col">
+          <div className="px-4 pt-5 pb-3 border-b border-border">
+            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
               <BookOpenIcon size={13} />
               报告大纲
             </h3>
@@ -166,8 +167,8 @@ export default function FullReportModal({ isOpen, onClose, message }) {
                   key={h.id}
                   className={`w-full text-left px-3 py-2 rounded-md text-[13px] transition-all mb-0.5 ${
                     activeHeading === h.id
-                      ? 'bg-brand-50 text-brand-700 font-medium'
-                      : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'
+                      ? 'bg-primary/10 text-primary font-medium'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                   }`}
                   style={{ paddingLeft: `${(h.level - 1) * 12 + 12}px` }}
                   onClick={() => scrollToHeading(h.id)}
@@ -177,25 +178,25 @@ export default function FullReportModal({ isOpen, onClose, message }) {
                 </button>
               ))
             ) : (
-              <div className="text-xs text-gray-400 px-3 py-4">暂无大纲标题</div>
+              <div className="text-xs text-muted-foreground px-3 py-4">暂无大纲标题</div>
             )}
 
             {/* 图表快捷导航 */}
             {charts.length > 0 && (
-              <div className="mt-4 pt-3 border-t border-gray-200">
-                <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-3 mb-2">
+              <div className="mt-4 pt-3 border-t border-border">
+                <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">
                   图表 ({charts.length})
                 </div>
                 {charts.map((c, i) => (
                   <button
                     key={c.id}
-                    className="w-full text-left px-3 py-2 rounded-md text-[13px] text-gray-500 hover:bg-gray-100 hover:text-gray-800 transition-all flex items-center gap-2"
+                    className="w-full text-left px-3 py-2 rounded-md text-[13px] text-muted-foreground hover:bg-muted hover:text-foreground transition-all flex items-center gap-2"
                     onClick={() => {
                       const el = document.getElementById(`chart-${c.id}`);
                       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     }}
                   >
-                    <BarChartIcon size={12} className="text-brand-500" />
+                    <BarChartIcon size={12} className="text-primary" />
                     图表 {i + 1}
                   </button>
                 ))}
@@ -207,31 +208,31 @@ export default function FullReportModal({ isOpen, onClose, message }) {
         {/* 右侧主内容区 */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* 顶部工具栏 */}
-          <div className="flex items-center justify-between px-8 py-4 border-b border-gray-100 bg-white sticky top-0 z-10">
-            <h2 className="text-lg font-bold text-gray-900">完整报告</h2>
+          <div className="flex items-center justify-between px-8 py-4 border-b border-border bg-popover sticky top-0 z-10">
+            <h2 className="text-lg font-bold text-foreground">完整报告</h2>
             <div className="flex items-center gap-2">
               <button
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
                 onClick={handleCopy}
               >
                 {copied ? <CheckIcon size={15} className="text-green-600" /> : <CopyIcon size={15} />}
                 <span>{copied ? '已复制' : '复制'}</span>
               </button>
               <button
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors print:hidden"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors print:hidden"
                 onClick={handleExportMarkdown}
               >
                 <DownloadIcon size={15} />
                 <span>导出 Markdown</span>
               </button>
               <button
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-brand-600 bg-brand-50 hover:bg-brand-100 font-medium rounded-lg transition-colors print:hidden"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-primary bg-primary/10 hover:bg-primary/20 font-medium rounded-lg transition-colors print:hidden"
                 onClick={handleExportPDF}
               >
                 <span>打印 / 导出 PDF</span>
               </button>
               <button
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
                 onClick={() => {
                   // 导出图表数据为 CSV（如有）
                   if (charts.length > 0 && charts[0].data?.data) {
@@ -253,9 +254,9 @@ export default function FullReportModal({ isOpen, onClose, message }) {
                 <FileIcon size={15} />
                 <span>导出数据</span>
               </button>
-              <div className="w-px h-5 bg-gray-200 mx-1" />
+              <div className="w-px h-5 bg-border mx-1" />
               <button
-                className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
                 onClick={onClose}
                 title="关闭"
               >
@@ -269,7 +270,7 @@ export default function FullReportModal({ isOpen, onClose, message }) {
             <div className="max-w-3xl mx-auto">
               {/* Markdown 渲染 */}
               {reportText && (
-                <div className="prose prose-slate max-w-none prose-p:leading-[1.8] prose-li:my-1 prose-pre:rounded-xl text-[15px] text-gray-800">
+                <div className="prose prose-slate dark:prose-invert max-w-none prose-p:leading-[1.8] prose-li:my-1 prose-pre:rounded-xl text-[15px] text-foreground/90">
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={{
@@ -300,7 +301,7 @@ export default function FullReportModal({ isOpen, onClose, message }) {
                       {chart.data?.type === 'chart_data' && chart.data.data?.length > 0 ? (
                         <SmartChart data={chart.data} height={450} readonly={true} />
                       ) : (
-                        <div className="p-6 bg-gray-50 border border-gray-200 rounded-xl text-gray-400 text-center text-sm">
+                        <div className="p-6 bg-muted border border-border rounded-xl text-muted-foreground text-center text-sm">
                           图表数据不可用
                         </div>
                       )}

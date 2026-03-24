@@ -18,8 +18,6 @@ export function useChat(threadId) {
   const [isStreaming, setIsStreaming] = useState(false);
   const abortRef = useRef(null);
   const assistantIdRef = useRef(null);
-  const pendingUpdateRef = useRef(null);
-  const rafRef = useRef(null);
 
   // 当 threadId 改变时，重置状态
   useEffect(() => {
@@ -62,7 +60,7 @@ export function useChat(threadId) {
 
   // 发送消息
   const sendMessage = useCallback(
-    (content, model = 'deepseek-chat') => {
+    (content, model = 'deepseek-chat', databaseUrl = '') => {
       // 提取文件附件，格式：[附件: xxx](url)
       const attachRegex = /\[附件:\s*(.+?)\]\((.+?)\)/g;
       const initialFiles = [];
@@ -112,15 +110,19 @@ export function useChat(threadId) {
         });
       };
 
-      // 从本地存储获取自定义提示词
+      // 从本地存储获取自定义提示词和模型配置
       let customSystemPrompt = '';
+      let apiKey = '';
+      let baseUrl = '';
       try {
         customSystemPrompt = localStorage.getItem('sqlAgentSystemPrompt') || '';
+        apiKey = localStorage.getItem('sqlAgentApiKey') || '';
+        baseUrl = localStorage.getItem('sqlAgentBaseUrl') || '';
       } catch (e) {
         console.warn('读取设置失败', e);
       }
 
-      const handle = streamChat(content, threadId, model, customSystemPrompt, {
+      const handle = streamChat(content, threadId, model, customSystemPrompt, apiKey, baseUrl, databaseUrl, {
         onToken: (token) => {
           updateAssistant((m) => ({ ...m, content: m.content + token }));
         },
@@ -196,6 +198,7 @@ export function useChat(threadId) {
         },
 
         onDone: () => {
+          abortRef.current = null;
           setIsStreaming(false);
         },
 
@@ -204,13 +207,14 @@ export function useChat(threadId) {
             ...m,
             content: m.content + `\n\n❌ **错误**: ${errMsg}`,
           }));
+          abortRef.current = null;
           setIsStreaming(false);
         },
       });
 
       abortRef.current = handle;
     },
-    [threadId]
+    [threadId, isStreaming]
   );
 
   // 停止生成

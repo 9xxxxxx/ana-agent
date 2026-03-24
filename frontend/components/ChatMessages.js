@@ -11,6 +11,7 @@ import ToolStep from './ToolStep';
 import SmartChart from './charts/SmartChart';
 import ReportGenerator from './report/ReportGenerator';
 import { getFileUrl } from '@/lib/api';
+import { parseChartPayload } from '@/lib/chartData';
 import {
   CopyIcon, CheckIcon, FileIcon, DownloadIcon, BarChartIcon, SparklesIcon, DatabaseIcon, BookOpenIcon, EditIcon, ChevronRightIcon
 } from './Icons';
@@ -135,7 +136,7 @@ const MessageItem = memo(({ msg, isStreaming, isLast, onViewReport, onEditSend }
                   </div>
                 </div>
               ) : (
-                <div className="relative border border-transparent shadow-sm bg-[#f4f4f4] text-gray-900 px-5 py-3 rounded-3xl rounded-tr-sm whitespace-pre-wrap break-words text-[15px] leading-relaxed font-normal">
+                <div className="relative border border-transparent shadow-sm bg-user-msg text-foreground px-5 py-3 rounded-3xl rounded-tr-sm whitespace-pre-wrap break-words text-[15px] leading-relaxed font-normal">
                   {contentObj.text}
                 </div>
               )}
@@ -149,16 +150,16 @@ const MessageItem = memo(({ msg, isStreaming, isLast, onViewReport, onEditSend }
   // AI 消息 - 极简复合排版纸幅
   return (
     <div className="flex w-full justify-start mb-12 gap-4 group/ai font-sans">
-      <div className="shrink-0 w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center bg-white shadow-sm mt-0.5">
-        <SparklesIcon size={16} className="text-gray-800" />
+      <div className="shrink-0 w-8 h-8 rounded-full border border-border flex items-center justify-center bg-bot-msg shadow-sm mt-0.5">
+        <SparklesIcon size={16} className="text-foreground" />
       </div>
       
       <div className="flex-1 min-w-0 pt-1 relative max-w-[90%]">
         
         {/* 工具步骤区 - 稍微弱化作为思考前置 */}
         {msg.toolSteps?.length > 0 && (
-          <div className="flex flex-col gap-2 mb-4 bg-gray-50/50 p-3 rounded-2xl border border-gray-100">
-            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1.5"><SparklesIcon size={12}/> Analysis Process</div>
+          <div className="flex flex-col gap-2 mb-4 bg-muted/30 p-3 rounded-2xl border border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1.5"><SparklesIcon size={12}/> Analysis Process</div>
             {msg.toolSteps.map((step) => (
               <ToolStep key={step.id} step={step} />
             ))}
@@ -166,34 +167,34 @@ const MessageItem = memo(({ msg, isStreaming, isLast, onViewReport, onEditSend }
         )}
 
         {/* 核心内容区 (文本与图表紧凑交织) */}
-        <div className="text-[15.5px] text-gray-800 leading-[1.8] space-y-5">
+        <div className="text-[15.5px] text-foreground leading-[1.8] space-y-5">
           {/* 推理/思考链卡片 (仅当有 reasoning 数据时显示) */}
           {msg.reasoning && (
-             <details className="group/reasoning mb-4 border border-gray-200 rounded-xl bg-gray-50/50 overflow-hidden" open={isStreaming && isLast && !contentObj.text}>
-               <summary className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-gray-500 hover:text-gray-700 hover:bg-gray-100 bg-gray-50 outline-none list-none select-none cursor-pointer transition-colors">
+             <details className="group/reasoning mb-4 border border-border rounded-xl bg-muted/30 overflow-hidden" open={isStreaming && isLast && !contentObj.text}>
+               <summary className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted bg-muted/50 outline-none list-none select-none cursor-pointer transition-colors">
                  <ChevronRightIcon size={14} className="transition-transform group-open/reasoning:rotate-90" />
-                 <SparklesIcon size={12} className="text-gray-400" />
+                 <SparklesIcon size={12} className="text-muted-foreground" />
                  思考过程
                </summary>
-               <div className="px-4 py-3 pt-2 text-[13.5px] text-gray-600 leading-[1.7] font-serif whitespace-pre-wrap break-words bg-white/50 border-t border-gray-100 italic">
+               <div className="px-4 py-3 pt-2 text-[13.5px] text-muted-foreground leading-[1.7] font-serif whitespace-pre-wrap break-words bg-bot-msg/50 border-t border-border italic">
                  {msg.reasoning}
-                 {isStreaming && isLast && !contentObj.text && <span className="inline-block w-2.5 h-3 ml-1 bg-gray-400 animate-pulse align-middle" />}
+                 {isStreaming && isLast && !contentObj.text && <span className="inline-block w-2.5 h-3 ml-1 bg-muted-foreground animate-pulse align-middle" />}
                </div>
              </details>
           )}
 
           {contentObj.text && (
-            <div className="prose prose-slate max-w-none prose-p:my-2 prose-li:my-1 prose-pre:my-4 prose-pre:rounded-xl prose-pre:bg-gray-50 prose-pre:text-gray-800 prose-pre:border prose-pre:border-gray-200">
+            <div className="prose prose-slate max-w-none prose-p:my-2 prose-li:my-1 prose-pre:my-4 prose-pre:rounded-xl prose-pre:bg-muted prose-pre:text-foreground prose-pre:border prose-pre:border-border">
               {markdownContent}
-              {isStreaming && isLast && <span className="inline-block w-2.5 h-4 ml-1.5 bg-gray-800 rounded-sm animate-pulse align-middle" />}
+              {isStreaming && isLast && <span className="inline-block w-2.5 h-4 ml-1.5 bg-foreground rounded-sm animate-pulse align-middle" />}
             </div>
           )}
 
           {/* 图表展示区挂载于文字流下方 */}
-          {msg.charts?.length > 0 && (
+           {msg.charts?.length > 0 && (
             <div className="flex flex-col gap-6 mt-2">
               {msg.charts.map((chart) => (
-                <div key={chart.id} className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4 hover:shadow-md transition-shadow">
+                <div key={chart.id} className="bg-bot-msg border border-border rounded-2xl shadow-sm p-4 hover:shadow-md transition-shadow">
                    <ChartWrapper chartJson={chart.json} />
                 </div>
               ))}
@@ -204,22 +205,22 @@ const MessageItem = memo(({ msg, isStreaming, isLast, onViewReport, onEditSend }
           {msg.codeOutputs?.length > 0 && (
             <div className="flex flex-col gap-4 mt-4">
               {msg.codeOutputs.map((output, idx) => (
-                <div key={output.id || idx} className="bg-gray-50 border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+            <div key={output.id || idx} className="bg-muted/30 border border-border rounded-2xl overflow-hidden shadow-sm">
                   {/* stdout 文本输出 */}
                   {output.stdout && (
                     <div className="p-4">
-                      <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                      <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                         Python 输出
                       </div>
-                      <pre className="text-[13px] text-gray-800 font-mono bg-white border border-gray-100 rounded-xl p-3 overflow-x-auto whitespace-pre-wrap leading-relaxed">{output.stdout}</pre>
+                      <pre className="text-[13px] text-foreground font-mono bg-bot-msg/50 border border-border rounded-xl p-3 overflow-x-auto whitespace-pre-wrap leading-relaxed">{output.stdout}</pre>
                     </div>
                   )}
                   {/* matplotlib 图片渲染 */}
                   {output.images?.length > 0 && (
                     <div className="flex flex-col gap-3 p-4 pt-0">
                       {output.images.map((img, imgIdx) => (
-                        <div key={imgIdx} className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm">
+                        <div key={imgIdx} className="bg-bot-msg/50 border border-border rounded-xl overflow-hidden shadow-sm">
                           <img
                             src={`data:image/png;base64,${img}`}
                             alt={`Python 图表 ${imgIdx + 1}`}
@@ -249,20 +250,20 @@ const MessageItem = memo(({ msg, isStreaming, isLast, onViewReport, onEditSend }
             {msg.files.map((file, i) => (
               <a
                 key={i}
-                className="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm max-w-[300px] w-full group/file"
+                className="flex items-center gap-3 p-3 bg-bot-msg border border-border rounded-xl hover:bg-muted/50 hover:border-border transition-all shadow-sm max-w-[300px] w-full group/file"
                 href={getFileUrl(file.filename)}
                 download={file.filename}
                 target="_blank"
                 rel="noreferrer"
               >
-                <div className="p-2 bg-gray-100 rounded-lg text-gray-600">
+                <div className="p-2 bg-muted/50 rounded-lg text-muted-foreground">
                   <FileIcon size={20} />
                 </div>
                 <div className="flex-1 min-w-0 overflow-hidden">
-                  <div className="font-medium text-sm text-gray-900 truncate">{file.filename}</div>
-                  <div className="text-xs text-gray-500 mt-0.5">{file.message || '点击下载文档'}</div>
+                  <div className="font-medium text-sm text-foreground truncate">{file.filename}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">{file.message || '点击下载文档'}</div>
                 </div>
-                <DownloadIcon className="text-gray-400 group-hover/file:text-gray-800" size={16} />
+                <DownloadIcon className="text-muted-foreground group-hover/file:text-foreground" size={16} />
               </a>
             ))}
           </div>
@@ -309,38 +310,7 @@ const ChartWrapper = memo(({ chartJson }) => {
     }
 
     try {
-      let parsed;
-      if (typeof chartJson === 'string') {
-        let cleanedJson = chartJson.trim();
-        if (cleanedJson.startsWith('[CHART_DATA]')) {
-          cleanedJson = cleanedJson.replace('[CHART_DATA]', '').trim();
-        }
-        if (cleanedJson.includes('... (已截断)')) {
-          cleanedJson = cleanedJson.replace('... (已截断)', '');
-        }
-        try {
-          parsed = JSON.parse(cleanedJson);
-        } catch (parseError) {
-          try {
-            let fixedJson = cleanedJson;
-            const openBraces = (fixedJson.match(/\{/g) || []).length;
-            const closeBraces = (fixedJson.match(/\}/g) || []).length;
-            const openBrackets = (fixedJson.match(/\[/g) || []).length;
-            const closeBrackets = (fixedJson.match(/\]/g) || []).length;
-
-            for (let i = 0; i < openBraces - closeBraces; i++) fixedJson += '}';
-            for (let i = 0; i < openBrackets - closeBrackets; i++) fixedJson += ']';
-
-            parsed = JSON.parse(fixedJson);
-          } catch {
-            throw new Error(`JSON 解析失败: ${parseError.message}`);
-          }
-        }
-      } else if (typeof chartJson === 'object') {
-        parsed = chartJson;
-      } else {
-        throw new Error('图表数据格式无效');
-      }
+      const parsed = parseChartPayload(chartJson);
 
       if (!parsed) throw new Error('图表数据为空');
       setChartData(parsed);
@@ -454,11 +424,11 @@ export default function ChatMessages({ messages, isStreaming, onViewReport, onEd
     return (
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="flex flex-col items-center max-w-2xl w-full">
-          <div className="w-16 h-16 bg-white border border-gray-200 rounded-2xl flex items-center justify-center shadow-sm mb-6">
-            <SparklesIcon size={32} className="text-gray-800" />
+          <div className="w-16 h-16 bg-bot-msg border border-border rounded-2xl flex items-center justify-center shadow-sm mb-6">
+            <SparklesIcon size={32} className="text-foreground" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-3">SQL Agent</h1>
-          <p className="text-gray-500 text-center mb-10 text-sm leading-relaxed max-w-md">
+          <h1 className="text-2xl font-bold text-foreground mb-3">SQL Agent</h1>
+          <p className="text-muted-foreground text-center mb-10 text-sm leading-relaxed max-w-md">
             你的智能数据分析助手。通过自然语言对话，轻松完成数据库查询、可视化图表和业务报告撰写。
           </p>
           
@@ -469,13 +439,13 @@ export default function ChatMessages({ messages, isStreaming, onViewReport, onEd
               { icon: <SparklesIcon size={20} />, title: "复杂分析", desc: "多维交叉探索", prompt: "帮我分析最近一个月的销售趋势" },
               { icon: <FileIcon size={20} />, title: "导出报告", desc: "Markdown长图与CSV", prompt: "生成上一季度的综合业绩报告" },
             ].map((item, idx) => (
-              <div key={idx} className="p-4 rounded-xl border border-gray-200 bg-white shadow-sm hover:border-gray-300 hover:shadow transition-all group cursor-pointer text-left">
-                <div className="flex items-center gap-3 mb-2 text-gray-800 font-medium">
+              <div key={idx} className="p-4 rounded-xl border border-border bg-bot-msg shadow-sm hover:border-border/80 hover:shadow transition-all group cursor-pointer text-left">
+                <div className="flex items-center gap-3 mb-2 text-foreground font-medium">
                   {item.icon}
                   <span>{item.title}</span>
                 </div>
-                <div className="text-xs text-gray-500 mb-3">{item.desc}</div>
-                <div className="text-[0.8rem] text-gray-600 bg-gray-50 p-2 rounded-lg border border-gray-100 group-hover:bg-gray-100 transition-colors">
+                <div className="text-xs text-muted-foreground mb-3">{item.desc}</div>
+                <div className="text-[0.8rem] text-muted-foreground bg-muted/50 p-2 rounded-lg border border-border group-hover:bg-muted transition-colors">
                   &quot;{item.prompt}&quot;
                 </div>
               </div>

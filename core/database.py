@@ -1,39 +1,56 @@
-import threading
+import contextvars
+from pathlib import Path
 from sqlalchemy import create_engine, text
+from sqlalchemy.engine import make_url
 import pandas as pd
 from core.config import settings
 
-# 线程安全的会话级数据库 URL 存储（替代 Chainlit session）
-_thread_local = threading.local()
+# 使用 ContextVar 存储会话级数据库 URL，确保在异步环境中线程安全且状态可传递
+db_url_var = contextvars.ContextVar("db_url", default=None)
 
 def set_session_db_url(url: str):
-    """设置当前线程/请求的动态数据库连接 URL"""
-    _thread_local.db_url = url
+    """设置当前请求/任务的动态数据库连接 URL"""
+    db_url_var.set(url)
 
 def get_session_db_url() -> str | None:
-    """获取当前线程/请求的动态数据库连接 URL"""
-    return getattr(_thread_local, "db_url", None)
+    """获取当前请求/任务的动态数据库连接 URL"""
+    return db_url_var.get()
 
 # 引擎缓存池，避免同一 URL 反复创建连接池
 _engine_cache = {}
 
 def get_engine_by_url(url: str):
     """根据指定的 URL 获取或创建数据库引擎实例"""
-    if url not in _engine_cache:
-        # Pandas 和我们当前的基础架构依赖同步数据库游标
-        # 如果用户配置了 asyncpg (异步引擎)，我们在此处统一转为由 psycopg2 驱动
-        sync_url = url.replace("+asyncpg", "+psycopg2")
-        
-        # 使用连接池机制
-        engine = create_engine(
-            sync_url,
-            pool_size=5,
-            max_overflow=10,
-            pool_timeout=30,
-            pool_recycle=1800,
-        )
-        _engine_cache[url] = engine
-    return _engine_cache[url]
+    if not url:
+        raise ValueError("数据库 URL 不能为空。")
+
+    sync_url = url.replace("+asyncpg", "+psycopg2")
+    parsed_url = make_url(sync_url)
+    backend = parsed_url.get_backend_name()
+
+    # SQLite / DuckDB 常常以相对路径配置，统一转为绝对路径避免工作目录变化导致失联
+    if backend in {"sqlite", "duckdb"} and parsed_url.database and parsed_url.database != ":memory:":
+        db_path = Path(parsed_url.database)
+        if not db_path.is_absolute():
+            parsed_url = parsed_url.set(database=str((Path.cwd() / db_path).resolve()))
+
+    cache_key = str(parsed_url)
+    if cache_key not in _engine_cache:
+        engine_kwargs = {}
+        if backend in {"postgresql", "mysql", "mariadb"}:
+            engine_kwargs.update(
+                pool_size=5,
+                max_overflow=10,
+                pool_timeout=30,
+                pool_recycle=1800,
+                pool_pre_ping=True,
+            )
+        elif backend == "sqlite":
+            engine_kwargs["connect_args"] = {"check_same_thread": False}
+
+        engine = create_engine(cache_key, **engine_kwargs)
+        _engine_cache[cache_key] = engine
+    return _engine_cache[cache_key]
 
 def get_engine():
     """获取当前生效的数据库引擎。优先取会话级动态 URL，其次取环境变量默认 URL"""
@@ -57,6 +74,12 @@ def test_connection() -> bool:
             # 兼容 MySQL 和 PostgreSQL 的测试查询
             conn.execute(text("SELECT 1"))
         return True
+    except ValueError as e:
+        # 如果是数据库 URL 未配置的错误，不打印错误信息
+        if "数据库引擎未初始化" in str(e) or "DATABASE_URL" in str(e):
+            return False
+        print(f"Database connection error: {e}")
+        return False
     except Exception as e:
         print(f"Database connection error: {e}")
         return False
