@@ -1,5 +1,37 @@
 @import "tailwindcss";
 
+:root {
+  --background: #f6f0e4;
+  --foreground: #1f2937;
+  --card: #fffdf8;
+  --card-foreground: #1f2937;
+  --popover: #fffdf8;
+  --popover-foreground: #1f2937;
+  --primary: #1d4ed8;
+  --primary-foreground: #ffffff;
+  --secondary: #efe7d8;
+  --secondary-foreground: #1f2937;
+  --muted: #f0e7d8;
+  --muted-foreground: #6b7280;
+  --accent: #efe7d8;
+  --accent-foreground: #1f2937;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #ddd1bc;
+  --input: #ddd1bc;
+  --ring: #1d4ed8;
+  
+  --sidebar-bg: #efe6d6;
+  --sidebar-foreground: #3f3a32;
+  --sidebar-hover: #e7dcc8;
+  --sidebar-active: #fffdf8;
+  --sidebar-border: #ddd1bc;
+  
+  --chat-bg: #fffaf1;
+  --user-msg: #f0e5d4;
+  --bot-msg: #fffdf8;
+}
+
 @theme {
   --color-brand-50: #eff6ff;
   --color-brand-100: #dbeafe;
@@ -7,20 +39,46 @@
   --color-brand-600: #2563eb;
   --color-brand-700: #1d4ed8;
   
-  --color-sidebar-bg: #111827;
-  --color-sidebar-hover: #1f2937;
+  --color-sidebar-bg: var(--sidebar-bg);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-hover: var(--sidebar-hover);
   
-  --color-chat-bg: #ffffff;
-  --color-user-msg: #f3f4f6;
+  --color-chat-bg: var(--chat-bg);
+  --color-user-msg: var(--user-msg);
+  --color-bot-msg: var(--bot-msg);
+  
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
 }
 
 @layer base {
   * {
     box-sizing: border-box;
+    border-color: var(--border);
   }
   body {
-    @apply bg-white text-gray-900 antialiased overflow-hidden m-0 p-0 h-screen w-screen;
-    font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    @apply bg-background text-foreground antialiased overflow-hidden m-0 p-0 h-screen w-screen transition-colors duration-300;
+    background-image:
+      radial-gradient(circle at top left, rgba(255, 255, 255, 0.7), transparent 26%),
+      linear-gradient(180deg, #f8f2e7 0%, #f1e8d8 100%);
+    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   }
 }
 
@@ -29,10 +87,10 @@
   @apply min-w-full border-collapse my-4 text-sm;
 }
 .prose th {
-  @apply px-4 py-2 bg-gray-50 border border-gray-200 font-semibold text-gray-700 text-left;
+  @apply px-4 py-2 bg-muted/50 border border-border font-semibold text-foreground text-left;
 }
 .prose td {
-  @apply px-4 py-2 border border-gray-200 text-gray-800;
+  @apply px-4 py-2 border border-border text-foreground/80;
 }
 .prose p {
   @apply mb-4 leading-7;
@@ -44,7 +102,7 @@
   @apply bg-[#1e1e1e] text-gray-100 p-4 rounded-lg my-4 overflow-x-auto text-sm font-mono leading-normal;
 }
 .prose code {
-  @apply bg-gray-100 text-rose-500 px-1.5 py-0.5 rounded text-[0.85em] font-mono;
+  @apply bg-muted text-rose-500 dark:text-rose-400 px-1.5 py-0.5 rounded text-[0.85em] font-mono;
 }
 .prose pre code {
   @apply text-inherit bg-transparent p-0 rounded-none text-sm;
@@ -53,14 +111,14 @@
   @apply text-brand-600 hover:text-brand-700 underline underline-offset-2;
 }
 .prose h1, .prose h2, .prose h3 {
-  @apply font-bold mt-6 mb-3 text-gray-900;
+  @apply font-bold mt-6 mb-3 text-foreground;
 }
 .prose h1 { @apply text-2xl; }
-.prose h2 { @apply text-xl border-b pb-1 border-gray-100; }
+.prose h2 { @apply text-xl border-b pb-1 border-border; }
 .prose h3 { @apply text-lg; }
 .prose ul { @apply list-disc list-outside pl-5 mb-4 space-y-1; }
 .prose ol { @apply list-decimal list-outside pl-5 mb-4 space-y-1; }
-.prose blockquote { @apply border-l-4 border-gray-300 pl-4 italic text-gray-600 my-4; }
+.prose blockquote { @apply border-l-4 border-primary/30 pl-4 italic text-muted-foreground my-4; }
 
 /* 滚动条美化 */
 ::-webkit-scrollbar {
@@ -71,16 +129,16 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  @apply bg-gray-300 rounded-full;
+  @apply bg-muted-foreground/30 rounded-full;
 }
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-400;
+  @apply bg-muted-foreground/50;
 }
 .sidebar-scroller::-webkit-scrollbar-thumb {
-  @apply bg-gray-700;
+  @apply bg-zinc-200 border-r border-fuchsia-50;
 }
 .sidebar-scroller::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-600;
+  @apply bg-zinc-300;
 }
 
 /* 一些实用动画类 */

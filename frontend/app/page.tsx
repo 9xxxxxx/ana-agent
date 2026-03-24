@@ -125,7 +125,7 @@ export default function Home() {
   );
 
   return (
-    <div className="flex h-screen w-screen bg-white overflow-hidden text-gray-900">
+    <div className="flex h-screen w-screen overflow-hidden text-foreground bg-transparent">
       <Sidebar
         currentThreadId={threadId}
         onSelectThread={handleSelectThread}
@@ -134,14 +134,18 @@ export default function Home() {
         onToggleDatabase={() => setShowDbPanel(true)}
       />
 
-      <main className="flex-1 flex flex-col min-w-0 bg-white relative">
-        {/* 极简动态 Header (仿 ChatGPT) */}
-        <header className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 bg-white z-10 sticky top-0 shrink-0">
+      <main className="flex-1 flex flex-col min-w-0 relative px-3 py-3">
+        <div className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-[32px] border border-stone-200/80 bg-[linear-gradient(180deg,rgba(255,253,248,0.96)_0%,rgba(248,243,232,0.94)_100%)] shadow-[0_20px_60px_rgba(110,89,56,0.08)]">
+        <header className="flex flex-col gap-3 border-b border-stone-200/80 px-5 py-4 sm:flex-row sm:items-center sm:justify-between bg-[#fbf7ef]/90 backdrop-blur z-10 sticky top-0 shrink-0">
           {/* 左侧：模型选择器 */}
-          <div className="flex items-center">
+          <div className="flex items-center gap-4">
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">Agent Console</div>
+              <div className="mt-1 text-xl font-semibold tracking-[-0.04em] text-stone-950">策略分析工作台</div>
+            </div>
             <div className="relative">
               <select 
-                className="appearance-none pl-3 pr-8 py-1.5 focus:bg-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition text-gray-700 dark:text-gray-300 text-[15px] font-semibold outline-none cursor-pointer bg-transparent border-0 ring-0 focus:ring-2 focus:ring-gray-200"
+                className="appearance-none rounded-full border border-stone-300 bg-white/90 pl-4 pr-9 py-2 text-[15px] font-semibold text-stone-700 outline-none transition hover:border-stone-400 focus:ring-2 focus:ring-stone-200"
                 value={selectedModel}
                 onChange={(e) => handleModelChange(e.target.value)}
                 disabled={isStreaming}
@@ -150,14 +154,14 @@ export default function Home() {
                 <option value="deepseek-reasoner">DeepSeek-Reasoner (深度思考)</option>
                 <option value="gpt-4o">GPT-4o (全能旗舰)</option>
               </select>
-              <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 text-xs">▼</div>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-stone-400 text-xs">▼</div>
             </div>
           </div>
           
           {/* 右侧：快捷操作 */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             <button
-              className="p-2 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+              className="rounded-full border border-stone-200 bg-white/85 p-2 text-stone-500 hover:border-rose-200 hover:text-rose-600 hover:bg-rose-50 transition"
               title="删除当前对话"
               onClick={async () => {
                 if (window.confirm('确定要删除当前数据洞察历史吗？此操作不可逆。')) {
@@ -173,14 +177,14 @@ export default function Home() {
               <TrashIcon size={16} />
             </button>
             <button 
-              className="px-3 py-2 text-xs font-semibold text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition"
+              className="rounded-full bg-stone-900 px-4 py-2 text-xs font-semibold text-white hover:opacity-90 transition"
               title="多专家会商"
               onClick={() => setShowBrainstormModal(true)}
             >
               多专家会商
             </button>
             <button 
-              className="p-2 text-gray-500 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition" 
+              className="rounded-full border border-stone-200 bg-white/85 p-2 text-stone-500 hover:border-blue-200 hover:text-brand-600 hover:bg-brand-50 transition" 
               title="分享数据洞察"
               onClick={() => {
                 window.alert('分享链接功能将在下一版本开放。当前您可以通过左下角的「导出报告」来分享洞察结论！');
@@ -202,7 +206,7 @@ export default function Home() {
           />
         </div>
 
-        <div className="absolute bottom-0 left-0 right-0 w-full bg-gradient-to-t from-white via-white to-transparent pt-10 pb-6 pointer-events-none">
+        <div className="absolute bottom-0 left-0 right-0 w-full bg-gradient-to-t from-[#faf4ea] via-[#faf4ea]/95 to-transparent pt-10 pb-6 pointer-events-none">
           <div className="pointer-events-auto">
             <ChatInput
               onSend={(text: string) => sendMessage(text, selectedModel, dbUrl)}
@@ -212,6 +216,7 @@ export default function Home() {
               dbUrl={dbUrl}
             />
           </div>
+        </div>
         </div>
       </main>
 
