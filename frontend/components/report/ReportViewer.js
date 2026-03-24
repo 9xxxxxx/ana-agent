@@ -25,6 +25,7 @@ import {
   getRunRecommendation,
   reportToCanvasBlocks,
 } from '@/lib/reportCanvas';
+import { cn, ui } from '../ui';
 
 function renderChartData(chartData) {
   const parsed = parseChartPayload(chartData);
@@ -502,14 +503,14 @@ export default function ReportViewer({ report, onExport, onClose }) {
         <div className="px-4 py-4">
           <div className="rounded-[24px] border border-zinc-800 bg-zinc-900 p-3">
             <button
-              className={`flex w-full items-center gap-2 rounded-2xl px-3 py-3 text-sm font-medium transition ${mode === 'canvas' ? 'bg-white text-zinc-950' : 'text-zinc-300 hover:bg-zinc-800'}`}
+              className={cn('flex w-full items-center gap-2 rounded-2xl px-3 py-3 text-sm font-medium transition', mode === 'canvas' ? 'bg-white text-zinc-950' : 'text-zinc-300 hover:bg-zinc-800')}
               onClick={() => setMode('canvas')}
             >
               <EditIcon size={15} />
               画布编排
             </button>
             <button
-              className={`mt-2 flex w-full items-center gap-2 rounded-2xl px-3 py-3 text-sm font-medium transition ${mode === 'preview' ? 'bg-white text-zinc-950' : 'text-zinc-300 hover:bg-zinc-800'}`}
+              className={cn('mt-2 flex w-full items-center gap-2 rounded-2xl px-3 py-3 text-sm font-medium transition', mode === 'preview' ? 'bg-white text-zinc-950' : 'text-zinc-300 hover:bg-zinc-800')}
               onClick={() => setMode('preview')}
             >
               <BookOpenIcon size={15} />
@@ -549,7 +550,7 @@ export default function ReportViewer({ report, onExport, onClose }) {
                 {saveStatus === 'saved' ? '草稿已保存' : saveStatus === 'error' ? '保存失败' : '自动保存开启'}
               </div>
               <button
-                className="inline-flex items-center gap-2 rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:border-zinc-400 hover:bg-zinc-50"
+                className={cn(ui.buttonSecondary, 'px-4')}
                 onClick={handleExport}
               >
                 <DownloadIcon size={14} />
@@ -557,7 +558,7 @@ export default function ReportViewer({ report, onExport, onClose }) {
               </button>
               {onClose && (
                 <button
-                  className="inline-flex items-center gap-2 rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:border-zinc-400 hover:bg-zinc-50"
+                  className={cn(ui.buttonSecondary, 'px-4')}
                   onClick={onClose}
                 >
                   <CloseIcon size={14} />

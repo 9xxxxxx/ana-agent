@@ -36,6 +36,7 @@ import { parseChartPayload } from '@/lib/chartData';
 import { convertExpertOpinionToBlock, createCanvasBlock, generateDecisionPackBlocks, getBlockHeading, getRunRecommendation, syncActionItemsWithRuns } from '@/lib/reportCanvas';
 import { reportTemplates } from '@/lib/reportTemplates';
 import { useToast } from '../Toast';
+import { cn, ui } from '../ui';
 
 function toneClass(tone = 'default') {
   if (tone === 'summary') return 'border-sky-200 bg-sky-50/70';
@@ -64,18 +65,18 @@ function CanvasToolbar({ onAddBlock, onApplyTemplate, onInsertRuntime, onGenerat
   ];
 
   return (
-    <div className="rounded-[28px] border border-zinc-200 bg-white px-4 py-4 shadow-sm">
+    <div className={cn(ui.surface, 'px-4 py-4')}>
       <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-500">Canvas Controls</div>
+          <div className={ui.headingEyebrow}>Canvas Controls</div>
           <div className="mt-1 text-lg font-semibold text-zinc-900">正在编排 {blockCount} 个内容块</div>
         </div>
         <div className="flex flex-wrap gap-2">
           {blockTypes.map((item) => (
             <button
               key={item.key}
-              className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:border-zinc-300 hover:bg-zinc-100"
+              className={ui.buttonGhost}
               onClick={() => onAddBlock(item.key)}
             >
               {item.icon}
@@ -83,19 +84,19 @@ function CanvasToolbar({ onAddBlock, onApplyTemplate, onInsertRuntime, onGenerat
             </button>
           ))}
           <button
-            className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:border-zinc-300 hover:bg-zinc-100"
+            className={ui.buttonGhost}
             onClick={onInsertRuntime}
           >
             {loadingRuntime ? '读取中...' : '编排快照'}
           </button>
           <button
-            className="inline-flex items-center gap-2 rounded-full border border-zinc-900 bg-zinc-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-zinc-800"
+            className={ui.buttonPrimary}
             onClick={onGenerateDecisionPack}
           >
             生成决策包
           </button>
           <button
-            className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700 transition hover:border-zinc-300 hover:bg-zinc-50"
+            className={ui.buttonSecondary}
             onClick={onSyncActionStatus}
           >
             回写执行状态
@@ -138,7 +139,7 @@ function SortableBlock({ block, index, onUpdate, onDelete, onDuplicate, onTransf
     <article
       ref={setNodeRef}
       style={style}
-      className={`rounded-[28px] border p-5 shadow-sm transition ${toneClass(block.tone)} ${isDragging ? 'opacity-70 shadow-lg' : ''}`}
+      className={cn('rounded-[28px] border p-5 shadow-sm transition', toneClass(block.tone), isDragging && 'opacity-70 shadow-lg')}
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
@@ -181,14 +182,14 @@ function SortableBlock({ block, index, onUpdate, onDelete, onDuplicate, onTransf
             </>
           )}
           <button
-            className="rounded-full p-2 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900"
+            className={ui.iconButton}
             onClick={() => onDuplicate(block.id)}
             title="复制块"
           >
             <CopyIcon size={14} />
           </button>
           <button
-            className="rounded-full p-2 text-stone-500 hover:bg-rose-50 hover:text-rose-600 transition"
+            className="rounded-full p-2 text-zinc-500 transition hover:bg-rose-50 hover:text-rose-600"
             onClick={() => onDelete(block.id)}
             title="删除块"
           >
@@ -215,7 +216,7 @@ function CanvasChart({ chartData }) {
   try {
     const parsed = parseChartPayload(chartData);
     if (!parsed) {
-      return <div className="rounded-2xl bg-stone-50 p-8 text-center text-sm text-stone-500">暂无图表数据</div>;
+      return <div className="rounded-2xl bg-zinc-50 p-8 text-center text-sm text-zinc-500">暂无图表数据</div>;
     }
 
     if (parsed.type === 'chart_data' && parsed.data) {
@@ -261,7 +262,7 @@ function CanvasChart({ chartData }) {
     return <div className="rounded-2xl bg-rose-50 p-8 text-center text-sm text-rose-600">图表数据解析失败</div>;
   }
 
-  return <div className="rounded-2xl bg-stone-50 p-8 text-center text-sm text-stone-500">暂不支持该图表格式</div>;
+  return <div className="rounded-2xl bg-zinc-50 p-8 text-center text-sm text-zinc-500">暂不支持该图表格式</div>;
 }
 
 function ActionItemsBoard({ items = [], editable = false, onChange }) {
@@ -276,27 +277,27 @@ function ActionItemsBoard({ items = [], editable = false, onChange }) {
       {columns.map((column) => {
         const columnItems = items.filter((item) => (item.status || 'todo') === column.key);
         return (
-          <div key={column.key} className="rounded-[24px] border border-stone-200 bg-stone-50/70 p-4">
-            <div className="text-sm font-semibold text-stone-900">{column.label}</div>
+          <div key={column.key} className="rounded-[24px] border border-zinc-200 bg-zinc-50 p-4">
+            <div className="text-sm font-semibold text-zinc-900">{column.label}</div>
             <div className="mt-3 space-y-3">
               {columnItems.length === 0 && (
-                <div className="rounded-2xl border border-dashed border-stone-200 bg-white/70 px-4 py-5 text-sm text-stone-400">
+                <div className="rounded-2xl border border-dashed border-zinc-200 bg-white/70 px-4 py-5 text-sm text-zinc-400">
                   暂无事项
                 </div>
               )}
               {columnItems.map((item, index) => (
-                <div key={item.id || `${column.key}-${index}`} className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
-                  <div className="text-sm font-semibold text-stone-900">{item.title}</div>
+                <div key={item.id || `${column.key}-${index}`} className={cn(ui.panel, 'p-4')}>
+                  <div className="text-sm font-semibold text-zinc-900">{item.title}</div>
                   <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold">
-                    <span className="rounded-full bg-stone-100 px-2.5 py-1 text-stone-600">{item.owner}</span>
-                    <span className="rounded-full bg-stone-100 px-2.5 py-1 text-stone-600">{item.dueDate}</span>
-                    <span className={`rounded-full px-2.5 py-1 ${item.priority === 'high' ? 'bg-rose-50 text-rose-600' : item.priority === 'low' ? 'bg-stone-100 text-stone-500' : 'bg-amber-50 text-amber-700'}`}>
+                    <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-zinc-600">{item.owner}</span>
+                    <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-zinc-600">{item.dueDate}</span>
+                    <span className={`rounded-full px-2.5 py-1 ${item.priority === 'high' ? 'bg-rose-50 text-rose-600' : item.priority === 'low' ? 'bg-zinc-100 text-zinc-500' : 'bg-amber-50 text-amber-700'}`}>
                       {item.priority}
                     </span>
                   </div>
                   {editable && onChange && (
                     <select
-                      className="mt-3 w-full rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-700 outline-none"
+                      className={cn(ui.select, 'mt-3')}
                       value={item.status || 'todo'}
                       onChange={(event) => {
                         const next = items.map((current) =>
@@ -327,31 +328,31 @@ function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runni
       <div className="grid gap-4 md:grid-cols-[1.6fr,1fr]">
         <div className="space-y-3">
           <input
-            className="w-full bg-transparent text-3xl font-semibold tracking-tight text-stone-950 outline-none"
+            className="w-full bg-transparent text-3xl font-semibold tracking-tight text-zinc-950 outline-none"
             value={block.title || ''}
             onChange={(event) => onUpdate(block.id, { title: event.target.value })}
             placeholder="报告标题"
           />
           <textarea
-            className="w-full min-h-[92px] resize-none rounded-3xl border border-stone-200 bg-stone-50/80 px-4 py-3 text-base leading-7 text-stone-700 outline-none"
+            className="w-full min-h-[92px] resize-none rounded-3xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-base leading-7 text-zinc-700 outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100"
             value={block.subtitle || ''}
             onChange={(event) => onUpdate(block.id, { subtitle: event.target.value })}
             placeholder="补充一句具有观点感的副标题"
           />
         </div>
-        <div className="rounded-[24px] border border-stone-200 bg-stone-50 p-4 space-y-3">
+        <div className="rounded-[24px] border border-zinc-200 bg-zinc-50 p-4 space-y-3">
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">类型</div>
+            <div className={ui.headingEyebrow}>类型</div>
             <input
-              className="mt-2 w-full rounded-2xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-800 outline-none"
+              className={cn(ui.input, 'mt-2 px-3 py-2')}
               value={block.badge || ''}
               onChange={(event) => onUpdate(block.id, { badge: event.target.value })}
             />
           </div>
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">时间</div>
+            <div className={ui.headingEyebrow}>时间</div>
             <input
-              className="mt-2 w-full rounded-2xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-800 outline-none"
+              className={cn(ui.input, 'mt-2 px-3 py-2')}
               value={block.createdAt || ''}
               onChange={(event) => onUpdate(block.id, { createdAt: event.target.value })}
             />
@@ -365,16 +366,16 @@ function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runni
     return (
       <div className="space-y-4">
         <input
-          className="w-full bg-transparent text-xl font-semibold text-stone-900 outline-none"
+          className="w-full bg-transparent text-xl font-semibold text-zinc-900 outline-none"
           value={block.title || ''}
           onChange={(event) => onUpdate(block.id, { title: event.target.value })}
           placeholder="指标组标题"
         />
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {(block.items || []).map((item, index) => (
-            <div key={index} className="rounded-[22px] border border-stone-200 bg-stone-50/80 p-4 space-y-2">
+            <div key={index} className="rounded-[22px] border border-zinc-200 bg-zinc-50 p-4 space-y-2">
               <input
-                className="w-full bg-transparent text-sm font-medium text-stone-600 outline-none"
+                className="w-full bg-transparent text-sm font-medium text-zinc-600 outline-none"
                 value={item.label || item.title || ''}
                 onChange={(event) => {
                   const items = [...(block.items || [])];
@@ -384,7 +385,7 @@ function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runni
                 placeholder="指标名称"
               />
               <input
-                className="w-full bg-transparent text-2xl font-semibold text-stone-900 outline-none"
+                className="w-full bg-transparent text-2xl font-semibold text-zinc-900 outline-none"
                 value={item.value || ''}
                 onChange={(event) => {
                   const items = [...(block.items || [])];
@@ -404,25 +405,25 @@ function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runni
     return (
       <div className="space-y-4">
         <input
-          className="w-full bg-transparent text-xl font-semibold text-stone-900 outline-none"
+          className="w-full bg-transparent text-xl font-semibold text-zinc-900 outline-none"
           value={block.title || ''}
           onChange={(event) => onUpdate(block.id, { title: event.target.value })}
           placeholder="决策块标题"
         />
         <input
-          className="w-full rounded-[24px] border border-stone-200 bg-white px-4 py-3 text-base font-semibold text-stone-900 outline-none"
+          className={cn(ui.input, 'text-base font-semibold text-zinc-900')}
           value={block.verdict || ''}
           onChange={(event) => onUpdate(block.id, { verdict: event.target.value })}
           placeholder="一句话结论"
         />
         <textarea
-          className="w-full min-h-[110px] resize-none rounded-[24px] border border-stone-200 bg-stone-50/80 px-4 py-3 text-sm leading-7 text-stone-700 outline-none"
+          className="w-full min-h-[110px] resize-none rounded-[24px] border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm leading-7 text-zinc-700 outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100"
           value={block.rationale || ''}
           onChange={(event) => onUpdate(block.id, { rationale: event.target.value })}
           placeholder="核心依据"
         />
         <input
-          className="w-full rounded-[24px] border border-stone-200 bg-white px-4 py-3 text-sm text-stone-800 outline-none"
+          className={ui.input}
           value={block.nextStep || ''}
           onChange={(event) => onUpdate(block.id, { nextStep: event.target.value })}
           placeholder="下一步动作"
