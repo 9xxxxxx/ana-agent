@@ -12,6 +12,7 @@ import {
 } from './Icons';
 import { useToast } from './Toast';
 import { cn, ui } from './ui';
+import { LoadingState } from './status';
 
 function CheckStatusBadge({ status }) {
   if (status === 'pass') {
@@ -106,7 +107,7 @@ export default function SystemDiagnosticsPanel({ isOpen, onClose }) {
 
         <div className="max-h-[calc(90vh-88px)] overflow-y-auto bg-zinc-50 p-8">
           {loading ? (
-            <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">正在执行环境诊断...</div>
+            <LoadingState title="正在执行环境诊断" description="检查环境变量、关键依赖、元数据文件和运行时状态。" />
           ) : (
             <div className="space-y-8">
               <div className="grid gap-4 md:grid-cols-3">

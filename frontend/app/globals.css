@@ -21,11 +21,11 @@
   --input: #d1d5db;
   --ring: #10a37f;
   
-  --sidebar-bg: #171717;
-  --sidebar-foreground: #e5e7eb;
-  --sidebar-hover: #2a2a2a;
-  --sidebar-active: #202123;
-  --sidebar-border: #2f2f2f;
+  --sidebar-bg: #f2f2f3;
+  --sidebar-foreground: #1f2937;
+  --sidebar-hover: #e7e7ea;
+  --sidebar-active: #ffffff;
+  --sidebar-border: #e5e7eb;
   
   --chat-bg: #ffffff;
   --user-msg: #f3f4f6;
@@ -136,10 +136,10 @@
   @apply bg-muted-foreground/50;
 }
 .sidebar-scroller::-webkit-scrollbar-thumb {
-  @apply bg-zinc-700;
+  @apply bg-zinc-300;
 }
 .sidebar-scroller::-webkit-scrollbar-thumb:hover {
-  @apply bg-zinc-500;
+  @apply bg-zinc-400;
 }
 
 /* 一些实用动画类 */

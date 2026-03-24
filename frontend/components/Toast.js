@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { CheckCircleIcon, XCircleIcon, AlertCircleIcon, InfoIcon, XIcon } from './Icons';
+import { cn } from './ui';
 
 const ToastContext = createContext(null);
 
@@ -72,10 +73,10 @@ function ToastItem({ toast, onRemove }) {
   };
 
   const bgColors = {
-    success: 'bg-green-50 border-green-200',
-    error: 'bg-red-50 border-red-200',
+    success: 'bg-emerald-50 border-emerald-200',
+    error: 'bg-rose-50 border-rose-200',
     warning: 'bg-amber-50 border-amber-200',
-    info: 'bg-blue-50 border-blue-200',
+    info: 'bg-sky-50 border-sky-200',
   };
 
   return (
@@ -84,18 +85,18 @@ function ToastItem({ toast, onRemove }) {
         isVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
       }`}
     >
-      <div className={`${bgColors[toast.type]} border rounded-xl shadow-lg p-4 flex items-start gap-3`}>
+      <div className={cn(bgColors[toast.type], 'flex items-start gap-3 rounded-2xl border p-4 shadow-[0_12px_36px_rgba(15,23,42,0.12)]')}>
         <div className="flex-shrink-0 mt-0.5">
           {icons[toast.type]}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-gray-900 break-words whitespace-pre-wrap">
+          <p className="break-words whitespace-pre-wrap text-sm text-zinc-900">
             {toast.message}
           </p>
         </div>
         <button
           onClick={() => onRemove(toast.id)}
-          className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
+          className="flex-shrink-0 text-zinc-400 transition-colors hover:text-zinc-700"
         >
           <XIcon size={16} />
         </button>

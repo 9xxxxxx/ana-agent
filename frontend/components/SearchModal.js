@@ -3,6 +3,8 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { SearchIcon, CloseIcon, MessageIcon } from './Icons';
 import { cn, ui } from './ui';
+import ModalShell from './ModalShell';
+import { EmptyState } from './status';
 
 function formatThreadDate(thread) {
   const timestamp = thread.updated_at || thread.created_at;
@@ -46,13 +48,15 @@ export default function SearchModal({ isOpen, onClose, threads, onSelectThread }
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-start justify-center bg-black/45 px-4 pt-[10vh] backdrop-blur-sm animate-in fade-in duration-200">
-      <div 
-        className="fixed inset-0"
-        onClick={onClose}
-      />
-      <div className="relative flex max-h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-[28px] border border-zinc-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.2)] animate-in zoom-in-95 slide-in-from-top-4 duration-300">
-        
+    <ModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      maxWidth="max-w-2xl"
+      heightClass="max-h-[80vh]"
+      centered={false}
+      showClose={false}
+      bodyClass="flex min-h-0 flex-1 flex-col"
+    >
         {/* Search Input Area */}
         <div className="flex items-center border-b border-zinc-200 bg-white px-4 py-3">
           <SearchIcon size={20} className="text-muted-foreground shrink-0" />
@@ -86,14 +90,18 @@ export default function SearchModal({ isOpen, onClose, threads, onSelectThread }
         {/* Results Area */}
         <div className="flex-1 overflow-y-auto w-full">
           {!query.trim() ? (
-            <div className="py-12 flex flex-col items-center justify-center text-muted-foreground">
-              <SearchIcon size={48} className="text-muted-foreground/20 mb-4" />
-              <p className="text-sm">输入关键词检索所有的历史分析与对话</p>
-            </div>
+            <EmptyState
+              icon={<SearchIcon size={28} />}
+              compact
+              title="搜索历史对话"
+              description="输入关键词检索所有的历史分析与对话。"
+            />
           ) : filteredThreads.length === 0 ? (
-            <div className="py-12 flex flex-col items-center justify-center text-muted-foreground">
-              <p className="text-sm">未找到与 &quot;{query}&quot; 匹配的结果</p>
-            </div>
+            <EmptyState
+              compact
+              title="没有匹配结果"
+              description={`未找到与 “${query}” 匹配的历史对话。`}
+            />
           ) : (
             <div className="p-2 space-y-1">
               <div className="px-3 py-1 text-xs font-semibold text-muted-foreground tracking-wider">
@@ -130,7 +138,6 @@ export default function SearchModal({ isOpen, onClose, threads, onSelectThread }
           <span className="flex items-center gap-1"><kbd className="rounded border border-zinc-200 bg-white px-1.5 py-0.5 font-sans text-muted-foreground shadow-sm">↑</kbd><kbd className="rounded border border-zinc-200 bg-white px-1.5 py-0.5 font-sans text-muted-foreground shadow-sm">↓</kbd> 切换</span>
           <span className="flex items-center gap-1"><kbd className="rounded border border-zinc-200 bg-white px-1.5 py-0.5 font-sans text-muted-foreground shadow-sm">Enter</kbd> 确认</span>
         </div>
-      </div>
-    </div>
+    </ModalShell>
   );
 }

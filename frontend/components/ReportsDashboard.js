@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { CloseIcon, LayoutGridIcon, BarChartIcon, MessageIcon } from './Icons';
 import { cn, ui } from './ui';
+import { EmptyState } from './status';
 
 function formatThreadDate(thread) {
   const timestamp = thread.updated_at || thread.created_at;
@@ -53,10 +54,12 @@ export default function ReportsDashboard({ isOpen, onClose, threads, onSelectThr
       <div className="flex-1 overflow-y-auto p-6 md:p-10">
         <div className="max-w-7xl mx-auto">
           {threads.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-[50vh] text-muted-foreground">
-              <BarChartIcon size={64} className="mb-6 opacity-20" />
-              <h3 className="text-xl font-semibold text-foreground mb-2">暂无任何数据报告</h3>
-              <p className="text-sm">在工作区发送您的第一个查询指令，即可在此处沉淀分析资产</p>
+            <div className="h-[50vh]">
+              <EmptyState
+                icon={<BarChartIcon size={30} />}
+                title="暂无任何数据报告"
+                description="在工作区发送你的第一个查询指令，即可在此处沉淀分析资产。"
+              />
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">

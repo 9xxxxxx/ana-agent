@@ -17,6 +17,7 @@ import {
 } from './Icons';
 import { useToast } from './Toast';
 import { cn, ui } from './ui';
+import { EmptyState, LoadingState } from './status';
 
 export default function WatchdogPanel({ isOpen, onClose }) {
   const { success, error } = useToast();
@@ -127,11 +128,14 @@ export default function WatchdogPanel({ isOpen, onClose }) {
         {/* Content */}
         <div className="flex-1 overflow-y-auto bg-zinc-50 p-8">
           {loading ? (
-            <div className="flex items-center justify-center h-48 text-muted-foreground">正在加载巡检规则...</div>
+            <LoadingState title="正在加载巡检规则" description="读取 Watchdog 规则、调度状态和最近执行结果。" />
           ) : rules.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-64 text-muted-foreground gap-4">
-              <AlarmClockIcon size={48} className="opacity-20" />
-              <p>尚未配置监控巡检任务</p>
+            <div className="h-64">
+              <EmptyState
+                icon={<AlarmClockIcon size={28} />}
+                title="尚未配置监控巡检任务"
+                description="创建第一条规则后，这里会开始展示巡检配置、测试入口和最近状态。"
+              />
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

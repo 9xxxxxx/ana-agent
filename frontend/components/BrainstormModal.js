@@ -6,6 +6,7 @@ import { CloseIcon, SparklesIcon, MessageIcon, CheckIcon } from './Icons';
 import { runBrainstormAnalysis } from '@/lib/api';
 import { buildDecisionReport } from '@/lib/reportBuilder';
 import { cn, ui } from './ui';
+import { EmptyState, InlineFeedback, LoadingState } from './status';
 
 export default function BrainstormModal({ isOpen, onClose, onAdopt, onOpenReport }) {
   const [task, setTask] = useState('');
@@ -125,24 +126,22 @@ export default function BrainstormModal({ isOpen, onClose, onAdopt, onOpenReport
                 </button>
               </div>
             )}
-            {error && <div className="text-sm text-red-600">{error}</div>}
+            {error && <InlineFeedback tone="danger" message={error} />}
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto bg-[linear-gradient(180deg,#f8fafc_0%,#f3f4f6_100%)] p-8">
-          {!result ? (
-            <div className="h-full flex items-center justify-center">
-              <div className="max-w-xl text-center">
-                <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-3xl bg-zinc-100 text-muted-foreground">
-                  <MessageIcon size={28} />
-                </div>
-                <div className="text-2xl font-bold text-foreground mb-3">让多个专家先吵一轮</div>
-                <div className="text-sm text-muted-foreground leading-7">
-                  这个模式会分别从数据分析、风险审查、策略设计三个角度审视问题，
-                  然后再合成一份更像“决策简报”的最终报告。
-                </div>
-              </div>
-            </div>
+          {loading ? (
+            <LoadingState
+              title="多专家会商进行中"
+              description="正在分别生成数据、风险和策略视角的分析，再汇总为一份决策简报。"
+            />
+          ) : !result ? (
+            <EmptyState
+              icon={<MessageIcon size={28} />}
+              title="让多个专家先吵一轮"
+              description="这个模式会分别从数据分析、风险审查、策略设计三个角度审视问题，然后再合成一份更像“决策简报”的最终报告。"
+            />
           ) : (
             <div className="max-w-4xl mx-auto space-y-8">
               <section className="rounded-3xl border border-zinc-200 bg-white p-7 shadow-sm">

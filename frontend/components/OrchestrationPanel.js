@@ -17,6 +17,7 @@ import {
 } from './Icons';
 import { useToast } from './Toast';
 import { cn, ui } from './ui';
+import { EmptyState, LoadingState } from './status';
 
 function formatTime(value) {
   if (!value) return '未记录';
@@ -154,7 +155,7 @@ export default function OrchestrationPanel({ isOpen, onClose }) {
 
         <div className="flex-1 overflow-y-auto bg-zinc-50 p-8">
           {loading ? (
-            <div className="flex items-center justify-center h-48 text-muted-foreground">正在加载 Prefect 运行态...</div>
+            <LoadingState title="正在加载 Prefect 运行态" description="同步 flows、deployments 与最近运行记录。" />
           ) : (
             <div className="space-y-8">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -209,9 +210,13 @@ export default function OrchestrationPanel({ isOpen, onClose }) {
                     </div>
                   </div>
                   {deployments.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-52 text-muted-foreground gap-3">
-                      <LayersIcon size={40} className="opacity-30" />
-                      <p>暂无 Prefect deployment，先同步一次或创建 Watchdog 规则。</p>
+                    <div className="h-52">
+                      <EmptyState
+                        compact
+                        icon={<LayersIcon size={24} />}
+                        title="暂无 Prefect deployment"
+                        description="先同步一次，或创建 Watchdog 规则后再观察编排运行状态。"
+                      />
                     </div>
                   ) : (
                     <div className="space-y-4">
@@ -257,7 +262,9 @@ export default function OrchestrationPanel({ isOpen, onClose }) {
                   <p className="text-sm text-muted-foreground mt-1">最近的执行记录，便于观察调度是否稳定、是否有失败或排队</p>
                 </div>
                 {runs.length === 0 ? (
-                  <div className="flex items-center justify-center h-40 text-muted-foreground">当前还没有 flow run 记录</div>
+                  <div className="h-40">
+                    <EmptyState compact title="暂无 flow run 记录" description="触发一次 deployment 后，这里会出现最近执行记录。" />
+                  </div>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[900px] text-sm">
