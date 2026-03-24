@@ -27,12 +27,15 @@ import {
   CopyIcon,
   EditIcon,
   LayersIcon,
+  PlayIcon,
+  RefreshCwIcon,
   TrashIcon,
 } from '../Icons';
-import { fetchOrchestrationRuntime } from '@/lib/api';
+import { fetchOrchestrationRuntime, triggerDeploymentRun } from '@/lib/api';
 import { parseChartPayload } from '@/lib/chartData';
 import { convertExpertOpinionToBlock, createCanvasBlock, generateDecisionPackBlocks, getBlockHeading, syncActionItemsWithRuns } from '@/lib/reportCanvas';
 import { reportTemplates } from '@/lib/reportTemplates';
+import { useToast } from '../Toast';
 
 function toneClass(tone = 'default') {
   if (tone === 'summary') return 'border-blue-200 bg-blue-50/70';
@@ -112,7 +115,7 @@ function CanvasToolbar({ onAddBlock, onApplyTemplate, onInsertRuntime, onGenerat
   );
 }
 
-function SortableBlock({ block, index, onUpdate, onDelete, onDuplicate, onTransformExpert, linkOptions }) {
+function SortableBlock({ block, index, onUpdate, onDelete, onDuplicate, onTransformExpert, linkOptions, onRunActionItem, runningActionIds }) {
   const {
     attributes,
     listeners,
@@ -191,7 +194,13 @@ function SortableBlock({ block, index, onUpdate, onDelete, onDuplicate, onTransf
       </div>
 
       <div className="mt-5">
-        <BlockEditor block={block} onUpdate={onUpdate} linkOptions={linkOptions} />
+        <BlockEditor
+          block={block}
+          onUpdate={onUpdate}
+          linkOptions={linkOptions}
+          onRunActionItem={onRunActionItem}
+          runningActionIds={runningActionIds}
+        />
       </div>
     </article>
   );
@@ -306,7 +315,7 @@ function ActionItemsBoard({ items = [], editable = false, onChange }) {
   );
 }
 
-function BlockEditor({ block, onUpdate, linkOptions = [] }) {
+function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runningActionIds = [] }) {
   const [actionView, setActionView] = useState('board');
   if (block.type === 'hero') {
     return (
@@ -591,6 +600,19 @@ function BlockEditor({ block, onUpdate, linkOptions = [] }) {
                       : '尚未回写执行状态'}
                   </div>
                 </div>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <button
+                    className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-stone-900 px-3 py-2 text-xs font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={() => onRunActionItem?.(block.id, item.id)}
+                    disabled={!item.linkedDeploymentId || runningActionIds.includes(item.id)}
+                  >
+                    {runningActionIds.includes(item.id) ? <RefreshCwIcon size={12} className="animate-spin" /> : <PlayIcon size={12} />}
+                    {runningActionIds.includes(item.id) ? '执行中...' : '运行绑定 Flow'}
+                  </button>
+                  {!item.linkedDeploymentId && (
+                    <span className="text-xs text-stone-400">先绑定 deployment 才能直接触发执行</span>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -699,7 +721,9 @@ function BlockEditor({ block, onUpdate, linkOptions = [] }) {
 }
 
 export default function ReportCanvas({ blocks, onChange }) {
+  const { success, error } = useToast();
   const [loadingRuntime, setLoadingRuntime] = useState(false);
+  const [runningActionIds, setRunningActionIds] = useState([]);
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
@@ -737,6 +761,60 @@ export default function ReportCanvas({ blocks, onChange }) {
     onChange(
       blocks.map((block) => (block.id === blockId ? { ...block, ...patch } : block))
     );
+  };
+
+  const applyRuntimeSnapshot = (runtime, currentBlocks) => {
+    const stats = runtime?.stats || {};
+    const deployments = runtime?.deployments || [];
+    const deploymentMap = new Map(deployments.map((deployment) => [deployment.id, deployment.name]));
+    const runs = (runtime?.runs || []).slice(0, 6).map((run) => ({
+      ...run,
+      deployment_name: run.deployment_id ? deploymentMap.get(run.deployment_id) : '未绑定',
+    }));
+
+    const snapshotPatch = {
+      title: '任务编排快照',
+      summary: stats,
+      runs,
+      note: '记录当前 Prefect flow / deployment / run 状态，并据此更新执行计划。',
+    };
+
+    const snapshotIndex = [...currentBlocks]
+      .map((block, index) => ({ block, index }))
+      .reverse()
+      .find((item) => item.block.type === 'orchestration_snapshot')?.index;
+
+    let nextBlocks = currentBlocks;
+    if (snapshotIndex === undefined) {
+      nextBlocks = [...currentBlocks, createCanvasBlock('orchestration_snapshot', snapshotPatch)];
+    } else {
+      nextBlocks = currentBlocks.map((block, index) =>
+        index === snapshotIndex ? { ...block, ...snapshotPatch } : block
+      );
+    }
+
+    return syncActionItemsWithRuns(nextBlocks);
+  };
+
+  const refreshRuntimeSnapshot = async ({ silent = false, sourceBlocks = blocks } = {}) => {
+    if (!silent) {
+      setLoadingRuntime(true);
+    }
+    try {
+      const response = await fetchOrchestrationRuntime();
+      if (!response.success) {
+        throw new Error(response.message || '读取编排快照失败');
+      }
+      onChange(applyRuntimeSnapshot(response.runtime, sourceBlocks));
+      return response.runtime;
+    } catch (runtimeError) {
+      error(runtimeError.message || '刷新编排快照失败');
+      return null;
+    } finally {
+      if (!silent) {
+        setLoadingRuntime(false);
+      }
+    }
   };
 
   const deleteBlock = (blockId) => {
@@ -850,33 +928,7 @@ export default function ReportCanvas({ blocks, onChange }) {
   };
 
   const insertRuntimeSnapshot = async () => {
-    setLoadingRuntime(true);
-    try {
-      const response = await fetchOrchestrationRuntime();
-      if (!response.success) {
-        throw new Error(response.message || '读取编排快照失败');
-      }
-      const stats = response.runtime?.stats || {};
-      const deployments = response.runtime?.deployments || [];
-      const deploymentMap = new Map(deployments.map((deployment) => [deployment.id, deployment.name]));
-      const runs = (response.runtime?.runs || []).slice(0, 6).map((run) => ({
-        ...run,
-        deployment_name: run.deployment_id ? deploymentMap.get(run.deployment_id) : '未绑定',
-      }));
-      onChange([
-        ...blocks,
-        createCanvasBlock('orchestration_snapshot', {
-          title: '任务编排快照',
-          summary: stats,
-          runs,
-          note: '记录当前 Prefect flow / deployment / run 状态，并据此更新执行计划。',
-        }),
-      ]);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoadingRuntime(false);
-    }
+    await refreshRuntimeSnapshot();
   };
 
   const generateDecisionPack = () => {
@@ -885,6 +937,53 @@ export default function ReportCanvas({ blocks, onChange }) {
 
   const syncActionStatus = () => {
     onChange(syncActionItemsWithRuns(blocks));
+  };
+
+  const runActionItem = async (blockId, itemId) => {
+    const actionBlock = blocks.find((block) => block.id === blockId);
+    const actionItem = actionBlock?.items?.find((item) => item.id === itemId);
+    if (!actionItem?.linkedDeploymentId) {
+      error('该行动项尚未绑定 deployment。');
+      return;
+    }
+
+    setRunningActionIds((current) => [...current, itemId]);
+    try {
+      const response = await triggerDeploymentRun(actionItem.linkedDeploymentId);
+      if (!response.success) {
+        throw new Error(response.message || '触发执行失败');
+      }
+
+      const run = response.run || {};
+      const nextBlocks = blocks.map((block) => {
+        if (block.id !== blockId || block.type !== 'action_items') {
+          return block;
+        }
+        return {
+          ...block,
+          items: (block.items || []).map((item) =>
+            item.id === itemId
+              ? {
+                  ...item,
+                  linkedRunId: run.id || item.linkedRunId || '',
+                  linkedDeploymentId: run.deployment_id || item.linkedDeploymentId || '',
+                  lastRunState: run.state_name || 'Scheduled',
+                  lastSyncedAt: new Date().toLocaleString(),
+                  status: 'todo',
+                }
+              : item
+          ),
+        };
+      });
+
+      onChange(nextBlocks);
+      success('已触发绑定的 Prefect flow，正在刷新执行状态。');
+      await refreshRuntimeSnapshot({ silent: true, sourceBlocks: nextBlocks });
+    } catch (runError) {
+      error(runError.message || '触发执行失败');
+    } finally {
+      setRunningActionIds((current) => current.filter((id) => id !== itemId));
+    }
   };
 
   return (
@@ -912,6 +1011,8 @@ export default function ReportCanvas({ blocks, onChange }) {
                 onDuplicate={duplicateBlock}
                 onTransformExpert={transformExpert}
                 linkOptions={linkOptions}
+                onRunActionItem={runActionItem}
+                runningActionIds={runningActionIds}
               />
             ))}
           </div>
