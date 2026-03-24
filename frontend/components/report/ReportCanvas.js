@@ -200,6 +200,7 @@ function SortableBlock({ block, index, onUpdate, onDelete, onDuplicate, onTransf
           linkOptions={linkOptions}
           onRunActionItem={onRunActionItem}
           runningActionIds={runningActionIds}
+          onInsertAfter={(newBlock) => onDuplicate(block.id, newBlock)}
         />
       </div>
     </article>
@@ -315,7 +316,7 @@ function ActionItemsBoard({ items = [], editable = false, onChange }) {
   );
 }
 
-function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runningActionIds = [] }) {
+function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runningActionIds = [], onInsertAfter }) {
   const [actionView, setActionView] = useState('board');
   if (block.type === 'hero') {
     return (
@@ -635,6 +636,61 @@ function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runni
                   {!item.linkedDeploymentId && (
                     <span className="text-xs text-stone-400">先绑定 deployment 才能直接触发执行</span>
                   )}
+                  {!!item.lastRunState && (
+                    <>
+                      <button
+                        className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 transition hover:bg-stone-50 disabled:opacity-50"
+                        onClick={() => onRunActionItem?.(block.id, item.id)}
+                        disabled={!item.linkedDeploymentId || runningActionIds.includes(item.id)}
+                      >
+                        重试
+                      </button>
+                      <button
+                        className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-100"
+                        onClick={() =>
+                          onInsertAfter?.(
+                            createCanvasBlock('callout', {
+                              title: `${item.title} 风险升级`,
+                              content: [
+                                `- 行动项: ${item.title}`,
+                                `- 当前状态: ${item.lastRunState || '未知'}`,
+                                item.lastRunMessage ? `- 运行信息: ${item.lastRunMessage}` : null,
+                                `- 建议: ${getRunRecommendation(item.lastRunState)}`,
+                              ]
+                                .filter(Boolean)
+                                .join('\n'),
+                              tone: 'note',
+                            })
+                          )
+                        }
+                      >
+                        转风险块
+                      </button>
+                      <button
+                        className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-stone-50 px-3 py-2 text-xs font-semibold text-stone-700 transition hover:bg-stone-100"
+                        onClick={() =>
+                          onInsertAfter?.(
+                            createCanvasBlock('text', {
+                              title: `${item.title} 执行复盘`,
+                              content: [
+                                `## 执行概况`,
+                                `- 行动项: ${item.title}`,
+                                `- Deployment: ${item.linkedDeploymentName || '未绑定'}`,
+                                `- 最近状态: ${item.lastRunState || '未知'}`,
+                                item.lastRunMessage ? `- 运行信息: ${item.lastRunMessage}` : null,
+                                `- 后续建议: ${getRunRecommendation(item.lastRunState)}`,
+                              ]
+                                .filter(Boolean)
+                                .join('\n'),
+                              tone: 'section',
+                            })
+                          )
+                        }
+                      >
+                        转复盘块
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             ))}
@@ -844,11 +900,11 @@ export default function ReportCanvas({ blocks, onChange }) {
     onChange(blocks.filter((block) => block.id !== blockId));
   };
 
-  const duplicateBlock = (blockId) => {
+  const duplicateBlock = (blockId, explicitBlock = null) => {
     const current = blocks.find((block) => block.id === blockId);
     if (!current) return;
 
-    const clone = {
+    const clone = explicitBlock || {
       ...current,
       id: `${current.type}-${Math.random().toString(36).slice(2, 9)}`,
       title: current.title ? `${current.title}（副本）` : current.title,
