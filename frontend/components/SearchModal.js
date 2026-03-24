@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { SearchIcon, CloseIcon, MessageIcon } from './Icons';
+import { cn, ui } from './ui';
 
 function formatThreadDate(thread) {
   const timestamp = thread.updated_at || thread.created_at;
@@ -45,20 +46,20 @@ export default function SearchModal({ isOpen, onClose, threads, onSelectThread }
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-[10vh] px-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[9999] flex items-start justify-center bg-black/45 px-4 pt-[10vh] backdrop-blur-sm animate-in fade-in duration-200">
       <div 
         className="fixed inset-0"
         onClick={onClose}
       />
-      <div className="relative w-full max-w-2xl bg-popover rounded-2xl shadow-2xl border border-border overflow-hidden flex flex-col max-h-[80vh] animate-in zoom-in-95 slide-in-from-top-4 duration-300">
+      <div className="relative flex max-h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-[28px] border border-zinc-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.2)] animate-in zoom-in-95 slide-in-from-top-4 duration-300">
         
         {/* Search Input Area */}
-        <div className="flex items-center px-4 py-3 border-b border-border bg-popover">
+        <div className="flex items-center border-b border-zinc-200 bg-white px-4 py-3">
           <SearchIcon size={20} className="text-muted-foreground shrink-0" />
           <input
             ref={inputRef}
             type="text"
-            className="flex-1 w-full bg-transparent border-none outline-none focus:ring-0 px-3 py-2 text-base text-foreground placeholder:text-muted-foreground"
+            className="w-full flex-1 border-none bg-transparent px-3 py-2 text-base text-foreground outline-none focus:ring-0 placeholder:text-muted-foreground"
             placeholder="搜索您的历史对话..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -69,14 +70,14 @@ export default function SearchModal({ isOpen, onClose, threads, onSelectThread }
           {query && (
             <button 
               onClick={() => { setQuery(''); inputRef.current?.focus(); }}
-              className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors mr-2"
+              className={cn(ui.iconButton, 'mr-2 rounded-md p-1')}
             >
               <CloseIcon size={16} />
             </button>
           )}
           <button 
             onClick={onClose}
-            className="px-2.5 py-1.5 text-xs font-medium text-muted-foreground bg-muted hover:bg-muted/80 rounded-lg transition-colors shrink-0"
+            className="shrink-0 rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-zinc-100"
           >
             ESC
           </button>
@@ -105,9 +106,9 @@ export default function SearchModal({ isOpen, onClose, threads, onSelectThread }
                     onSelectThread(thread.thread_id);
                     onClose();
                   }}
-                  className="w-full text-left flex items-start gap-4 px-3 py-3 rounded-xl hover:bg-muted transition group"
+                  className="group flex w-full items-start gap-4 rounded-xl px-3 py-3 text-left transition hover:bg-zinc-50"
                 >
-                  <div className="shrink-0 mt-0.5 w-8 h-8 rounded-lg bg-muted text-muted-foreground flex items-center justify-center group-hover:bg-popover transition-colors">
+                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-muted-foreground transition-colors group-hover:bg-white">
                     <MessageIcon size={16} />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -125,9 +126,9 @@ export default function SearchModal({ isOpen, onClose, threads, onSelectThread }
         </div>
         
         {/* Footer hints */}
-        <div className="px-4 py-2 border-t border-border bg-muted/30 flex items-center gap-4 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-muted border border-border rounded text-muted-foreground font-sans shadow-sm">↑</kbd><kbd className="px-1.5 py-0.5 bg-muted border border-border rounded text-muted-foreground font-sans shadow-sm">↓</kbd> 切换</span>
-          <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-muted border border-border rounded text-muted-foreground font-sans shadow-sm">Enter</kbd> 确认</span>
+        <div className="flex items-center gap-4 border-t border-zinc-200 bg-zinc-50 px-4 py-2 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1"><kbd className="rounded border border-zinc-200 bg-white px-1.5 py-0.5 font-sans text-muted-foreground shadow-sm">↑</kbd><kbd className="rounded border border-zinc-200 bg-white px-1.5 py-0.5 font-sans text-muted-foreground shadow-sm">↓</kbd> 切换</span>
+          <span className="flex items-center gap-1"><kbd className="rounded border border-zinc-200 bg-white px-1.5 py-0.5 font-sans text-muted-foreground shadow-sm">Enter</kbd> 确认</span>
         </div>
       </div>
     </div>

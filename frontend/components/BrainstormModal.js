@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { CloseIcon, SparklesIcon, MessageIcon, CheckIcon } from './Icons';
 import { runBrainstormAnalysis } from '@/lib/api';
 import { buildDecisionReport } from '@/lib/reportBuilder';
+import { cn, ui } from './ui';
 
 export default function BrainstormModal({ isOpen, onClose, onAdopt, onOpenReport }) {
   const [task, setTask] = useState('');
@@ -57,12 +58,12 @@ export default function BrainstormModal({ isOpen, onClose, onAdopt, onOpenReport
   };
 
   return (
-    <div className="fixed inset-0 z-[10000] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="w-full max-w-6xl h-[88vh] bg-popover border border-border rounded-3xl shadow-2xl overflow-hidden flex">
-        <div className="w-[360px] shrink-0 border-r border-border bg-muted/30 p-6 flex flex-col">
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm">
+      <div className="flex h-[88vh] w-full max-w-6xl overflow-hidden rounded-[30px] border border-zinc-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.2)]">
+        <div className="flex w-[360px] shrink-0 flex-col border-r border-zinc-200 bg-zinc-50 p-6">
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-foreground text-background flex items-center justify-center">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-zinc-900 text-white">
                 <SparklesIcon size={18} />
               </div>
               <div>
@@ -70,7 +71,7 @@ export default function BrainstormModal({ isOpen, onClose, onAdopt, onOpenReport
                 <div className="text-xs text-muted-foreground">Data + Risk + Strategy</div>
               </div>
             </div>
-            <button className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl transition" onClick={onClose}>
+            <button className={cn(ui.iconButton, 'rounded-xl')} onClick={onClose}>
               <CloseIcon size={18} />
             </button>
           </div>
@@ -80,7 +81,7 @@ export default function BrainstormModal({ isOpen, onClose, onAdopt, onOpenReport
               <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">核心任务</label>
               <textarea
                 rows={7}
-                className="w-full p-4 rounded-2xl border border-border bg-popover text-sm text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-foreground/10"
+                className={cn(ui.textarea, 'min-h-[156px] p-4 text-sm leading-7')}
                 placeholder="例如：分析最近一个月销售下滑的根因，并给出决策建议"
                 value={task}
                 onChange={(e) => setTask(e.target.value)}
@@ -91,7 +92,7 @@ export default function BrainstormModal({ isOpen, onClose, onAdopt, onOpenReport
               <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">补充上下文</label>
               <textarea
                 rows={8}
-                className="w-full p-4 rounded-2xl border border-border bg-popover text-sm text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-foreground/10"
+                className={cn(ui.textareaMuted, 'min-h-[176px] p-4 text-sm leading-7')}
                 placeholder="补充业务背景、现有数据结论、约束条件等"
                 value={context}
                 onChange={(e) => setContext(e.target.value)}
@@ -102,7 +103,7 @@ export default function BrainstormModal({ isOpen, onClose, onAdopt, onOpenReport
           <div className="mt-auto pt-5 space-y-3">
             <div className="text-xs text-muted-foreground">当前模型：{selectedModel}</div>
             <button
-              className="w-full px-4 py-3 rounded-2xl bg-foreground text-background text-sm font-semibold hover:opacity-90 transition disabled:opacity-50"
+              className={cn(ui.buttonPrimary, 'w-full justify-center rounded-2xl px-4 py-3 disabled:opacity-50')}
               onClick={handleRun}
               disabled={loading || !task.trim()}
             >
@@ -111,13 +112,13 @@ export default function BrainstormModal({ isOpen, onClose, onAdopt, onOpenReport
             {result?.final_report && (
               <div className="space-y-2">
                 <button
-                  className="w-full px-4 py-3 rounded-2xl border border-border bg-popover text-foreground text-sm font-semibold hover:bg-muted transition"
+                  className={cn(ui.buttonSecondary, 'w-full justify-center rounded-2xl px-4 py-3')}
                   onClick={() => onAdopt?.(result.final_report)}
                 >
                   将结论发送到对话
                 </button>
                 <button
-                  className="w-full px-4 py-3 rounded-2xl border border-border bg-popover text-foreground text-sm font-semibold hover:bg-muted transition"
+                  className={cn(ui.buttonSecondary, 'w-full justify-center rounded-2xl px-4 py-3')}
                   onClick={() => onOpenReport?.(buildDecisionReport(result))}
                 >
                   打开可编排报告画布
@@ -128,11 +129,11 @@ export default function BrainstormModal({ isOpen, onClose, onAdopt, onOpenReport
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-8 bg-background">
+        <div className="flex-1 overflow-y-auto bg-[linear-gradient(180deg,#f8fafc_0%,#f3f4f6_100%)] p-8">
           {!result ? (
             <div className="h-full flex items-center justify-center">
               <div className="max-w-xl text-center">
-                <div className="w-16 h-16 mx-auto mb-5 rounded-3xl bg-muted flex items-center justify-center text-muted-foreground">
+                <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-3xl bg-zinc-100 text-muted-foreground">
                   <MessageIcon size={28} />
                 </div>
                 <div className="text-2xl font-bold text-foreground mb-3">让多个专家先吵一轮</div>
@@ -144,7 +145,7 @@ export default function BrainstormModal({ isOpen, onClose, onAdopt, onOpenReport
             </div>
           ) : (
             <div className="max-w-4xl mx-auto space-y-8">
-              <section className="bg-popover border border-border rounded-3xl p-7 shadow-sm">
+              <section className="rounded-3xl border border-zinc-200 bg-white p-7 shadow-sm">
                 <div className="flex items-center gap-2 mb-4">
                   <CheckIcon size={16} className="text-green-600" />
                   <h2 className="text-lg font-bold text-foreground">最终决策简报</h2>
@@ -156,7 +157,7 @@ export default function BrainstormModal({ isOpen, onClose, onAdopt, onOpenReport
 
               <section className="grid grid-cols-1 xl:grid-cols-3 gap-5">
                 {result.specialists?.map((item) => (
-                  <div key={item.role} className="bg-popover border border-border rounded-3xl p-6 shadow-sm">
+                  <div key={item.role} className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
                     <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
                       {item.role}
                     </div>

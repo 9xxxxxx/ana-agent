@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { CloseIcon, LayoutGridIcon, BarChartIcon, MessageIcon } from './Icons';
+import { cn, ui } from './ui';
 
 function formatThreadDate(thread) {
   const timestamp = thread.updated_at || thread.created_at;
@@ -27,11 +28,11 @@ export default function ReportsDashboard({ isOpen, onClose, threads, onSelectThr
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[9990] bg-background flex flex-col animate-in fade-in slide-in-from-bottom-8 duration-300">
+    <div className="fixed inset-0 z-[9990] flex flex-col bg-[linear-gradient(180deg,#f8fafc_0%,#f3f4f6_100%)] animate-in fade-in slide-in-from-bottom-8 duration-300">
       {/* 顶部 Header栏 */}
-      <div className="h-16 bg-popover border-b border-border flex items-center justify-between px-6 shrink-0 shadow-sm z-10">
+      <div className="z-10 flex h-16 shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-6 shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center text-white shadow-inner">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-inner">
             <LayoutGridIcon size={20} />
           </div>
           <div>
@@ -41,7 +42,7 @@ export default function ReportsDashboard({ isOpen, onClose, threads, onSelectThr
         </div>
         <button 
           onClick={onClose}
-          className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl transition flex items-center gap-2"
+          className={cn(ui.buttonSecondary, 'rounded-xl px-3 py-2')}
         >
           <span className="text-sm font-medium hidden sm:block">返回工作区</span>
           <CloseIcon size={20} />
@@ -70,21 +71,21 @@ export default function ReportsDashboard({ isOpen, onClose, threads, onSelectThr
                       onSelectThread(thread.thread_id);
                       onClose();
                     }}
-                    className="group bg-popover border border-border rounded-2xl p-5 hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer flex flex-col h-48 relative overflow-hidden"
+                    className="group relative flex h-48 cursor-pointer flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white p-5 transition-all hover:-translate-y-1 hover:shadow-xl"
                   >
                     {/* 装饰性背景光效 */}
-                    <div className="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-gradient-to-br from-primary/5 to-primary/10 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-gradient-to-br from-emerald-500/5 to-emerald-500/10 opacity-0 blur-2xl transition-opacity group-hover:opacity-100"></div>
                     
                     <div className="flex items-start justify-between mb-4 relative z-10">
-                      <div className={`p-2.5 rounded-xl ${isChart ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'} group-hover:bg-popover group-hover:shadow-sm transition-all`}>
+                      <div className={`rounded-xl p-2.5 transition-all group-hover:bg-white group-hover:shadow-sm ${isChart ? 'bg-emerald-50 text-emerald-700' : 'bg-zinc-100 text-muted-foreground'}`}>
                         {isChart ? <BarChartIcon size={20} /> : <MessageIcon size={20} />}
                       </div>
-                      <span className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase bg-muted px-2.5 py-1 rounded-full group-hover:bg-popover group-hover:shadow-sm transition-all">
+                      <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground transition-all group-hover:bg-white group-hover:shadow-sm">
                         {isChart ? '数据可视化' : '分析简报'}
                       </span>
                     </div>
 
-                    <h3 className="text-[15px] font-bold text-foreground line-clamp-2 leading-snug relative z-10 flex-1 group-hover:text-primary transition-colors">
+                    <h3 className="relative z-10 line-clamp-2 flex-1 text-[15px] font-bold leading-snug text-foreground transition-colors group-hover:text-emerald-700">
                       {thread.title || '探索性数据 analysis'}
                     </h3>
 

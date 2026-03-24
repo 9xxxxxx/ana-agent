@@ -14,6 +14,7 @@ import {
   CloseIcon, DownloadIcon, CopyIcon, CheckIcon,
   BookOpenIcon, BarChartIcon, FileIcon, ChevronRightIcon
 } from './Icons';
+import { cn, ui } from './ui';
 
 // 从 Markdown 文本提取标题大纲
 function extractHeadings(text) {
@@ -150,11 +151,11 @@ export default function FullReportModal({ isOpen, onClose, message }) {
   if (!isOpen || !message) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="flex w-full h-full bg-popover animate-in slide-in-from-bottom-4 duration-300">
+    <div className="fixed inset-0 z-50 flex bg-black/35 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="flex h-full w-full bg-white animate-in slide-in-from-bottom-4 duration-300">
         {/* 左侧大纲导航 */}
-        <div className="w-[240px] shrink-0 bg-muted/50 border-r border-border flex flex-col">
-          <div className="px-4 pt-5 pb-3 border-b border-border">
+        <div className="flex w-[240px] shrink-0 flex-col border-r border-zinc-200 bg-zinc-50">
+          <div className="border-b border-zinc-200 px-4 pb-3 pt-5">
             <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
               <BookOpenIcon size={13} />
               报告大纲
@@ -167,8 +168,8 @@ export default function FullReportModal({ isOpen, onClose, message }) {
                   key={h.id}
                   className={`w-full text-left px-3 py-2 rounded-md text-[13px] transition-all mb-0.5 ${
                     activeHeading === h.id
-                      ? 'bg-primary/10 text-primary font-medium'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                      ? 'bg-emerald-50 text-emerald-700 font-medium'
+                      : 'text-muted-foreground hover:bg-zinc-100 hover:text-foreground'
                   }`}
                   style={{ paddingLeft: `${(h.level - 1) * 12 + 12}px` }}
                   onClick={() => scrollToHeading(h.id)}
@@ -183,20 +184,20 @@ export default function FullReportModal({ isOpen, onClose, message }) {
 
             {/* 图表快捷导航 */}
             {charts.length > 0 && (
-              <div className="mt-4 pt-3 border-t border-border">
+              <div className="mt-4 border-t border-zinc-200 pt-3">
                 <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">
                   图表 ({charts.length})
                 </div>
                 {charts.map((c, i) => (
                   <button
                     key={c.id}
-                    className="w-full text-left px-3 py-2 rounded-md text-[13px] text-muted-foreground hover:bg-muted hover:text-foreground transition-all flex items-center gap-2"
+                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-[13px] text-muted-foreground transition-all hover:bg-zinc-100 hover:text-foreground"
                     onClick={() => {
                       const el = document.getElementById(`chart-${c.id}`);
                       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     }}
                   >
-                    <BarChartIcon size={12} className="text-primary" />
+                      <BarChartIcon size={12} className="text-emerald-700" />
                     图表 {i + 1}
                   </button>
                 ))}
@@ -208,31 +209,31 @@ export default function FullReportModal({ isOpen, onClose, message }) {
         {/* 右侧主内容区 */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* 顶部工具栏 */}
-          <div className="flex items-center justify-between px-8 py-4 border-b border-border bg-popover sticky top-0 z-10">
+          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-zinc-200 bg-white px-8 py-4">
             <h2 className="text-lg font-bold text-foreground">完整报告</h2>
             <div className="flex items-center gap-2">
               <button
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+                className={cn(ui.buttonSecondary, 'rounded-lg px-3 py-1.5')}
                 onClick={handleCopy}
               >
                 {copied ? <CheckIcon size={15} className="text-green-600" /> : <CopyIcon size={15} />}
                 <span>{copied ? '已复制' : '复制'}</span>
               </button>
               <button
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors print:hidden"
+                className={cn(ui.buttonSecondary, 'print:hidden rounded-lg px-3 py-1.5')}
                 onClick={handleExportMarkdown}
               >
                 <DownloadIcon size={15} />
                 <span>导出 Markdown</span>
               </button>
               <button
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-primary bg-primary/10 hover:bg-primary/20 font-medium rounded-lg transition-colors print:hidden"
+                className="print:hidden flex items-center gap-1.5 rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
                 onClick={handleExportPDF}
               >
                 <span>打印 / 导出 PDF</span>
               </button>
               <button
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+                className={cn(ui.buttonSecondary, 'rounded-lg px-3 py-1.5')}
                 onClick={() => {
                   // 导出图表数据为 CSV（如有）
                   if (charts.length > 0 && charts[0].data?.data) {
@@ -254,9 +255,9 @@ export default function FullReportModal({ isOpen, onClose, message }) {
                 <FileIcon size={15} />
                 <span>导出数据</span>
               </button>
-              <div className="w-px h-5 bg-border mx-1" />
+              <div className="mx-1 h-5 w-px bg-zinc-200" />
               <button
-                className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+                className={cn(ui.iconButton, 'rounded-lg')}
                 onClick={onClose}
                 title="关闭"
               >
