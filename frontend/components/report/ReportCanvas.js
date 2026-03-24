@@ -38,10 +38,10 @@ import { reportTemplates } from '@/lib/reportTemplates';
 import { useToast } from '../Toast';
 
 function toneClass(tone = 'default') {
-  if (tone === 'summary') return 'border-blue-200 bg-blue-50/70';
-  if (tone === 'section') return 'border-stone-200 bg-white';
+  if (tone === 'summary') return 'border-sky-200 bg-sky-50/70';
+  if (tone === 'section') return 'border-zinc-200 bg-white';
   if (tone === 'note') return 'border-amber-200 bg-amber-50/70';
-  return 'border-border bg-white';
+  return 'border-zinc-200 bg-white';
 }
 
 function stanceTone(stance = 'analysis') {
@@ -64,18 +64,18 @@ function CanvasToolbar({ onAddBlock, onApplyTemplate, onInsertRuntime, onGenerat
   ];
 
   return (
-    <div className="rounded-[28px] border border-stone-200 bg-white/90 px-4 py-4 shadow-sm">
+    <div className="rounded-[28px] border border-zinc-200 bg-white px-4 py-4 shadow-sm">
       <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">Canvas Controls</div>
-          <div className="mt-1 text-lg font-semibold text-stone-900">正在编排 {blockCount} 个内容块</div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-500">Canvas Controls</div>
+          <div className="mt-1 text-lg font-semibold text-zinc-900">正在编排 {blockCount} 个内容块</div>
         </div>
         <div className="flex flex-wrap gap-2">
           {blockTypes.map((item) => (
             <button
               key={item.key}
-              className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-stone-50 px-3 py-2 text-sm font-medium text-stone-700 hover:border-stone-300 hover:bg-stone-100 transition"
+              className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:border-zinc-300 hover:bg-zinc-100"
               onClick={() => onAddBlock(item.key)}
             >
               {item.icon}
@@ -83,19 +83,19 @@ function CanvasToolbar({ onAddBlock, onApplyTemplate, onInsertRuntime, onGenerat
             </button>
           ))}
           <button
-            className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-stone-50 px-3 py-2 text-sm font-medium text-stone-700 hover:border-stone-300 hover:bg-stone-100 transition"
+            className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:border-zinc-300 hover:bg-zinc-100"
             onClick={onInsertRuntime}
           >
             {loadingRuntime ? '读取中...' : '编排快照'}
           </button>
           <button
-            className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-stone-900 px-3 py-2 text-sm font-medium text-white hover:opacity-90 transition"
+            className="inline-flex items-center gap-2 rounded-full border border-zinc-900 bg-zinc-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-zinc-800"
             onClick={onGenerateDecisionPack}
           >
             生成决策包
           </button>
           <button
-            className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-700 hover:border-stone-300 hover:bg-stone-50 transition"
+            className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700 transition hover:border-zinc-300 hover:bg-zinc-50"
             onClick={onSyncActionStatus}
           >
             回写执行状态
@@ -106,11 +106,11 @@ function CanvasToolbar({ onAddBlock, onApplyTemplate, onInsertRuntime, onGenerat
         {reportTemplates.map((template) => (
           <button
             key={template.id}
-            className="rounded-[22px] border border-stone-200 bg-[linear-gradient(180deg,#fffdf8_0%,#f7efe0_100%)] p-4 text-left transition hover:border-stone-300 hover:shadow-sm"
+            className="rounded-[22px] border border-zinc-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-4 text-left transition hover:border-zinc-300 hover:shadow-sm"
             onClick={() => onApplyTemplate(template.id)}
           >
-            <div className="text-sm font-semibold text-stone-900">{template.name}</div>
-            <div className="mt-2 text-sm leading-6 text-stone-600">{template.description}</div>
+            <div className="text-sm font-semibold text-zinc-900">{template.name}</div>
+            <div className="mt-2 text-sm leading-6 text-zinc-600">{template.description}</div>
           </button>
         ))}
       </div>
@@ -143,36 +143,36 @@ function SortableBlock({ block, index, onUpdate, onDelete, onDuplicate, onTransf
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
           <button
-            className="cursor-grab rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-stone-500"
+            className="cursor-grab rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500"
             {...attributes}
             {...listeners}
           >
             {String(index + 1).padStart(2, '0')}
           </button>
           <div className="min-w-0">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">{block.type}</div>
-            <div className="mt-1 truncate text-base font-semibold text-stone-900">{getBlockHeading(block)}</div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-500">{block.type}</div>
+            <div className="mt-1 truncate text-base font-semibold text-zinc-900">{getBlockHeading(block)}</div>
           </div>
         </div>
         <div className="flex items-center gap-2">
           {block.type === 'expert_opinion' && (
             <>
               <button
-                className="rounded-full px-3 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-100 transition"
+                className="rounded-full px-3 py-2 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-100"
                 onClick={() => onTransformExpert(block.id, 'action_items')}
                 title="转成行动项"
               >
                 转行动
               </button>
               <button
-                className="rounded-full px-3 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-100 transition"
+                className="rounded-full px-3 py-2 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-100"
                 onClick={() => onTransformExpert(block.id, 'callout')}
                 title="转成风险提醒"
               >
                 转风险
               </button>
               <button
-                className="rounded-full px-3 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-100 transition"
+                className="rounded-full px-3 py-2 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-100"
                 onClick={() => onTransformExpert(block.id, 'text')}
                 title="转成结论块"
               >
@@ -181,7 +181,7 @@ function SortableBlock({ block, index, onUpdate, onDelete, onDuplicate, onTransf
             </>
           )}
           <button
-            className="rounded-full p-2 text-stone-500 hover:bg-stone-100 hover:text-stone-900 transition"
+            className="rounded-full p-2 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900"
             onClick={() => onDuplicate(block.id)}
             title="复制块"
           >

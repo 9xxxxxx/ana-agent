@@ -76,17 +76,17 @@ function renderChartData(chartData) {
 function PreviewBlock({ block }) {
   if (block.type === 'hero') {
     return (
-      <section className="rounded-[32px] border border-stone-200 bg-[linear-gradient(135deg,#fffdf7_0%,#f5efe2_45%,#efe6d3_100%)] px-8 py-10 shadow-sm">
-        <div className="inline-flex rounded-full border border-stone-300 bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-600">
+      <section className="rounded-[32px] border border-zinc-200 bg-[linear-gradient(135deg,#ffffff_0%,#f8fafc_50%,#eef2f7_100%)] px-8 py-10 shadow-sm">
+        <div className="inline-flex rounded-full border border-zinc-300 bg-white/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-600">
           {block.badge || 'Report'}
         </div>
-        <h1 className="mt-5 max-w-4xl text-4xl font-semibold tracking-[-0.04em] text-stone-950 md:text-5xl">
+        <h1 className="mt-5 max-w-4xl text-4xl font-semibold tracking-[-0.04em] text-zinc-950 md:text-5xl">
           {block.title}
         </h1>
         {block.subtitle && (
-          <p className="mt-4 max-w-3xl text-lg leading-8 text-stone-700">{block.subtitle}</p>
+          <p className="mt-4 max-w-3xl text-lg leading-8 text-zinc-700">{block.subtitle}</p>
         )}
-        <div className="mt-8 text-sm text-stone-500">{block.createdAt}</div>
+        <div className="mt-8 text-sm text-zinc-500">{block.createdAt}</div>
       </section>
     );
   }
@@ -491,25 +491,25 @@ export default function ReportViewer({ report, onExport, onClose }) {
   };
 
   return (
-    <div className="flex h-full w-full bg-[linear-gradient(180deg,#f4ecdf_0%,#efe6d7_30%,#f8f4ea_100%)] text-stone-900">
-      <aside className="hidden xl:flex w-[280px] shrink-0 flex-col border-r border-stone-200/80 bg-[#f3ebdc]/90">
-        <div className="border-b border-stone-200/80 px-6 py-6">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">Decision Studio</div>
-          <div className="mt-3 text-2xl font-semibold tracking-[-0.04em] text-stone-950">{hero?.title || report.title}</div>
-          {hero?.subtitle && <p className="mt-3 text-sm leading-7 text-stone-600">{hero.subtitle}</p>}
+    <div className="flex h-full w-full bg-[linear-gradient(180deg,#f8fafc_0%,#f3f4f6_100%)] text-zinc-900">
+      <aside className="hidden w-[280px] shrink-0 flex-col border-r border-zinc-200 bg-zinc-950 xl:flex">
+        <div className="border-b border-zinc-800 px-6 py-6">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-500">Decision Studio</div>
+          <div className="mt-3 text-2xl font-semibold tracking-[-0.04em] text-white">{hero?.title || report.title}</div>
+          {hero?.subtitle && <p className="mt-3 text-sm leading-7 text-zinc-300">{hero.subtitle}</p>}
         </div>
 
         <div className="px-4 py-4">
-          <div className="rounded-[24px] border border-stone-200 bg-white/80 p-3">
+          <div className="rounded-[24px] border border-zinc-800 bg-zinc-900 p-3">
             <button
-              className={`flex w-full items-center gap-2 rounded-2xl px-3 py-3 text-sm font-medium transition ${mode === 'canvas' ? 'bg-stone-900 text-white' : 'text-stone-600 hover:bg-stone-100'}`}
+              className={`flex w-full items-center gap-2 rounded-2xl px-3 py-3 text-sm font-medium transition ${mode === 'canvas' ? 'bg-white text-zinc-950' : 'text-zinc-300 hover:bg-zinc-800'}`}
               onClick={() => setMode('canvas')}
             >
               <EditIcon size={15} />
               画布编排
             </button>
             <button
-              className={`mt-2 flex w-full items-center gap-2 rounded-2xl px-3 py-3 text-sm font-medium transition ${mode === 'preview' ? 'bg-stone-900 text-white' : 'text-stone-600 hover:bg-stone-100'}`}
+              className={`mt-2 flex w-full items-center gap-2 rounded-2xl px-3 py-3 text-sm font-medium transition ${mode === 'preview' ? 'bg-white text-zinc-950' : 'text-zinc-300 hover:bg-zinc-800'}`}
               onClick={() => setMode('preview')}
             >
               <BookOpenIcon size={15} />
@@ -519,14 +519,14 @@ export default function ReportViewer({ report, onExport, onClose }) {
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 pb-5">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500 px-2 pb-2">Canvas Outline</div>
+          <div className="px-2 pb-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-500">Canvas Outline</div>
           <div className="space-y-2">
             {navigableBlocks.map((block, index) => (
-              <div key={block.id} className="rounded-2xl border border-stone-200 bg-white/80 px-3 py-3">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-400">
+              <div key={block.id} className="rounded-2xl border border-zinc-800 bg-zinc-900 px-3 py-3">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
                   {String(index + 1).padStart(2, '0')} · {block.type}
                 </div>
-                <div className="mt-1 text-sm font-medium text-stone-800">{getBlockHeading(block)}</div>
+                <div className="mt-1 text-sm font-medium text-zinc-100">{getBlockHeading(block)}</div>
               </div>
             ))}
           </div>
@@ -534,11 +534,11 @@ export default function ReportViewer({ report, onExport, onClose }) {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-10 border-b border-stone-200/80 bg-[#fbf7ef]/90">
+        <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white/90 backdrop-blur">
           <div className="flex flex-col gap-4 px-5 py-4 md:flex-row md:items-center md:justify-between md:px-8">
             <div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">Report Workbench</div>
-              <div className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-stone-950">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-500">Report Workbench</div>
+              <div className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-zinc-950">
                 {mode === 'canvas' ? '可编排报告画布' : '高保真成品预览'}
               </div>
             </div>
@@ -549,7 +549,7 @@ export default function ReportViewer({ report, onExport, onClose }) {
                 {saveStatus === 'saved' ? '草稿已保存' : saveStatus === 'error' ? '保存失败' : '自动保存开启'}
               </div>
               <button
-                className="inline-flex items-center gap-2 rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 hover:border-stone-400 hover:bg-stone-50 transition"
+                className="inline-flex items-center gap-2 rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:border-zinc-400 hover:bg-zinc-50"
                 onClick={handleExport}
               >
                 <DownloadIcon size={14} />
@@ -557,7 +557,7 @@ export default function ReportViewer({ report, onExport, onClose }) {
               </button>
               {onClose && (
                 <button
-                  className="inline-flex items-center gap-2 rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 hover:border-stone-400 hover:bg-stone-50 transition"
+                  className="inline-flex items-center gap-2 rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:border-zinc-400 hover:bg-zinc-50"
                   onClick={onClose}
                 >
                   <CloseIcon size={14} />

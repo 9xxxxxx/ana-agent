@@ -95,36 +95,36 @@ export default function WatchdogPanel({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="bg-popover w-full max-w-4xl max-h-[85vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-300 border border-border">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm animate-in fade-in duration-300">
+      <div className="flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-[30px] border border-zinc-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.2)] animate-in zoom-in-95 duration-300">
         
         {/* Header */}
-        <div className="px-8 py-6 border-b border-border flex items-center justify-between bg-popover">
+        <div className="flex items-center justify-between border-b border-zinc-200 bg-white px-8 py-6">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
               <BellIcon size={22} />
             </div>
             <div>
               <h2 className="text-xl font-bold text-foreground leading-tight">数据值班室 (Watchdog)</h2>
-              <p className="text-sm text-muted-foreground mt-0.5">自动探测业务异常并主动推送预警</p>
+              <p className="mt-0.5 text-sm text-muted-foreground">自动探测业务异常并主动推送预警</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <button 
               onClick={() => setShowAddModal(true)}
-              className="px-4 py-2 bg-primary hover:opacity-90 text-background text-sm font-medium rounded-xl transition-all shadow-md shadow-primary/20 flex items-center gap-2"
+              className="flex items-center gap-2 rounded-xl bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-zinc-800"
             >
               <PlusIcon size={16} />
               <span>新增监控</span>
             </button>
-            <button onClick={onClose} className="p-2 hover:bg-muted rounded-full text-muted-foreground transition">
+            <button onClick={onClose} className="rounded-full p-2 text-muted-foreground transition hover:bg-zinc-100">
               <CloseIcon size={20} />
             </button>
           </div>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-8 bg-muted/30">
+        <div className="flex-1 overflow-y-auto bg-zinc-50 p-8">
           {loading ? (
             <div className="flex items-center justify-center h-48 text-muted-foreground">正在加载巡检规则...</div>
           ) : rules.length === 0 ? (
@@ -135,11 +135,11 @@ export default function WatchdogPanel({ isOpen, onClose }) {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {rules.map(rule => (
-                <div key={rule.id} className="bg-popover border border-border rounded-2xl p-6 shadow-sm hover:shadow-md transition-all group">
+                <div key={rule.id} className="group rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm transition-all hover:shadow-md">
                   <div className="flex justify-between items-start mb-4">
                     <div>
-                      <h3 className="font-bold text-foreground group-hover:text-primary transition-colors">{rule.name}</h3>
-                      <div className="flex items-center gap-2 mt-1.5 text-[11px] font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded-md w-fit">
+                      <h3 className="font-bold text-foreground transition-colors group-hover:text-emerald-700">{rule.name}</h3>
+                      <div className="mt-1.5 flex w-fit items-center gap-2 rounded-md bg-zinc-100 px-2 py-0.5 text-[11px] font-mono text-muted-foreground">
                          <AlarmClockIcon size={12} />
                          {rule.schedule}
                       </div>
@@ -147,14 +147,14 @@ export default function WatchdogPanel({ isOpen, onClose }) {
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button 
                         onClick={() => handleTestRule(rule.id)}
-                        className="p-1.5 text-muted-foreground hover:text-green-500 hover:bg-green-500/10 rounded-lg transition"
+                        className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-green-500/10 hover:text-green-500"
                         title="立即测试"
                       >
                          <PlayIcon size={16} />
                       </button>
                       <button 
                         onClick={() => handleDeleteRule(rule.id)}
-                        className="p-1.5 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition"
+                        className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-rose-500/10 hover:text-rose-500"
                         title="删除"
                       >
                          <TrashIcon size={16} />
@@ -162,11 +162,11 @@ export default function WatchdogPanel({ isOpen, onClose }) {
                     </div>
                   </div>
                   
-                  <div className="bg-zinc-950 rounded-xl p-3 mb-4 text-[11px] text-primary/70 font-mono line-clamp-2">
+                  <div className="mb-4 rounded-xl bg-zinc-950 p-3 font-mono text-[11px] text-emerald-300 line-clamp-2">
                     {rule.sql}
                   </div>
 
-                  <div className="flex items-center justify-between py-3 border-t border-border mt-4">
+                  <div className="mt-4 flex items-center justify-between border-t border-zinc-200 py-3">
                     <div className="flex flex-col">
                       <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">判断条件</span>
                       <span className="text-sm font-medium text-foreground">当值 {rule.condition} {rule.threshold}</span>
@@ -186,15 +186,15 @@ export default function WatchdogPanel({ isOpen, onClose }) {
 
         {/* Add Modal */}
         {showAddModal && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-background/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="bg-popover w-full max-w-lg rounded-3xl shadow-2xl p-8 flex flex-col gap-6 animate-in zoom-in-95 duration-200 border border-border">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="flex w-full max-w-lg flex-col gap-6 rounded-[28px] border border-zinc-200 bg-white p-8 shadow-[0_24px_80px_rgba(15,23,42,0.2)] animate-in zoom-in-95 duration-200">
               <h3 className="text-xl font-bold text-foreground">配置新监控</h3>
               
               <div className="space-y-4 text-sm">
                 <div>
                   <label className="block font-semibold text-foreground mb-1.5 ml-1">规则名称</label>
                   <input 
-                    className="w-full px-4 py-3 bg-muted border-none rounded-2xl focus:ring-2 focus:ring-primary/10 transition-all outline-none text-foreground"
+                    className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-foreground outline-none transition-all focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100"
                     placeholder="例如: 每日收入异常预警"
                     value={newRule.name}
                     onChange={e => setNewRule({...newRule, name: e.target.value})}
@@ -203,7 +203,7 @@ export default function WatchdogPanel({ isOpen, onClose }) {
                 <div>
                   <label className="block font-semibold text-foreground mb-1.5 ml-1 text-xs">查询 SQL (应返回一个数值)</label>
                   <textarea 
-                    className="w-full px-4 py-3 bg-muted border-none rounded-2xl focus:ring-2 focus:ring-primary/10 transition-all outline-none font-mono text-[13px] h-24 text-foreground"
+                    className="h-24 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 font-mono text-[13px] text-foreground outline-none transition-all focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100"
                     placeholder="SELECT COUNT(*) FROM orders WHERE status='fail'"
                     value={newRule.sql}
                     onChange={e => setNewRule({...newRule, sql: e.target.value})}
@@ -213,7 +213,7 @@ export default function WatchdogPanel({ isOpen, onClose }) {
                   <div>
                     <label className="block font-semibold text-foreground mb-1.5 ml-1 text-xs">判定方式</label>
                     <select 
-                      className="w-full px-4 py-3 bg-muted border-none rounded-2xl focus:ring-2 focus:ring-primary/10 transition-all outline-none appearance-none text-foreground"
+                      className="w-full appearance-none rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-foreground outline-none transition-all focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100"
                       value={newRule.condition}
                       onChange={e => setNewRule({...newRule, condition: e.target.value})}
                     >
@@ -227,7 +227,7 @@ export default function WatchdogPanel({ isOpen, onClose }) {
                     <label className="block font-semibold text-foreground mb-1.5 ml-1 text-xs">阈值</label>
                     <input 
                       type="number"
-                      className="w-full px-4 py-3 bg-muted border-none rounded-2xl focus:ring-2 focus:ring-primary/10 transition-all outline-none text-foreground"
+                      className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-foreground outline-none transition-all focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100"
                       value={newRule.threshold}
                       onChange={e => setNewRule({...newRule, threshold: parseFloat(e.target.value)})}
                     />
@@ -236,7 +236,7 @@ export default function WatchdogPanel({ isOpen, onClose }) {
                 <div>
                   <label className="block font-semibold text-foreground mb-1.5 ml-1 text-xs">Cron 调度周期 (5段式)</label>
                   <input 
-                    className="w-full px-4 py-3 bg-muted border-none rounded-2xl focus:ring-2 focus:ring-primary/10 transition-all outline-none font-mono text-foreground"
+                    className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 font-mono text-foreground outline-none transition-all focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100"
                     value={newRule.schedule}
                     onChange={e => setNewRule({...newRule, schedule: e.target.value})}
                   />
@@ -246,13 +246,13 @@ export default function WatchdogPanel({ isOpen, onClose }) {
               <div className="flex gap-3 mt-4">
                 <button 
                   onClick={() => setShowAddModal(false)}
-                  className="flex-1 py-3 bg-muted hover:bg-muted/80 text-foreground font-bold rounded-2xl transition"
+                  className="flex-1 rounded-2xl border border-zinc-300 bg-white py-3 font-bold text-foreground transition hover:bg-zinc-50"
                 >
                   取消
                 </button>
                 <button 
                   onClick={handleAddRule}
-                  className="flex-1 py-3 bg-primary hover:opacity-90 text-background font-bold rounded-2xl transition shadow-lg shadow-primary/20"
+                  className="flex-1 rounded-2xl bg-zinc-900 py-3 font-bold text-white transition hover:bg-zinc-800"
                 >
                   确认启用
                 </button>
