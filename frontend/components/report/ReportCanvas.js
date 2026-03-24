@@ -31,7 +31,7 @@ import {
 } from '../Icons';
 import { fetchOrchestrationRuntime } from '@/lib/api';
 import { parseChartPayload } from '@/lib/chartData';
-import { convertExpertOpinionToBlock, createCanvasBlock, getBlockHeading } from '@/lib/reportCanvas';
+import { convertExpertOpinionToBlock, createCanvasBlock, generateDecisionPackBlocks, getBlockHeading } from '@/lib/reportCanvas';
 import { reportTemplates } from '@/lib/reportTemplates';
 
 function toneClass(tone = 'default') {
@@ -47,7 +47,7 @@ function stanceTone(stance = 'analysis') {
   return 'bg-sky-50 text-sky-600 border-sky-200';
 }
 
-function CanvasToolbar({ onAddBlock, onApplyTemplate, onInsertRuntime, loadingRuntime, blockCount }) {
+function CanvasToolbar({ onAddBlock, onApplyTemplate, onInsertRuntime, onGenerateDecisionPack, loadingRuntime, blockCount }) {
   const blockTypes = [
     { key: 'text', label: '文本', icon: <EditIcon size={14} /> },
     { key: 'callout', label: '提示块', icon: <AlertIcon size={14} /> },
@@ -80,6 +80,12 @@ function CanvasToolbar({ onAddBlock, onApplyTemplate, onInsertRuntime, loadingRu
             onClick={onInsertRuntime}
           >
             {loadingRuntime ? '读取中...' : '编排快照'}
+          </button>
+          <button
+            className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-stone-900 px-3 py-2 text-sm font-medium text-white hover:opacity-90 transition"
+            onClick={onGenerateDecisionPack}
+          >
+            生成决策包
           </button>
         </div>
       </div>
@@ -605,6 +611,30 @@ function BlockEditor({ block, onUpdate }) {
             <div className="mt-2 text-3xl font-semibold text-stone-900">{block.summary?.deployment_run_count ?? 0}</div>
           </div>
         </div>
+        {!!block.runs?.length && (
+          <div className="overflow-x-auto rounded-[24px] border border-stone-200 bg-white">
+            <table className="min-w-full text-sm">
+              <thead className="bg-stone-50/70">
+                <tr className="border-b border-stone-200">
+                  <th className="px-4 py-3 text-left font-semibold text-stone-600">Run</th>
+                  <th className="px-4 py-3 text-left font-semibold text-stone-600">Deployment</th>
+                  <th className="px-4 py-3 text-left font-semibold text-stone-600">状态</th>
+                  <th className="px-4 py-3 text-left font-semibold text-stone-600">时间</th>
+                </tr>
+              </thead>
+              <tbody>
+                {block.runs.map((run, index) => (
+                  <tr key={run.id || index} className="border-b border-stone-100 last:border-b-0">
+                    <td className="px-4 py-3 text-stone-800">{run.name || run.id}</td>
+                    <td className="px-4 py-3 text-stone-600">{run.deployment_name || '未绑定'}</td>
+                    <td className="px-4 py-3 text-stone-600">{run.state_name || 'Unknown'}</td>
+                    <td className="px-4 py-3 text-stone-600">{run.start_time || run.expected_start_time || '未开始'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
         <textarea
           className="w-full min-h-[120px] resize-none rounded-[24px] border border-stone-200 bg-white px-4 py-3 text-[15px] leading-8 text-stone-800 outline-none"
           value={block.note || ''}
@@ -776,11 +806,18 @@ export default function ReportCanvas({ blocks, onChange }) {
         throw new Error(response.message || '读取编排快照失败');
       }
       const stats = response.runtime?.stats || {};
+      const deployments = response.runtime?.deployments || [];
+      const deploymentMap = new Map(deployments.map((deployment) => [deployment.id, deployment.name]));
+      const runs = (response.runtime?.runs || []).slice(0, 6).map((run) => ({
+        ...run,
+        deployment_name: run.deployment_id ? deploymentMap.get(run.deployment_id) : '未绑定',
+      }));
       onChange([
         ...blocks,
         createCanvasBlock('orchestration_snapshot', {
           title: '任务编排快照',
           summary: stats,
+          runs,
           note: '记录当前 Prefect flow / deployment / run 状态，并据此更新执行计划。',
         }),
       ]);
@@ -791,12 +828,17 @@ export default function ReportCanvas({ blocks, onChange }) {
     }
   };
 
+  const generateDecisionPack = () => {
+    onChange(generateDecisionPackBlocks(blocks));
+  };
+
   return (
     <div className="space-y-5">
       <CanvasToolbar
         onAddBlock={addBlock}
         onApplyTemplate={applyTemplate}
         onInsertRuntime={insertRuntimeSnapshot}
+        onGenerateDecisionPack={generateDecisionPack}
         loadingRuntime={loadingRuntime}
         blockCount={blocks.length}
       />

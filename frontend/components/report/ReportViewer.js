@@ -254,6 +254,30 @@ function PreviewBlock({ block }) {
             <div className="mt-2 text-3xl font-semibold text-stone-900">{block.summary?.deployment_run_count ?? 0}</div>
           </div>
         </div>
+        {!!block.runs?.length && (
+          <div className="mt-5 overflow-hidden rounded-[24px] border border-stone-200">
+            <table className="min-w-full divide-y divide-stone-200 text-sm">
+              <thead className="bg-stone-50 text-left text-xs uppercase tracking-[0.18em] text-stone-500">
+                <tr>
+                  <th className="px-4 py-3 font-semibold">Run</th>
+                  <th className="px-4 py-3 font-semibold">Deployment</th>
+                  <th className="px-4 py-3 font-semibold">状态</th>
+                  <th className="px-4 py-3 font-semibold">时间</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-stone-100 bg-white text-stone-700">
+                {block.runs.map((run, index) => (
+                  <tr key={run.id || `${run.name}-${index}`}>
+                    <td className="px-4 py-3 font-medium text-stone-900">{run.name || 'Unnamed run'}</td>
+                    <td className="px-4 py-3">{run.deployment_name || 'Unassigned'}</td>
+                    <td className="px-4 py-3">{run.state_name || 'Unknown'}</td>
+                    <td className="px-4 py-3">{run.start_time || run.expected_start_time || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
         {block.note && <div className="mt-4 rounded-[22px] bg-stone-50 px-5 py-4 text-sm leading-7 text-stone-700">{block.note}</div>}
       </section>
     );

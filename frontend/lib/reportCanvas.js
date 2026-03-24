@@ -12,6 +12,49 @@ export function createCanvasBlock(type, overrides = {}) {
   };
 }
 
+export function generateDecisionPackBlocks(blocks = []) {
+  const hero = blocks.find((block) => block.type === 'hero');
+  const summarySources = blocks
+    .filter((block) => block.type === 'text' || block.type === 'callout')
+    .slice(0, 3)
+    .map((block) => `- ${block.title}: ${(block.content || '').split('\n').find(Boolean) || ''}`)
+    .join('\n');
+  const actions = blocks.find((block) => block.type === 'action_items');
+  const actionItems = (actions?.items || []).slice(0, 5);
+  const risks = blocks
+    .filter((block) => block.type === 'expert_opinion' && block.stance === 'risk')
+    .slice(0, 3)
+    .map((block) => `- ${block.title}: ${(block.content || '').split('\n').find(Boolean) || ''}`)
+    .join('\n');
+
+  return [
+    createCanvasBlock('hero', {
+      title: `${hero?.title || '未命名报告'} · 决策包`,
+      subtitle: '用于高层同步的浓缩版摘要、风险与执行动作',
+      badge: 'Decision Pack',
+      createdAt: new Date().toLocaleString(),
+    }),
+    createCanvasBlock('text', {
+      title: '高层摘要',
+      content: summarySources || '补充核心判断、关键数据和结论。',
+      tone: 'summary',
+    }),
+    createCanvasBlock('callout', {
+      title: '核心风险',
+      content: risks || '当前暂无显著风险，请补充依赖与潜在阻塞。',
+      tone: 'note',
+    }),
+    createCanvasBlock('action_items', {
+      title: '关键动作',
+      items: actionItems.length
+        ? actionItems
+        : [
+            { id: makeId('task'), title: '补充关键动作', owner: '待分配', dueDate: '待定', status: 'todo', priority: 'high' },
+          ],
+    }),
+  ];
+}
+
 export function convertExpertOpinionToBlock(expertBlock, targetType = 'action_items') {
   const title = expertBlock?.title || expertBlock?.role || '专家观点';
   const content = expertBlock?.content || '';
@@ -252,7 +295,10 @@ export function exportCanvasToMarkdown(blocks = []) {
           `- Recent Runs: ${summary.recent_run_count ?? 0}`,
           `- Bound Runs: ${summary.deployment_run_count ?? 0}`,
         ].join('\n');
-        return `## ${block.title || '任务编排快照'}\n\n${rows}\n\n${block.note || ''}`.trim();
+        const runs = (block.runs || [])
+          .map((run) => `- ${run.name || run.id}: ${run.state_name || 'Unknown'} | ${run.deployment_name || '未绑定'} | ${run.start_time || run.expected_start_time || '未开始'}`)
+          .join('\n');
+        return `## ${block.title || '任务编排快照'}\n\n${rows}\n\n${runs}\n\n${block.note || ''}`.trim();
       }
 
       return `## ${block.title || '内容块'}\n\n${block.content || ''}`.trim();
