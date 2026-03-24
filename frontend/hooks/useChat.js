@@ -7,6 +7,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { streamChat, fetchMessages } from '@/lib/api';
+import { mergeStreamText, upsertToolStep } from '@/lib/streaming';
 
 // 生成唯一 ID
 function generateId() {
@@ -124,20 +125,23 @@ export function useChat(threadId) {
 
       const handle = streamChat(content, threadId, model, customSystemPrompt, apiKey, baseUrl, databaseUrl, {
         onToken: (token) => {
-          updateAssistant((m) => ({ ...m, content: m.content + token }));
+          updateAssistant((m) => ({ ...m, content: mergeStreamText(m.content, token) }));
         },
 
         onReasoning: (token) => {
-          updateAssistant((m) => ({ ...m, reasoning: (m.reasoning || '') + token }));
+          updateAssistant((m) => ({
+            ...m,
+            reasoning: mergeStreamText(m.reasoning || '', token),
+          }));
         },
 
         onToolStart: (id, name) => {
           updateAssistant((m) => ({
             ...m,
-            toolSteps: [
-              ...m.toolSteps,
-              { id, name, input: '', output: '', status: 'running', _rawInput: '' },
-            ],
+            toolSteps: upsertToolStep(
+              m.toolSteps,
+              { id, name, input: '', output: '', status: 'running', _rawInput: '' }
+            ),
           }));
         },
 
@@ -162,7 +166,7 @@ export function useChat(threadId) {
                   ? newInput.slice(0, 200) + '...'
                   : newInput;
               }
-              return { ...t, input: displayInput, _rawInput: newInput };
+              return { ...t, input: displayInput, _rawInput: newInput, status: 'running' };
             }),
           }));
         },

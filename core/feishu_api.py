@@ -218,3 +218,23 @@ def build_feishu_card_v2(
             }
         }
     }
+def send_feishu_card(webhook_url: str, card_payload: dict):
+    """通过 Webhook 发送飞书卡片"""
+    if not webhook_url:
+        print("未配置 FEISHU_WEBHOOK_URL，跳过通知。")
+        return
+    
+    # 飞书官方 V2 卡片要求最外层是 msg_type: "interactive" 且包含 "card"
+    payload = json.dumps(card_payload).encode("utf-8")
+    req = urllib.request.Request(webhook_url, data=payload)
+    req.add_header("Content-Type", "application/json; charset=utf-8")
+
+    try:
+        with urllib.request.urlopen(req) as response:
+            result = json.loads(response.read().decode("utf-8"))
+            if result.get("code") != 0:
+                print(f"发送飞书卡片失败: {result.get('msg')}")
+            else:
+                print("✅ 飞书卡片发送成功")
+    except Exception as e:
+        print(f"发送飞书卡片遇到网络异常: {e}")

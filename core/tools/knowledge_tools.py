@@ -23,20 +23,25 @@ def get_available_knowledge_str() -> str:
     skills = _get_markdown_files(SKILLS_DIR)
     workflows = _get_markdown_files(WORKFLOWS_DIR)
     
-    knowledge_prompt = "## 专属知识库 (Skills & Workflows)\n"
+    has_skills = len(skills) > 0
+    has_workflows = len(workflows) > 0
+    
+    if not has_skills and not has_workflows:
+        return ""
+    
+    knowledge_prompt = "\n\n## 专属知识库 (Skills & Workflows)\n"
     knowledge_prompt += "你被授权访问本地的 `skills` 和 `workflows` 目录来增强你的专业能力或遵循特定的业务流。\n"
     
-    if skills:
+    if has_skills:
         knowledge_prompt += f"\n- **可用 Skills (独立技能/经验准则)**: {', '.join(skills)}\n"
-    else:
-        knowledge_prompt += "\n- **可用 Skills**: (暂无)\n"
         
-    if workflows:
+    if has_workflows:
         knowledge_prompt += f"- **可用 Workflows (SOP/业务标准指引)**: {', '.join(workflows)}\n"
-    else:
-        knowledge_prompt += "- **可用 Workflows**: (暂无)\n"
         
-    knowledge_prompt += "\n**重要指示：**如果在对话中用户提及或你认为当前分析匹配到了上述某个 `.md` 知识库文件，你必须立刻调用 `read_knowledge_doc_tool` 工具并传入对应的文件名去阅读其内容，然后严格遵守该文件中定下的执行准则和要求。\n"
+    knowledge_prompt += "\n**⚠️ 重要规则：**\n"
+    knowledge_prompt += "- **只有当用户明确提及某个文件名或相关主题时**，你才需要调用 `read_knowledge_doc_tool` 去读取\n"
+    knowledge_prompt += "- 用户没有提及时，**严禁主动读取**任何文件，更不要自我介绍或讨论这些文件\n"
+    knowledge_prompt += "- 读完后必须严格遵守该文件中定下的执行准则和要求\n"
     
     return knowledge_prompt
 

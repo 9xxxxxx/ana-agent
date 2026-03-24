@@ -18,7 +18,7 @@ from core.config import settings
 
 from langchain_core.messages import HumanMessage, AIMessageChunk, ToolMessage, AIMessage
 
-from core.database import test_connection, set_session_db_url
+from core.database import test_connection, set_session_db_url, format_database_error
 from core.agent import create_agent_graph
 from core.scheduler import start_scheduler, stop_scheduler, add_watchdog_job, remove_job
 from core.watchdog.rules_store import WatchdogRule, load_rules, add_rule, delete_rule
@@ -53,6 +53,22 @@ diagnostics_service = SystemDiagnosticsService(
     prefect_home=PREFECT_HOME,
     prefect_db_path=PREFECT_SERVER_DB,
 )
+
+LOOP_SENSITIVE_TOOLS = {"list_schemas_tool", "list_tables_tool", "describe_table_tool"}
+
+
+def normalize_tool_input(raw_input: str) -> str:
+    return " ".join((raw_input or "").split())
+
+
+def should_abort_tool_loop(tool_name: str, raw_input: str, seen_signatures: dict[tuple[str, str], int]) -> bool:
+    """检测明显的工具死循环，避免同一勘探工具在同一轮里重复打转。"""
+    if tool_name not in LOOP_SENSITIVE_TOOLS:
+        return False
+
+    signature = (tool_name, normalize_tool_input(raw_input))
+    seen_signatures[signature] = seen_signatures.get(signature, 0) + 1
+    return seen_signatures[signature] > 2
 
 
 class ModelTestRequest(BaseModel):
@@ -173,34 +189,15 @@ async def chat_endpoint(request: Request):
         "configurable": {
             "thread_id": thread_id, 
             "system_prompt": custom_system_prompt
-        }
+        },
+        "recursion_limit": 12,
     }
 
     async def event_generator():
         try:
-            # 状态维护
-            current_state = await request_graph.aget_state(config)
-            messages = current_state.values.get("messages", []) if current_state and hasattr(current_state, "values") else []
-
-            if messages:
-                completed_tool_call_ids = {
-                    m.tool_call_id for m in messages
-                    if isinstance(m, ToolMessage) and getattr(m, 'tool_call_id', None)
-                }
-                fallback_msgs = []
-                for msg in messages:
-                    if isinstance(msg, AIMessage) and hasattr(msg, "tool_calls") and msg.tool_calls:
-                        missing_calls = [tc for tc in msg.tool_calls if tc["id"] not in completed_tool_call_ids]
-                        for tc in missing_calls:
-                            fallback_msgs.append(ToolMessage(
-                                content="[System] 上次操作未完成，已自动恢复。",
-                                tool_call_id=tc["id"]
-                            ))
-                if fallback_msgs:
-                    await request_graph.aupdate_state(config, {"messages": fallback_msgs})
-
             # 流式调用
             tool_steps = {}
+            tool_signature_counts = {}
             async for chunk, metadata in request_graph.astream(
                 {"messages": [HumanMessage(content=message)]},
                 stream_mode="messages",
@@ -253,11 +250,18 @@ async def chat_endpoint(request: Request):
                         except: pass
 
                     if tc_id and tc_id in tool_steps:
+                        tool_name = tool_steps[tc_id]["name"]
+                        tool_input = tool_steps[tc_id]["input"]
+                        if should_abort_tool_loop(tool_name, tool_input, tool_signature_counts):
+                            raise RuntimeError(
+                                f"检测到 `{tool_name}` 重复调用过多次，已中止本轮回答以防止死循环。"
+                                "请调整提示词或改问更具体的问题后重试。"
+                            )
                         display_output = output_text if len(output_text) < 500 else output_text[:500] + "..."
                         yield {"event": "tool_end", "data": json.dumps({"id": tc_id, "output": display_output})}
                         file_event = storage_service.extract_file_event(tool_steps[tc_id]["name"], output_text)
                         if file_event:
-                            yield {"event": "file", "data": json.dumps(file_event.__dict__)}
+                            yield {"event": "file", "data": json.dumps(file_event.__dict__)}     
                         del tool_steps[tc_id]
 
             yield {"event": "done", "data": "{}"}
@@ -409,7 +413,7 @@ async def test_db_connection_api(request: Request):
         eng = get_engine_by_url(url)
         with eng.connect() as conn: conn.execute(text("SELECT 1"))
         return {"success": True}
-    except Exception as e: return {"success": False, "message": str(e)}
+    except Exception as e: return {"success": False, "message": format_database_error(e)}
 
 @app.post("/api/db/connect")
 async def connect_db_api(request: Request):

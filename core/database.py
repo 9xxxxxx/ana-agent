@@ -1,5 +1,7 @@
 import contextvars
 from pathlib import Path
+from urllib.parse import quote, unquote_to_bytes, urlsplit, urlunsplit
+
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 import pandas as pd
@@ -19,12 +21,64 @@ def get_session_db_url() -> str | None:
 # 引擎缓存池，避免同一 URL 反复创建连接池
 _engine_cache = {}
 
+
+def _decode_url_component(value: str, safe: str = "") -> str:
+    """将百分号编码的 URL 片段统一转为 UTF-8 编码，兼容历史 GBK/GB18030 编码。"""
+    if not value or "%" not in value:
+        return value
+
+    raw_bytes = unquote_to_bytes(value)
+    for encoding in ("utf-8", "gb18030", "latin-1"):
+        try:
+            return quote(raw_bytes.decode(encoding), safe=safe)
+        except UnicodeDecodeError:
+            continue
+    return value
+
+
+def normalize_database_url(url: str) -> str:
+    """规范化数据库连接串，避免非 UTF-8 百分号编码导致 URL 解析失败。"""
+    if not url or "%" not in url:
+        return url
+
+    parts = urlsplit(url)
+    netloc = parts.netloc
+    path = parts.path
+
+    if "@" in netloc:
+        userinfo, hostinfo = netloc.rsplit("@", 1)
+        if ":" in userinfo:
+            username, password = userinfo.split(":", 1)
+            userinfo = f"{_decode_url_component(username)}:{_decode_url_component(password)}"
+        else:
+            userinfo = _decode_url_component(userinfo)
+        netloc = f"{userinfo}@{hostinfo}"
+
+    if path and "%" in path:
+        leading_slashes = len(path) - len(path.lstrip("/"))
+        database_name = path[leading_slashes:]
+        path = ("/" * leading_slashes) + _decode_url_component(database_name, safe="/")
+
+    return urlunsplit((parts.scheme, netloc, path, parts.query, parts.fragment))
+
+
+def format_database_error(exc: Exception) -> str:
+    """格式化数据库异常，兼容 psycopg2 在 Windows 中文环境下的错误解码问题。"""
+    if isinstance(exc, UnicodeDecodeError) and isinstance(exc.object, (bytes, bytearray)):
+        raw = bytes(exc.object)
+        for encoding in ("utf-8", "gb18030", "gbk", "latin-1"):
+            try:
+                return raw.decode(encoding).strip()
+            except UnicodeDecodeError:
+                continue
+    return str(exc)
+
 def get_engine_by_url(url: str):
     """根据指定的 URL 获取或创建数据库引擎实例"""
     if not url:
         raise ValueError("数据库 URL 不能为空。")
 
-    sync_url = url.replace("+asyncpg", "+psycopg2")
+    sync_url = normalize_database_url(url.replace("+asyncpg", "+psycopg2"))
     parsed_url = make_url(sync_url)
     backend = parsed_url.get_backend_name()
 
@@ -34,7 +88,8 @@ def get_engine_by_url(url: str):
         if not db_path.is_absolute():
             parsed_url = parsed_url.set(database=str((Path.cwd() / db_path).resolve()))
 
-    cache_key = str(parsed_url)
+    engine_url = parsed_url.render_as_string(hide_password=False)
+    cache_key = engine_url
     if cache_key not in _engine_cache:
         engine_kwargs = {}
         if backend in {"postgresql", "mysql", "mariadb"}:
@@ -48,7 +103,7 @@ def get_engine_by_url(url: str):
         elif backend == "sqlite":
             engine_kwargs["connect_args"] = {"check_same_thread": False}
 
-        engine = create_engine(cache_key, **engine_kwargs)
+        engine = create_engine(engine_url, **engine_kwargs)
         _engine_cache[cache_key] = engine
     return _engine_cache[cache_key]
 
@@ -78,10 +133,10 @@ def test_connection() -> bool:
         # 如果是数据库 URL 未配置的错误，不打印错误信息
         if "数据库引擎未初始化" in str(e) or "DATABASE_URL" in str(e):
             return False
-        print(f"Database connection error: {e}")
+        print(f"Database connection error: {format_database_error(e)}")
         return False
     except Exception as e:
-        print(f"Database connection error: {e}")
+        print(f"Database connection error: {format_database_error(e)}")
         return False
 
 def run_query_to_dataframe(query: str) -> pd.DataFrame:
