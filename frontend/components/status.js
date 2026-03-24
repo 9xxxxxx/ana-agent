@@ -73,3 +73,35 @@ export function InlineFeedback({ tone = 'info', title, message }) {
 export function SkeletonBlock({ className = '' }) {
   return <div className={cn('animate-pulse rounded-2xl bg-zinc-200/70', className)} />;
 }
+
+export function StatsSkeleton({ count = 3 }) {
+  return (
+    <div className="grid gap-4 md:grid-cols-3">
+      {Array.from({ length: count }).map((_, index) => (
+        <div key={index} className={cn(ui.panel, 'p-5')}>
+          <SkeletonBlock className="h-3 w-24" />
+          <SkeletonBlock className="mt-4 h-10 w-20" />
+          <SkeletonBlock className="mt-3 h-3 w-28" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function ListSkeleton({ count = 3 }) {
+  return (
+    <div className="space-y-4">
+      {Array.from({ length: count }).map((_, index) => (
+        <div key={index} className={cn(ui.surface, 'p-5')}>
+          <SkeletonBlock className="h-4 w-40" />
+          <SkeletonBlock className="mt-3 h-3 w-full" />
+          <SkeletonBlock className="mt-2 h-3 w-3/4" />
+          <div className="mt-4 flex gap-2">
+            <SkeletonBlock className="h-8 w-24 rounded-full" />
+            <SkeletonBlock className="h-8 w-20 rounded-full" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
