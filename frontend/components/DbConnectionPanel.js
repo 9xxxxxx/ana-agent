@@ -189,19 +189,19 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-[10000] p-4 animate-in fade-in duration-200">
-      <div className="bg-popover rounded-2xl w-full max-w-[500px] max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 duration-300 border border-border">
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="flex max-h-[90vh] w-full max-w-[560px] flex-col overflow-hidden rounded-[28px] border border-zinc-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.2)] animate-in slide-in-from-bottom-4 duration-300">
         
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/30">
+        <div className="flex items-center justify-between border-b border-zinc-200 bg-zinc-50 px-6 py-4">
           <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-primary/10 text-primary rounded-lg">
+            <div className="rounded-lg bg-emerald-50 p-1.5 text-emerald-700">
               <DatabaseIcon size={18} />
             </div>
             <h3 className="text-[1.1rem] font-semibold text-foreground">数据库连接配置</h3>
           </div>
           <button 
-            className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+            className="rounded-lg p-1.5 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900"
             onClick={onClose}
           >
             <CloseIcon size={20} />
@@ -209,21 +209,21 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-border bg-muted">
+        <div className="flex border-b border-zinc-200 bg-zinc-50">
           <button
-            className={`flex-1 py-3 text-sm font-medium transition-colors border-b-2 ${activeTab === 'form' ? 'border-primary text-primary bg-popover' : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
+            className={`flex-1 border-b-2 py-3 text-sm font-medium transition-colors ${activeTab === 'form' ? 'border-emerald-600 bg-white text-emerald-700' : 'border-transparent text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900'}`}
             onClick={() => setActiveTab('form')}
           >
             表单配置
           </button>
           <button
-            className={`flex-1 py-3 text-sm font-medium transition-colors border-b-2 ${activeTab === 'custom' ? 'border-primary text-primary bg-popover' : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
+            className={`flex-1 border-b-2 py-3 text-sm font-medium transition-colors ${activeTab === 'custom' ? 'border-emerald-600 bg-white text-emerald-700' : 'border-transparent text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900'}`}
             onClick={() => setActiveTab('custom')}
           >
             自定义URL
           </button>
           <button
-            className={`flex-1 py-3 text-sm font-medium transition-colors border-b-2 ${activeTab === 'saved' ? 'border-primary text-primary bg-popover' : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
+            className={`flex-1 border-b-2 py-3 text-sm font-medium transition-colors ${activeTab === 'saved' ? 'border-emerald-600 bg-white text-emerald-700' : 'border-transparent text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900'}`}
             onClick={() => setActiveTab('saved')}
           >
             已保存 ({savedConfigs.length})
@@ -233,10 +233,10 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
         {/* Body */}
         <div className="p-6 overflow-y-auto min-h-[300px]">
           {activeTab !== 'saved' && (
-            <div className={`mb-5 rounded-xl border px-4 py-3 text-sm ${
+            <div className={`mb-5 rounded-2xl border px-4 py-3 text-sm ${
               verifiedUrl && verifiedUrl === currentUrl
                 ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                : 'border-amber-200 bg-amber-50 text-amber-800'
+                : 'border-zinc-200 bg-zinc-50 text-zinc-700'
             }`}>
               {verifiedUrl && verifiedUrl === currentUrl
                 ? '当前连接参数已通过测试，可以保存并连接。'
@@ -249,7 +249,7 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-medium text-foreground">数据库类型</label>
                 <select 
-                  className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-foreground transition-all focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-100"
                   value={dbType} 
                   onChange={(e) => setDbType(e.target.value)}
                 >
@@ -264,7 +264,7 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
                   <label className="text-sm font-medium text-foreground">数据库文件路径</label>
                   <input
                     type="text"
-                    className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                    className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-foreground transition-all focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-100"
                     value={sqlitePath}
                     onChange={(e) => setSqlitePath(e.target.value)}
                     placeholder="例如: ./data/mydb.sqlite"
@@ -277,7 +277,7 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
                       <label className="text-sm font-medium text-foreground">主机名</label>
                       <input
                         type="text"
-                        className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                        className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-foreground transition-all focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-100"
                         value={host}
                         onChange={(e) => setHost(e.target.value)}
                         placeholder="localhost"
@@ -287,7 +287,7 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
                       <label className="text-sm font-medium text-foreground">端口</label>
                       <input
                         type="number"
-                        className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                        className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-foreground transition-all focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-100"
                         value={port}
                         onChange={(e) => setPort(parseInt(e.target.value) || '')}
                       />
@@ -310,7 +310,7 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
                       <label className="text-sm font-medium text-foreground">用户名</label>
                       <input
                         type="text"
-                        className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                        className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-foreground transition-all focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-100"
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
                         placeholder="postgres"
@@ -320,7 +320,7 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
                       <label className="text-sm font-medium text-foreground">密码</label>
                       <input
                         type="password"
-                        className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                        className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-foreground transition-all focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-100"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="••••••••"
@@ -336,13 +336,13 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-foreground">自定义连接 URI</label>
               <textarea
-                className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none"
+                className="w-full resize-none rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-foreground transition-all focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-100"
                 value={customUrl}
                 onChange={(e) => setCustomUrl(e.target.value)}
                 placeholder="例如: postgresql+psycopg2://user:pass@localhost:5432/dbname"
                 rows={4}
               />
-              <div className="text-xs text-primary mt-1">支持标准 SQLAlchemy 连接字符串格式</div>
+              <div className="mt-1 text-xs text-emerald-700">支持标准 SQLAlchemy 连接字符串格式</div>
             </div>
           )}
 
@@ -355,20 +355,20 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
                 </div>
               ) : (
                 savedConfigs.map(config => (
-                  <div key={config.id} className="flex items-center justify-between p-3.5 bg-muted/30 border border-border rounded-xl hover:border-border/80 hover:bg-muted/50 transition-colors">
+                  <div key={config.id} className="flex items-center justify-between rounded-2xl border border-zinc-200 bg-zinc-50 p-3.5 transition-colors hover:border-zinc-300 hover:bg-zinc-100">
                     <div className="flex flex-col min-w-0 pr-4">
                       <div className="text-sm font-semibold text-foreground truncate">{config.name}</div>
-                      <div className="text-xs text-muted-foreground mt-0.5 uppercase tracking-wider">{config.type}</div>
+                      <div className="mt-0.5 text-xs uppercase tracking-wider text-zinc-500">{config.type}</div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <button 
-                        className="flex items-center justify-center px-4 py-1.5 bg-primary text-background hover:opacity-90 text-xs font-medium rounded-lg transition-colors shadow-sm"
+                        className="flex items-center justify-center rounded-xl bg-zinc-900 px-4 py-1.5 text-xs font-medium text-white shadow-sm transition-colors hover:bg-zinc-800"
                         onClick={() => handleUseSaved(config)}
                       >
                         连接
                       </button>
                       <button 
-                        className="p-1.5 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-lg border border-transparent hover:border-red-500/20 transition-all"
+                        className="rounded-lg border border-transparent p-1.5 text-zinc-500 transition-all hover:border-red-500/20 hover:bg-red-500/10 hover:text-red-500"
                         onClick={() => handleDeleteSaved(config.id)}
                       >
                         <TrashIcon size={14} />
@@ -381,7 +381,7 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
           )}
 
           {testResult && (
-            <div className={`mt-6 p-3 rounded-lg text-sm flex items-start gap-2 ${testResult.success ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+            <div className={`mt-6 flex items-start gap-2 rounded-xl border p-3 text-sm ${testResult.success ? 'border-green-200 bg-green-50 text-green-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
               {testResult.success ? <CheckIcon size={16} className="mt-0.5 shrink-0" /> : <CloseIcon size={16} className="mt-0.5 shrink-0" />}
               <span className="leading-relaxed whitespace-pre-wrap">{testResult.message}</span>
             </div>
@@ -390,16 +390,16 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
 
         {/* Footer */}
         {activeTab !== 'saved' && (
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-muted/30">
+          <div className="flex items-center justify-end gap-3 border-t border-zinc-200 bg-zinc-50 px-6 py-4">
             <button
-              className="px-5 py-2 text-sm font-medium text-foreground bg-popover border border-border hover:bg-muted rounded-lg transition-colors shadow-sm disabled:opacity-50"
+              className="rounded-xl border border-zinc-300 bg-white px-5 py-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-zinc-50 disabled:opacity-50"
               onClick={handleTest}
               disabled={testing}
             >
               {testing ? '测试中...' : '测试连接'}
             </button>
             <button
-              className="px-5 py-2 text-sm font-medium text-background bg-primary hover:opacity-90 shadow-sm border border-transparent rounded-lg transition-colors disabled:opacity-50"
+              className="rounded-xl border border-transparent bg-zinc-900 px-5 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-zinc-800 disabled:opacity-50"
               onClick={handleSaveAndConnect}
               disabled={saving || testing}
             >

@@ -204,30 +204,30 @@ export default function SettingsModal({ isOpen, onClose }) {
   ];
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm animate-in fade-in duration-200">
       <div 
         className="fixed inset-0"
         onClick={onClose}
       />
-      <div className="relative w-full max-w-3xl bg-popover rounded-2xl shadow-2xl border border-border flex flex-col md:flex-row h-[80vh] max-h-[600px] overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
+      <div className="relative flex h-[80vh] max-h-[640px] w-full max-w-4xl flex-col overflow-hidden rounded-[28px] border border-zinc-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.2)] md:flex-row animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
         
         {/* 左侧 Tab 栏 */}
-        <div className="w-full md:w-56 bg-muted border-r border-border flex flex-col pt-4">
-          <div className="px-5 pb-4 md:border-b border-border flex items-center justify-between">
+        <div className="flex w-full flex-col border-r border-zinc-200 bg-zinc-50 pt-4 md:w-60">
+          <div className="flex items-center justify-between px-5 pb-4 md:border-b md:border-zinc-200">
             <h2 className="text-lg font-semibold text-foreground">设置</h2>
             <button className="md:hidden p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition" onClick={onClose}>
               <CloseIcon size={18} />
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1 flex md:block overflow-x-auto md:overflow-x-hidden no-scrollbar">
+          <div className="no-scrollbar flex flex-1 overflow-x-auto overflow-y-auto px-3 py-3 md:block md:overflow-x-hidden space-y-1">
             {tabs.map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`w-auto md:w-full shrink-0 flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] font-medium transition-colors ${
                   activeTab === tab.id 
-                    ? 'bg-popover text-foreground shadow-sm border border-border' 
-                    : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground border border-transparent'
+                    ? 'border border-zinc-200 bg-white text-zinc-950 shadow-sm' 
+                    : 'border border-transparent text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900'
                 }`}
               >
                 {tab.icon}
@@ -238,9 +238,9 @@ export default function SettingsModal({ isOpen, onClose }) {
         </div>
 
         {/* 右侧内容区 */}
-        <div className="flex-1 bg-popover relative flex flex-col">
+        <div className="relative flex flex-1 flex-col bg-white">
           <button 
-            className="hidden md:flex absolute right-4 top-4 p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors z-10" 
+            className="absolute right-4 top-4 z-10 hidden rounded-lg p-1.5 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 md:flex" 
             onClick={onClose}
           >
             <CloseIcon size={18} />
@@ -282,10 +282,10 @@ export default function SettingsModal({ isOpen, onClose }) {
                   <div>
                     <h3 className="text-[15px] font-semibold text-foreground mb-2">模型服务商配置</h3>
                     <p className="text-sm text-muted-foreground mb-4">您可以覆盖默认的大模型凭据以使用自己的 API Key。留空则使用本地环境变量默认值。</p>
-                    <div className={`mb-4 rounded-xl border px-4 py-3 text-sm ${
+                    <div className={`mb-4 rounded-2xl border px-4 py-3 text-sm ${
                       lastTestSuccess && lastTestedFingerprint === currentFingerprint
                         ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                        : 'border-amber-200 bg-amber-50 text-amber-800'
+                        : 'border-zinc-200 bg-zinc-50 text-zinc-700'
                     }`}>
                       {lastTestSuccess && lastTestedFingerprint === currentFingerprint
                         ? '当前模型配置已通过测试，可以放心使用。'
@@ -297,7 +297,7 @@ export default function SettingsModal({ isOpen, onClose }) {
                           <div className="flex items-center justify-between mb-1">
                           <label className="block text-xs font-medium text-muted-foreground">默认分析模型</label>
                           <button 
-                            className={`text-[11px] font-semibold flex items-center gap-1 transition-colors ${isTesting ? 'text-gray-400 cursor-not-allowed' : 'text-indigo-600 hover:text-indigo-500'}`}
+                            className={`flex items-center gap-1 text-[11px] font-semibold transition-colors ${isTesting ? 'cursor-not-allowed text-zinc-400' : 'text-emerald-700 hover:text-emerald-600'}`}
                             onClick={() => handleTestConnection()}
                             disabled={isTesting}
                           >
@@ -305,7 +305,7 @@ export default function SettingsModal({ isOpen, onClose }) {
                           </button>
                         </div>
                         <select 
-                          className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-foreground/10 transition-colors bg-muted focus:bg-popover text-foreground appearance-none cursor-pointer"
+                          className="w-full cursor-pointer rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-foreground transition-colors focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-100"
                           value={selectedModel}
                           onChange={handleModelChange}
                         >
@@ -320,12 +320,12 @@ export default function SettingsModal({ isOpen, onClose }) {
                           <input
                             type={showApiKey ? "text" : "password"}
                             placeholder="sk-..."
-                            className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-foreground/10 transition-colors bg-muted focus:bg-popover text-foreground"
+                            className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-foreground transition-colors focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-100"
                             value={apiKey}
                             onChange={(e) => setApiKey(e.target.value)}
                           />
                           <button 
-                            className="absolute right-3 top-[26px] text-muted-foreground hover:text-foreground transition-colors"
+                            className="absolute right-3 top-[26px] text-zinc-500 transition-colors hover:text-zinc-900"
                             onClick={() => setShowApiKey(!showApiKey)}
                           >
                             {showApiKey ? '🔓' : '🔒'}
@@ -336,7 +336,7 @@ export default function SettingsModal({ isOpen, onClose }) {
                           <input
                             type="text"
                             placeholder="https://api.openai.com/v1"
-                            className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-foreground/10 transition-colors bg-muted focus:bg-popover text-foreground"
+                            className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-foreground transition-colors focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-100"
                             value={baseUrl}
                             onChange={(e) => setBaseUrl(e.target.value)}
                           />
@@ -347,29 +347,29 @@ export default function SettingsModal({ isOpen, onClose }) {
 
                   {/* 测试进度显示 */}
                   {isTesting && testSteps.length > 0 && (
-                    <div className="mt-4 p-4 bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl">
+                    <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
                       <div className="flex items-center gap-2 mb-3">
-                        <SpinnerIcon size={16} className="animate-spin text-indigo-600" />
-                        <span className="text-sm font-medium text-indigo-900">连接测试进行中...</span>
+                        <SpinnerIcon size={16} className="animate-spin text-emerald-600" />
+                        <span className="text-sm font-medium text-emerald-900">连接测试进行中...</span>
                       </div>
                       <div className="space-y-2">
                         {testSteps.map((step, index) => (
                           <div key={step.id} className="flex items-start gap-3">
-                            <div className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium
+                            <div className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-xs font-medium
                               ${step.status === 'completed' ? 'bg-green-500 text-white' : 
-                                step.status === 'running' ? 'bg-indigo-500 text-white animate-pulse' : 
+                                step.status === 'running' ? 'bg-emerald-500 text-white animate-pulse' : 
                                 step.status === 'failed' ? 'bg-red-500 text-white' : 
-                                'bg-gray-200 text-gray-500'}">
+                                'bg-zinc-200 text-zinc-500'}`}>
                               {step.status === 'completed' ? '✓' : 
                                step.status === 'running' ? '...' : 
                                step.status === 'failed' ? '✗' : 
                                index + 1}
                             </div>
                             <div className="flex-1">
-                              <p className={`text-sm ${step.status === 'running' ? 'text-indigo-700 font-medium' : 
+                              <p className={`text-sm ${step.status === 'running' ? 'font-medium text-emerald-700' : 
                                 step.status === 'completed' ? 'text-green-700' : 
                                 step.status === 'failed' ? 'text-red-700' : 
-                                'text-gray-600'}`}>
+                                'text-zinc-600'}`}>
                                 {step.message}
                               </p>
                             </div>
@@ -379,13 +379,17 @@ export default function SettingsModal({ isOpen, onClose }) {
                     </div>
                   )}
 
-                  <hr className="border-border my-4" />
+                  <hr className="my-4 border-zinc-200" />
                   <div>
                     <h3 className="text-[15px] font-semibold text-foreground mb-2">系统级核心提示词</h3>
-                    <p className="text-sm text-muted-foreground mb-4">修改 System Prompt 可以改变 Agent 分析数据时的风格倾向。注意：这可能会破坏图表生成的兼容性。</p>
+                    <p className="mb-4 text-sm text-muted-foreground">修改 System Prompt 可以改变 Agent 分析数据时的风格倾向。注意：这可能会破坏图表生成的兼容性。</p>
+                    <div className="mb-4 rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+                      本地 `.env` 里的 `OPENAI_API_KEY` 和 `OPENAI_API_BASE` 是后端默认值。
+                      这里填写的 API Key / Base URL 只会覆盖当前浏览器前端发起的请求，不会改写服务器 `.env`。
+                    </div>
                     <textarea 
                       rows={6}
-                      className="w-full p-4 border border-border rounded-xl bg-muted text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-foreground/10 focus:bg-popover transition-all resize-none"
+                      className="w-full resize-none rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-foreground transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-100"
                       value={systemPrompt}
                       onChange={(e) => setSystemPrompt(e.target.value)}
                     />
@@ -395,14 +399,14 @@ export default function SettingsModal({ isOpen, onClose }) {
                     <button
                       onClick={() => handleTestConnection({ saveAfterTest: true })}
                       disabled={isTesting}
-                      className="mr-3 px-4 py-2 border border-stone-300 bg-white text-stone-700 hover:bg-stone-50 text-sm font-medium rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                      className="mr-3 rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 disabled:opacity-50"
                     >
                       {isTesting ? '测试中...' : '测试并保存'}
                     </button>
                     <button 
                       onClick={handleSavePrompt}
                       disabled={isTesting}
-                      className="px-4 py-2 bg-foreground text-background hover:opacity-90 text-sm font-medium rounded-lg transition-colors shadow-sm"
+                      className="rounded-xl bg-zinc-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-zinc-800"
                       >
                       保存设置
                     </button>

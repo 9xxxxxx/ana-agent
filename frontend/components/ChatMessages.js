@@ -33,7 +33,7 @@ function CopyButton({ text }) {
 
   return (
     <button
-      className={`p-1.5 rounded-md flex items-center justify-center transition-colors ${copied ? 'text-green-600 bg-green-50' : 'text-gray-400 hover:text-gray-700 hover:bg-gray-100'}`}
+      className={`flex items-center justify-center rounded-md p-1.5 transition-colors ${copied ? 'bg-green-50 text-green-600' : 'text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700'}`}
       onClick={handleCopy}
       title={copied ? '已复制' : '复制代码/文本'}
     >
@@ -59,12 +59,12 @@ function AttachmentPreview({ files }) {
                 width={64}
                 height={64}
                 unoptimized
-                className="h-16 w-16 object-cover rounded-lg border border-gray-200"
+                className="h-16 w-16 rounded-lg border border-zinc-200 object-cover"
               />
             ) : (
-              <a href={file} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm hover:bg-gray-50 transition-colors">
-                <FileIcon size={16} className="text-gray-500" />
-                <span className="max-w-[120px] truncate text-gray-700">{file.split('/').pop()}</span>
+              <a href={file} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm transition-colors hover:bg-zinc-50">
+                <FileIcon size={16} className="text-zinc-500" />
+                <span className="max-w-[120px] truncate text-zinc-700">{file.split('/').pop()}</span>
               </a>
             )}
           </div>
@@ -108,7 +108,7 @@ const MessageItem = memo(({ msg, isStreaming, isLast, onViewReport, onEditSend }
               {/* 原生编辑和复制入口悬浮 */}
               <div className="flex items-center gap-1 opacity-0 group-hover/user:opacity-100 transition-opacity duration-200">
                 <button
-                  className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                  className="rounded-md p-1.5 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700"
                   title="编辑并重新发送"
                   onClick={() => {
                     setEditText(contentObj.text);
@@ -121,18 +121,18 @@ const MessageItem = memo(({ msg, isStreaming, isLast, onViewReport, onEditSend }
               </div>
               
               {isEditing ? (
-                <div className="bg-gray-50 border border-gray-200 shadow-sm px-4 py-3 rounded-2xl w-[400px]">
+                <div className="w-[400px] rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
                   <textarea 
-                    className="w-full bg-transparent outline-none resize-none text-[15px] text-gray-800"
+                    className="w-full resize-none bg-transparent text-[15px] text-zinc-800 outline-none"
                     rows={3}
                     value={editText}
                     onChange={e => setEditText(e.target.value)}
                     autoFocus
                   />
                   <div className="flex justify-end gap-2 mt-2">
-                    <button className="text-xs px-3 py-1.5 text-gray-500 hover:bg-gray-200 rounded-md transition-colors" onClick={() => setIsEditing(false)}>取消</button>
+                    <button className="rounded-md px-3 py-1.5 text-xs text-zinc-500 transition-colors hover:bg-zinc-100" onClick={() => setIsEditing(false)}>取消</button>
                     <button 
-                      className="text-xs px-3 py-1.5 bg-black text-white hover:bg-gray-800 rounded-md shadow-sm transition-colors"
+                      className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs text-white shadow-sm transition-colors hover:bg-zinc-800"
                       onClick={() => {
                          if (!editText.trim()) return;
                          setIsEditing(false);
@@ -144,7 +144,7 @@ const MessageItem = memo(({ msg, isStreaming, isLast, onViewReport, onEditSend }
                   </div>
                 </div>
               ) : (
-                <div className="relative border border-transparent shadow-sm bg-user-msg text-foreground px-5 py-3 rounded-3xl rounded-tr-sm whitespace-pre-wrap break-words text-[15px] leading-relaxed font-normal">
+                <div className="relative whitespace-pre-wrap break-words rounded-3xl rounded-tr-sm border border-zinc-200 bg-zinc-100 px-5 py-3 text-[15px] font-normal leading-relaxed text-foreground shadow-sm">
                   {contentObj.text}
                 </div>
               )}
@@ -158,8 +158,8 @@ const MessageItem = memo(({ msg, isStreaming, isLast, onViewReport, onEditSend }
   // AI 消息 - 极简复合排版纸幅
   return (
     <div className="flex w-full justify-start mb-12 gap-4 group/ai font-sans">
-      <div className="shrink-0 w-8 h-8 rounded-full border border-border flex items-center justify-center bg-bot-msg shadow-sm mt-0.5">
-        <SparklesIcon size={16} className="text-foreground" />
+      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white shadow-sm">
+        <SparklesIcon size={16} className="text-emerald-600" />
       </div>
       
       <div className="flex-1 min-w-0 pt-1 relative max-w-[90%]">
@@ -167,7 +167,7 @@ const MessageItem = memo(({ msg, isStreaming, isLast, onViewReport, onEditSend }
         {/* 工具步骤区 - 稍微弱化作为思考前置 */}
         {msg.toolSteps?.length > 0 && (
           <div className="flex flex-col gap-2 mb-4 bg-muted/30 p-3 rounded-2xl border border-border">
-            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1.5"><SparklesIcon size={12}/> Analysis Process</div>
+            <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground"><SparklesIcon size={12}/> Analysis Process</div>
             {msg.toolSteps.map((step) => (
               <ToolStep key={step.id} step={step} />
             ))}
@@ -203,7 +203,7 @@ const MessageItem = memo(({ msg, isStreaming, isLast, onViewReport, onEditSend }
             <div className="flex flex-col gap-6 mt-2">
               {msg.charts.map((chart) => (
                 <div key={chart.id} className="bg-bot-msg border border-border rounded-2xl shadow-sm p-4 hover:shadow-md transition-shadow">
-                   <ChartWrapper chartJson={chart.json} />
+              <ChartWrapper chartJson={chart.json} />
                 </div>
               ))}
             </div>
@@ -249,8 +249,8 @@ const MessageItem = memo(({ msg, isStreaming, isLast, onViewReport, onEditSend }
 
         {/* 流式思考指示器 */}
         {isStreaming && isLast && !contentObj.text && (!msg.toolSteps || msg.toolSteps.length === 0) && (
-          <div className="flex items-center gap-2 text-gray-500 text-sm py-2">
-            <SparklesIcon size={16} className="animate-spin text-gray-400" />
+          <div className="flex items-center gap-2 py-2 text-sm text-zinc-500">
+            <SparklesIcon size={16} className="animate-spin text-emerald-500" />
             <span className="animate-pulse">AI 推理中...</span>
           </div>
         )}
@@ -291,7 +291,7 @@ const MessageItem = memo(({ msg, isStreaming, isLast, onViewReport, onEditSend }
             
             {(contentObj.text || msg.charts?.length > 0) && onViewReport && (
               <button
-                className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors font-medium border border-indigo-100/50 shadow-sm"
+                className="flex items-center gap-1.5 rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-[13px] font-medium text-emerald-700 shadow-sm transition-colors hover:bg-emerald-100"
                 onClick={() => onViewReport(msg)}
               >
                 <BookOpenIcon size={14} />
@@ -435,8 +435,8 @@ export default function ChatMessages({ messages, isStreaming, onViewReport, onEd
     return (
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="flex flex-col items-center max-w-2xl w-full">
-          <div className="w-16 h-16 bg-bot-msg border border-border rounded-2xl flex items-center justify-center shadow-sm mb-6">
-            <SparklesIcon size={32} className="text-foreground" />
+          <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-zinc-200 bg-white shadow-sm">
+            <SparklesIcon size={32} className="text-emerald-600" />
           </div>
           <h1 className="text-2xl font-bold text-foreground mb-3">SQL Agent</h1>
           <p className="text-muted-foreground text-center mb-10 text-sm leading-relaxed max-w-md">
@@ -450,7 +450,7 @@ export default function ChatMessages({ messages, isStreaming, onViewReport, onEd
               { icon: <SparklesIcon size={20} />, title: "复杂分析", desc: "多维交叉探索", prompt: "帮我分析最近一个月的销售趋势" },
               { icon: <FileIcon size={20} />, title: "导出报告", desc: "Markdown长图与CSV", prompt: "生成上一季度的综合业绩报告" },
             ].map((item, idx) => (
-              <div key={idx} className="p-4 rounded-xl border border-border bg-bot-msg shadow-sm hover:border-border/80 hover:shadow transition-all group cursor-pointer text-left">
+              <div key={idx} className="group cursor-pointer rounded-2xl border border-zinc-200 bg-white p-4 text-left shadow-sm transition-all hover:border-zinc-300 hover:shadow-md">
                 <div className="flex items-center gap-3 mb-2 text-foreground font-medium">
                   {item.icon}
                   <span>{item.title}</span>

@@ -1,35 +1,35 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f6f0e4;
-  --foreground: #1f2937;
-  --card: #fffdf8;
-  --card-foreground: #1f2937;
-  --popover: #fffdf8;
-  --popover-foreground: #1f2937;
-  --primary: #1d4ed8;
+  --background: #f7f7f8;
+  --foreground: #111827;
+  --card: #ffffff;
+  --card-foreground: #111827;
+  --popover: #ffffff;
+  --popover-foreground: #111827;
+  --primary: #10a37f;
   --primary-foreground: #ffffff;
-  --secondary: #efe7d8;
-  --secondary-foreground: #1f2937;
-  --muted: #f0e7d8;
+  --secondary: #f3f4f6;
+  --secondary-foreground: #111827;
+  --muted: #f3f4f6;
   --muted-foreground: #6b7280;
-  --accent: #efe7d8;
-  --accent-foreground: #1f2937;
+  --accent: #eef2ff;
+  --accent-foreground: #111827;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
-  --border: #ddd1bc;
-  --input: #ddd1bc;
-  --ring: #1d4ed8;
+  --border: #e5e7eb;
+  --input: #d1d5db;
+  --ring: #10a37f;
   
-  --sidebar-bg: #efe6d6;
-  --sidebar-foreground: #3f3a32;
-  --sidebar-hover: #e7dcc8;
-  --sidebar-active: #fffdf8;
-  --sidebar-border: #ddd1bc;
+  --sidebar-bg: #171717;
+  --sidebar-foreground: #e5e7eb;
+  --sidebar-hover: #2a2a2a;
+  --sidebar-active: #202123;
+  --sidebar-border: #2f2f2f;
   
-  --chat-bg: #fffaf1;
-  --user-msg: #f0e5d4;
-  --bot-msg: #fffdf8;
+  --chat-bg: #ffffff;
+  --user-msg: #f3f4f6;
+  --bot-msg: #ffffff;
 }
 
 @theme {
@@ -75,10 +75,11 @@
   }
   body {
     @apply bg-background text-foreground antialiased overflow-hidden m-0 p-0 h-screen w-screen transition-colors duration-300;
-    background-image:
-      radial-gradient(circle at top left, rgba(255, 255, 255, 0.7), transparent 26%),
-      linear-gradient(180deg, #f8f2e7 0%, #f1e8d8 100%);
-    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    background:
+      radial-gradient(circle at top left, rgba(16, 163, 127, 0.06), transparent 24%),
+      radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.05), transparent 22%),
+      linear-gradient(180deg, #f7f7f8 0%, #f3f4f6 100%);
+    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", ui-sans-serif, system-ui, sans-serif;
   }
 }
 
@@ -135,10 +136,10 @@
   @apply bg-muted-foreground/50;
 }
 .sidebar-scroller::-webkit-scrollbar-thumb {
-  @apply bg-zinc-200 border-r border-fuchsia-50;
+  @apply bg-zinc-700;
 }
 .sidebar-scroller::-webkit-scrollbar-thumb:hover {
-  @apply bg-zinc-300;
+  @apply bg-zinc-500;
 }
 
 /* 一些实用动画类 */

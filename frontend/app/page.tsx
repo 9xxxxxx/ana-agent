@@ -125,7 +125,7 @@ export default function Home() {
   );
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden text-foreground bg-transparent">
+    <div className="flex h-screen w-screen overflow-hidden bg-transparent text-foreground">
       <Sidebar
         currentThreadId={threadId}
         onSelectThread={handleSelectThread}
@@ -134,18 +134,18 @@ export default function Home() {
         onToggleDatabase={() => setShowDbPanel(true)}
       />
 
-      <main className="flex-1 flex flex-col min-w-0 relative px-3 py-3">
-        <div className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-[32px] border border-stone-200/80 bg-[linear-gradient(180deg,rgba(255,253,248,0.96)_0%,rgba(248,243,232,0.94)_100%)] shadow-[0_20px_60px_rgba(110,89,56,0.08)]">
-        <header className="flex flex-col gap-3 border-b border-stone-200/80 px-5 py-4 sm:flex-row sm:items-center sm:justify-between bg-[#fbf7ef]/90 backdrop-blur z-10 sticky top-0 shrink-0">
+      <main className="relative flex min-w-0 flex-1 flex-col px-3 py-3">
+        <div className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-[28px] border border-border/80 bg-white/92 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur">
+        <header className="sticky top-0 z-10 flex shrink-0 flex-col gap-3 border-b border-border bg-white/92 px-5 py-4 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
           {/* 左侧：模型选择器 */}
           <div className="flex items-center gap-4">
             <div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">Agent Console</div>
-              <div className="mt-1 text-xl font-semibold tracking-[-0.04em] text-stone-950">策略分析工作台</div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-500">Agent Console</div>
+              <div className="mt-1 text-xl font-semibold tracking-[-0.04em] text-zinc-950">策略分析工作台</div>
             </div>
             <div className="relative">
               <select 
-                className="appearance-none rounded-full border border-stone-300 bg-white/90 pl-4 pr-9 py-2 text-[15px] font-semibold text-stone-700 outline-none transition hover:border-stone-400 focus:ring-2 focus:ring-stone-200"
+                className="appearance-none rounded-full border border-border bg-zinc-50 pl-4 pr-9 py-2 text-[15px] font-semibold text-zinc-800 outline-none transition hover:border-zinc-400 focus:ring-2 focus:ring-emerald-100"
                 value={selectedModel}
                 onChange={(e) => handleModelChange(e.target.value)}
                 disabled={isStreaming}
@@ -154,14 +154,14 @@ export default function Home() {
                 <option value="deepseek-reasoner">DeepSeek-Reasoner (深度思考)</option>
                 <option value="gpt-4o">GPT-4o (全能旗舰)</option>
               </select>
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-stone-400 text-xs">▼</div>
+              <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400">▼</div>
             </div>
           </div>
           
           {/* 右侧：快捷操作 */}
           <div className="flex items-center gap-2">
             <button
-              className="rounded-full border border-stone-200 bg-white/85 p-2 text-stone-500 hover:border-rose-200 hover:text-rose-600 hover:bg-rose-50 transition"
+              className="rounded-full border border-border bg-white p-2 text-zinc-500 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
               title="删除当前对话"
               onClick={async () => {
                 if (window.confirm('确定要删除当前数据洞察历史吗？此操作不可逆。')) {
@@ -177,14 +177,14 @@ export default function Home() {
               <TrashIcon size={16} />
             </button>
             <button 
-              className="rounded-full bg-stone-900 px-4 py-2 text-xs font-semibold text-white hover:opacity-90 transition"
+              className="rounded-full bg-zinc-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-zinc-800"
               title="多专家会商"
               onClick={() => setShowBrainstormModal(true)}
             >
               多专家会商
             </button>
             <button 
-              className="rounded-full border border-stone-200 bg-white/85 p-2 text-stone-500 hover:border-blue-200 hover:text-brand-600 hover:bg-brand-50 transition" 
+              className="rounded-full border border-border bg-white p-2 text-zinc-500 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700" 
               title="分享数据洞察"
               onClick={() => {
                 window.alert('分享链接功能将在下一版本开放。当前您可以通过左下角的「导出报告」来分享洞察结论！');
@@ -195,7 +195,7 @@ export default function Home() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-hidden flex flex-col relative pb-32">
+        <div className="relative flex flex-1 flex-col overflow-hidden pb-32">
           <ChatMessages
             messages={messages}
             isStreaming={isStreaming}
@@ -206,7 +206,7 @@ export default function Home() {
           />
         </div>
 
-        <div className="absolute bottom-0 left-0 right-0 w-full bg-gradient-to-t from-[#faf4ea] via-[#faf4ea]/95 to-transparent pt-10 pb-6 pointer-events-none">
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 w-full bg-gradient-to-t from-white via-white/96 to-transparent pt-10 pb-6">
           <div className="pointer-events-auto">
             <ChatInput
               onSend={(text: string) => sendMessage(text, selectedModel, dbUrl)}

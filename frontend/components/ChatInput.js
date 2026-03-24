@@ -122,7 +122,7 @@ export default function ChatInput({ onSend, isStreaming, onStop, dbConnected, db
   return (
     <div className="w-full max-w-3xl mx-auto px-6" onDragOver={handleDragOver} onDrop={handleDrop}>
       {/* 数据库状态栏 */}
-      <div className="flex items-center gap-2 mb-2 px-4 py-1.5 rounded-full bg-muted/30 border border-border w-fit mx-auto animate-in fade-in slide-in-from-bottom-2 duration-300">
+      <div className="mx-auto mb-2 flex w-fit items-center gap-2 rounded-full border border-zinc-200 bg-white/90 px-4 py-1.5 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
         <div className={`w-2 h-2 rounded-full ${dbConnected ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]'}`} />
         <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
           {dbConnected ? `已连接数据源: ${displayDbUrl}` : '未连接数据库 (仅纯文本对话模式)'}
@@ -133,7 +133,7 @@ export default function ChatInput({ onSend, isStreaming, onStop, dbConnected, db
       {attachments.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-2">
           {attachments.map(att => (
-            <div key={att.id} className={`relative flex items-center gap-2 bg-muted/50 border border-border rounded-lg max-w-[200px] ${att.isImage ? 'p-1 h-16 w-16 justify-center' : 'p-2'}`}>
+            <div key={att.id} className={`relative flex max-w-[200px] items-center gap-2 rounded-xl border border-zinc-200 bg-white ${att.isImage ? 'h-16 w-16 justify-center p-1' : 'p-2.5 shadow-sm'}`}>
               {att.isImage && att.previewUrl ? (
                 <Image
                   src={att.previewUrl}
@@ -155,7 +155,7 @@ export default function ChatInput({ onSend, isStreaming, onStop, dbConnected, db
                 </div>
               )}
               <button 
-                className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-popover border border-border rounded-full flex items-center justify-center text-muted-foreground hover:text-rose-500 hover:border-rose-200 hover:bg-rose-50 dark:hover:bg-rose-950 transition-colors shadow-sm"
+                className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-zinc-200 bg-white text-muted-foreground shadow-sm transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-500"
                 onClick={() => removeAttachment(att.id)}
               >
                 <CloseIcon size={12} />
@@ -166,12 +166,12 @@ export default function ChatInput({ onSend, isStreaming, onStop, dbConnected, db
       )}
 
       {/* 核心输入框容器：大圆角、淡色背景衬托 (仿 ChatGPT 极简风) */}
-      <div className="flex items-end gap-2 bg-muted/80 hover:bg-bot-msg border border-border rounded-[28px] focus-within:bg-bot-msg focus-within:ring-2 focus-within:ring-border transition-all px-2.5 py-2.5 shadow-sm">
+      <div className="flex items-end gap-2 rounded-[28px] border border-zinc-200 bg-white px-2.5 py-2.5 shadow-[0_8px_30px_rgba(15,23,42,0.08)] transition-all hover:border-zinc-300 focus-within:border-emerald-300 focus-within:ring-4 focus-within:ring-emerald-100">
         
         {/* 工具按钮栏 */}
         <div className="flex items-center pb-0.5 shrink-0 relative" ref={menuRef}>
           <button
-            className="flex items-center justify-center w-8 h-8 text-muted-foreground hover:text-foreground hover:bg-muted rounded-full transition-all"
+            className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-all hover:bg-zinc-100 hover:text-foreground"
             onClick={() => setShowMenu(!showMenu)}
             disabled={isStreaming || uploading}
             title="添加附件"
@@ -180,15 +180,15 @@ export default function ChatInput({ onSend, isStreaming, onStop, dbConnected, db
           </button>
           
           {showMenu && (
-            <div className="absolute bottom-12 left-0 bg-popover border border-border shadow-xl rounded-xl py-1.5 w-32 animate-in fade-in zoom-in-95 duration-100 z-50">
+            <div className="absolute bottom-12 left-0 z-50 w-32 rounded-xl border border-zinc-200 bg-white py-1.5 shadow-xl animate-in fade-in zoom-in-95 duration-100">
               <button 
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground transition-colors hover:bg-zinc-50"
                 onClick={() => { setAcceptType('*/*'); setTimeout(() => fileInputRef.current?.click(), 0); setShowMenu(false); }}
               >
                 <PaperclipIcon size={16} /> <span>上传文件</span>
               </button>
               <button 
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground transition-colors hover:bg-zinc-50"
                 onClick={() => { setAcceptType('image/*'); setTimeout(() => fileInputRef.current?.click(), 0); setShowMenu(false); }}
               >
                  <ImageIcon size={16} /> <span>上传图片</span>
@@ -214,7 +214,7 @@ export default function ChatInput({ onSend, isStreaming, onStop, dbConnected, db
         {/* 核心输入区 */}
         <textarea
           ref={textareaRef}
-          className="flex-1 max-h-[200px] min-h-[24px] bg-transparent border-0 outline-none resize-none py-1.5 text-[0.95rem] text-foreground placeholder:text-muted-foreground leading-relaxed"
+          className="max-h-[200px] min-h-[24px] flex-1 resize-none border-0 bg-transparent py-1.5 text-[0.95rem] leading-relaxed text-foreground outline-none placeholder:text-muted-foreground"
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -227,7 +227,7 @@ export default function ChatInput({ onSend, isStreaming, onStop, dbConnected, db
         <div className="pb-0.5 shrink-0 pr-1">
           {isStreaming ? (
             <button 
-              className="flex items-center justify-center w-8 h-8 bg-foreground text-background rounded-full hover:opacity-80 transition-all shadow-sm" 
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-900 text-white shadow-sm transition-all hover:bg-zinc-800" 
               onClick={onStop} 
               title="停止生成"
             >
@@ -235,7 +235,7 @@ export default function ChatInput({ onSend, isStreaming, onStop, dbConnected, db
             </button>
           ) : (
             <button
-              className="flex items-center justify-center w-8 h-8 rounded-full transition-all disabled:bg-muted disabled:text-muted-foreground bg-foreground text-background hover:opacity-80"
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-900 text-white transition-all hover:bg-zinc-800 disabled:bg-zinc-100 disabled:text-zinc-400"
               onClick={handleSend}
               disabled={(!text.trim() && attachments.length === 0) || uploading}
               title="发送"

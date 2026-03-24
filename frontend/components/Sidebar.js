@@ -72,7 +72,7 @@ function ThreadActionMenu({ threadId, onClose, onDelete }) {
   return (
     <div
       ref={menuRef}
-      className="absolute right-0 top-8 z-50 w-36 bg-popover border border-border rounded-xl shadow-lg py-1 animate-in fade-in zoom-in-95 duration-150"
+      className="absolute right-0 top-8 z-50 w-36 rounded-xl border border-zinc-200 bg-white py-1 shadow-xl animate-in fade-in zoom-in-95 duration-150"
     >
       {actions.map((action, i) => {
         if (action.divider) {
@@ -84,7 +84,7 @@ function ThreadActionMenu({ threadId, onClose, onDelete }) {
             className={`flex items-center gap-2.5 w-full px-3 py-2 text-xs transition-colors ${
               action.danger
                 ? 'text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30'
-                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-950'
             }`}
             onClick={action.onClick}
           >
@@ -147,18 +147,18 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
   // 折叠状态下的侧边栏
   if (isCollapsed) {
     return (
-      <aside className="w-[68px] bg-sidebar-bg/95 flex flex-col h-full shrink-0 border-r border-border transition-all duration-300 backdrop-blur">
+      <aside className="flex h-full w-[68px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar-bg text-sidebar-foreground transition-all duration-300">
         <div className="flex flex-col items-center pt-4 pb-2 gap-4">
           {/* Logo 简化 - 浅色风格 */}
           <div 
-            className="flex items-center justify-center w-10 h-10 rounded-2xl bg-stone-900 cursor-pointer shadow-sm transition-all" 
+            className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-2xl bg-white text-zinc-950 shadow-sm transition-all" 
             onClick={() => setIsCollapsed(false)} 
             title="展开侧边栏"
           >
-            <SparklesIcon size={16} className="text-white" />
+            <SparklesIcon size={16} className="text-emerald-600" />
           </div>
           
-          <button className="p-2.5 hover:bg-sidebar-hover rounded-2xl text-sidebar-foreground transition mt-4" onClick={onNewChat} title="新建聊天">
+          <button className="mt-4 rounded-2xl p-2.5 text-sidebar-foreground transition hover:bg-sidebar-hover" onClick={onNewChat} title="新建聊天">
             <EditIcon size={20} />
           </button>
           <button 
@@ -203,29 +203,29 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
   // 展开状态的侧边栏
   return (
     <>
-      <aside className="w-[280px] bg-sidebar-bg/95 text-sidebar-foreground flex flex-col h-full shrink-0 transition-all duration-300 relative group border-r border-border backdrop-blur">
+      <aside className="group relative flex h-full w-[280px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar-bg text-sidebar-foreground transition-all duration-300">
         
         {/* 顶部悬浮控制栏（如 Logo + Collapse） */}
         <div className="flex items-center justify-between px-4 pt-4 pb-3">
-          <div className="flex items-center gap-3 px-3 py-2 rounded-2xl bg-white/70 border border-stone-200 cursor-pointer transition text-sidebar-foreground shadow-sm">
-            <div className="w-7 h-7 rounded-2xl bg-stone-900 flex items-center justify-center shadow-sm">
-               <SparklesIcon size={12} className="text-white" />
+          <div className="flex cursor-pointer items-center gap-3 rounded-2xl border border-zinc-700 bg-zinc-900 px-3 py-2 text-sidebar-foreground shadow-sm transition">
+            <div className="flex h-7 w-7 items-center justify-center rounded-2xl bg-white shadow-sm">
+               <SparklesIcon size={12} className="text-emerald-600" />
             </div>
             <div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500">Studio</div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">Studio</div>
               <span className="text-sm font-bold tracking-wide">SQL Agent</span>
             </div>
           </div>
           <div className="flex items-center gap-1">
             <button 
-              className="p-2 text-stone-500 hover:text-stone-900 hover:bg-white/70 rounded-2xl transition opacity-0 group-hover:opacity-100" 
+              className="rounded-2xl p-2 text-zinc-400 opacity-0 transition hover:bg-zinc-800 hover:text-white group-hover:opacity-100" 
               onClick={() => setIsCollapsed(true)}
               title="关闭侧边栏"
             >
               <PanelLeftCloseIcon size={18} />
             </button>
             <button 
-              className="p-2 text-stone-500 hover:text-stone-900 hover:bg-white/70 rounded-2xl transition"
+              className="rounded-2xl p-2 text-zinc-400 transition hover:bg-zinc-800 hover:text-white"
               onClick={onNewChat}
               title="新聊天"
             >
@@ -237,7 +237,7 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
         {/* 第一段：固定的功能导航区 */}
         <div className="px-4 py-2 flex flex-col gap-1">
           <button 
-            className="flex items-center gap-3 w-full px-4 py-3 text-sm text-stone-800 hover:bg-white/80 rounded-2xl transition"
+            className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm text-zinc-200 transition hover:bg-zinc-800"
             onClick={onNewChat}
           >
             <EditIcon size={18} />
@@ -245,7 +245,7 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
           </button>
           
           <button 
-            className="flex items-center gap-3 w-full px-4 py-3 text-sm text-stone-800 hover:bg-white/80 rounded-2xl transition"
+            className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm text-zinc-200 transition hover:bg-zinc-800"
             onClick={() => setShowSearchModal(true)}
           >
             <SearchIcon size={18} />
@@ -253,7 +253,7 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
           </button>
 
           <button 
-            className="flex items-center gap-3 w-full px-4 py-3 text-sm text-stone-800 hover:bg-white/80 rounded-2xl transition"
+            className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm text-zinc-200 transition hover:bg-zinc-800"
             onClick={() => setShowReportsDashboard(true)}
           >
             <LayoutGridIcon size={18} />
@@ -261,7 +261,7 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
           </button>
 
           <button
-            className="flex items-center gap-3 w-full px-4 py-3 text-sm text-stone-800 hover:bg-white/80 rounded-2xl transition"
+            className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm text-zinc-200 transition hover:bg-zinc-800"
             onClick={() => setShowOrchestrationPanel(true)}
           >
             <LayoutGridIcon size={18} />
@@ -269,7 +269,7 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
           </button>
 
           <button
-            className="flex items-center gap-3 w-full px-4 py-3 text-sm text-stone-800 hover:bg-white/80 rounded-2xl transition"
+            className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm text-zinc-200 transition hover:bg-zinc-800"
             onClick={() => setShowDiagnosticsPanel(true)}
           >
             <InfoIcon size={18} />
@@ -288,27 +288,27 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
           </button>
 
           <button 
-            className="flex items-center gap-3 w-full px-4 py-3 text-sm text-stone-800 hover:bg-white/80 rounded-2xl transition font-semibold text-indigo-600"
+            className="flex w-full items-center gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-500/15"
             onClick={() => setShowWatchdogPanel(true)}
           >
-            <BellIcon size={18} className="text-indigo-600" />
+            <BellIcon size={18} className="text-emerald-300" />
             <span>数据值班室 (Watchdog)</span>
           </button>
         </div>
 
         <div className="px-6 py-3">
-          <div className="h-px bg-border/60 w-full" />
+          <div className="h-px w-full bg-zinc-800" />
         </div>
 
         {/* 第二段：滚动的历史聊天记录区 */}
         <nav className="flex-1 overflow-y-auto px-4 py-1 sidebar-scroller">
           <div className="flex items-center justify-between px-3 pt-2 pb-1">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
               你的聊天
             </div>
             {threads.length > 0 && (
               <button
-                className="rounded-full border border-transparent px-2.5 py-1 text-[11px] font-semibold text-stone-500 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
+                className="rounded-full border border-transparent px-2.5 py-1 text-[11px] font-semibold text-zinc-500 transition hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-300"
                 onClick={() => {
                   setConfirmTarget('__all__');
                   setConfirmOpen(true);
@@ -321,21 +321,21 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
           </div>
 
           {threads.length === 0 ? (
-            <div className="px-3 py-4 text-xs text-stone-500">暂无历史记录</div>
+            <div className="px-3 py-4 text-xs text-zinc-500">暂无历史记录</div>
           ) : (
             Object.entries(grouped).map(([label, items]) => {
               if (items.length === 0) return null;
               return (
                 <div key={label} className="mt-3">
-                  <div className="px-3 pb-1 text-[11px] font-semibold text-gray-400 tracking-wider hidden">{label}</div>
+                    <div className="hidden px-3 pb-1 text-[11px] font-semibold tracking-wider text-zinc-500">{label}</div>
                   <div className="flex flex-col gap-1">
                     {items.map(t => (
                       <div
                         key={t.thread_id}
                         className={`group/item relative flex items-center px-4 py-3 rounded-2xl cursor-pointer transition-all text-sm border ${
                           currentThreadId === t.thread_id
-                            ? 'bg-white text-indigo-600 font-semibold shadow-sm border-stone-200'
-                            : 'border-transparent text-sidebar-foreground/80 hover:bg-white/75 hover:text-indigo-600'
+                            ? 'border-zinc-700 bg-zinc-800 text-white shadow-sm'
+                            : 'border-transparent text-zinc-300 hover:bg-zinc-800 hover:text-white'
                         }`}
                         onClick={() => onSelectThread(t.thread_id)}
                       >
@@ -344,7 +344,7 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
                         
                         {/* 更多操作 */}
                         <button
-                          className="absolute right-2 p-1.5 text-stone-500 hover:text-stone-900 hover:bg-white rounded-xl opacity-0 group-hover/item:opacity-100 transition shadow-sm"
+                          className="absolute right-2 rounded-xl p-1.5 text-zinc-500 opacity-0 shadow-sm transition hover:bg-zinc-700 hover:text-white group-hover/item:opacity-100"
                           onClick={(e) => {
                             e.stopPropagation();
                             setActiveMenu(activeMenu === t.thread_id ? null : t.thread_id);
@@ -370,10 +370,10 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
         </nav>
 
         {/* 底部设置区 */}
-        <div className="px-4 py-4 border-t border-sidebar-border/50 mt-auto bg-sidebar-bg/90 flex flex-col gap-1">
+        <div className="mt-auto flex flex-col gap-1 border-t border-zinc-800 bg-sidebar-bg px-4 py-4">
           {/* 移除 ThemeToggle */}
           <button 
-            className="flex items-center gap-3 w-full px-4 py-3 text-sm hover:bg-white/80 rounded-2xl transition text-sidebar-foreground"
+            className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm text-sidebar-foreground transition hover:bg-zinc-800"
             onClick={() => setShowSettingsModal(true)}
           >
             <SettingsIcon size={18} />
