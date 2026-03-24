@@ -550,7 +550,6 @@ function NivoTreemapChart({ data, xCol, yCol, title, colorTheme = 'default' }) {
  * 热力图
  */
 function NivoHeatmapChart({ data, xCol, yCol, title, colorCol, colorTheme = 'default' }) {
-  const colors = colorThemesList[colorTheme] || colorThemesList.default;
   const chartData = useMemo(() => {
     const keys = colorCol ? [...new Set(data.map((d) => d[colorCol]))] : [yCol];
     const xValues = [...new Set(data.map((d) => d[xCol]))];
@@ -616,8 +615,7 @@ function NivoHeatmapChart({ data, xCol, yCol, title, colorCol, colorTheme = 'def
 /**
  * 旭日图
  */
-function NivoSunburstChart({ data, xCol, yCol, title, colorTheme = 'default' }) {
-  const colors = colorThemesList[colorTheme] || colorThemesList.default;
+function NivoSunburstChart({ data, xCol, yCol, title }) {
   const chartData = useMemo(() => {
     return {
       name: 'root',
@@ -653,8 +651,7 @@ function NivoSunburstChart({ data, xCol, yCol, title, colorTheme = 'default' }) 
 /**
  * 子弹图
  */
-function NivoBulletChart({ data, xCol, yCol, title, colorTheme = 'default' }) {
-  const colors = colorThemesList[colorTheme] || colorThemesList.default;
+function NivoBulletChart({ data, xCol, yCol, title }) {
   const chartData = useMemo(() => {
     return data.map((d) => ({
       id: d[xCol],

@@ -51,7 +51,8 @@ import {
   Info,
   Save,
   Sun,
-  Moon
+  Moon,
+  RefreshCw
 } from 'lucide-react';
 
 export const UserIcon = User;
@@ -106,3 +107,4 @@ export const InfoIcon = Info;
 export const SaveIcon = Save;
 export const SunIcon = Sun;
 export const MoonIcon = Moon;
+export const RefreshCwIcon = RefreshCw;

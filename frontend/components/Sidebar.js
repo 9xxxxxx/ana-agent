@@ -18,6 +18,7 @@ import SearchModal from './SearchModal';
 import SettingsModal from './SettingsModal';
 import ReportsDashboard from './ReportsDashboard';
 import WatchdogPanel from './WatchdogPanel';
+import OrchestrationPanel from './OrchestrationPanel';
 // 移除 ThemeToggle 引用
 
 // 按日期分组对话
@@ -107,6 +108,7 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showReportsDashboard, setShowReportsDashboard] = useState(false);
   const [showWatchdogPanel, setShowWatchdogPanel] = useState(false);
+  const [showOrchestrationPanel, setShowOrchestrationPanel] = useState(false);
 
   const loadThreads = useCallback(async () => {
     try {
@@ -165,6 +167,13 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
           </button>
           <button className="p-2 hover:bg-sidebar-hover rounded-lg text-sidebar-foreground transition" onClick={onToggleDatabase} title="数据连接参数">
             <DatabaseIcon size={20} />
+          </button>
+          <button
+            className="p-2 hover:bg-sidebar-hover rounded-lg text-sidebar-foreground transition"
+            title="任务编排"
+            onClick={() => setShowOrchestrationPanel(true)}
+          >
+            <LayoutGridIcon size={20} />
           </button>
         </div>
         <div className="mt-auto flex flex-col items-center pb-4 gap-4">
@@ -236,6 +245,14 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
           >
             <LayoutGridIcon size={18} />
             <span className="font-medium">全部报告</span>
+          </button>
+
+          <button
+            className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-gray-800 hover:bg-gray-200 rounded-xl transition"
+            onClick={() => setShowOrchestrationPanel(true)}
+          >
+            <LayoutGridIcon size={18} />
+            <span className="font-medium">任务编排</span>
           </button>
         </div>
 
@@ -363,6 +380,11 @@ export default function Sidebar({ currentThreadId, onSelectThread, onNewChat, re
       <WatchdogPanel 
         isOpen={showWatchdogPanel}
         onClose={() => setShowWatchdogPanel(false)}
+      />
+
+      <OrchestrationPanel
+        isOpen={showOrchestrationPanel}
+        onClose={() => setShowOrchestrationPanel(false)}
       />
     </>
   );

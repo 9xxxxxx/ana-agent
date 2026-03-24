@@ -85,6 +85,59 @@ const chartTheme = {
   },
 };
 
+// 深色主题配置（适配黑色背景）
+const darkChartTheme = {
+  ...chartTheme,
+  textStyle: {
+    ...chartTheme.textStyle,
+    color: '#9ca3af',
+  },
+  title: {
+    ...chartTheme.title,
+    textStyle: {
+      ...chartTheme.title.textStyle,
+      color: '#f3f4f6',
+    },
+  },
+  legend: {
+    ...chartTheme.legend,
+    textStyle: {
+      color: '#9ca3af',
+    },
+  },
+  tooltip: {
+    backgroundColor: 'rgba(17, 24, 39, 0.96)',
+    borderColor: '#374151',
+    borderWidth: 1,
+    textStyle: {
+      color: '#f3f4f6',
+    },
+    extraCssText: 'box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5); border-radius: 8px;',
+  },
+  xAxis: {
+    axisLine: {
+      lineStyle: { color: '#4b5563' },
+    },
+    axisLabel: {
+      color: '#9ca3af',
+    },
+    splitLine: {
+      lineStyle: { color: '#1f2937' },
+    },
+  },
+  yAxis: {
+    axisLine: {
+      lineStyle: { color: '#4b5563' },
+    },
+    axisLabel: {
+      color: '#9ca3af',
+    },
+    splitLine: {
+      lineStyle: { color: '#1f2937' },
+    },
+  },
+};
+
 // 渐变色配置
 const gradientColors = [
   ['#3b82f6', '#8b5cf6'], // 蓝紫渐变
@@ -180,7 +233,8 @@ function getGroupedData(data, colorCol, title) {
 /**
  * 生成柱状图配置
  */
-function generateBarOption(data, xCol, yCol, title, colorCol, defaultColors) {
+function generateBarOption(data, xCol, yCol, title, colorCol, defaultColors, isDark = false) {
+  const currentTheme = isDark ? darkChartTheme : chartTheme;
   const grouped = getGroupedData(data, colorCol, title);
   const xCategories = [...new Set(data.map((d) => d[xCol]))];
   const isSingleSeries = Object.keys(grouped).length === 1;
@@ -216,34 +270,34 @@ function generateBarOption(data, xCol, yCol, title, colorCol, defaultColors) {
   }));
 
   return {
-    ...chartTheme,
-    title: { ...chartTheme.title, text: title },
+    ...currentTheme,
+    title: { ...currentTheme.title, text: title },
     tooltip: {
-      ...chartTheme.tooltip,
+      ...currentTheme.tooltip,
       trigger: 'axis',
       axisPointer: {
         type: 'shadow',
         shadowStyle: {
-          color: 'rgba(59, 130, 246, 0.1)',
+          color: isDark ? 'rgba(59, 130, 246, 0.2)' : 'rgba(59, 130, 246, 0.1)',
         },
       },
     },
-    legend: { ...chartTheme.legend, top: 35 },
+    legend: { ...currentTheme.legend, top: 35 },
     xAxis: {
-      ...chartTheme.xAxis,
+      ...currentTheme.xAxis,
       type: 'category',
       data: xCategories,
       axisLabel: {
-        ...chartTheme.xAxis.axisLabel,
+        ...currentTheme.xAxis.axisLabel,
         rotate: data.length > 8 ? 30 : 0,
       },
     },
     yAxis: {
-      ...chartTheme.yAxis,
+      ...currentTheme.yAxis,
       type: 'value',
     },
     series,
-    grid: { ...chartTheme.grid, bottom: data.length > 8 ? 60 : 40 },
+    grid: { ...currentTheme.grid, bottom: data.length > 8 ? 60 : 40 },
   };
 }
 
@@ -1247,19 +1301,6 @@ export function generateChartOption(data, config) {
 
   const defaultColors = colorThemes[colorTheme] || colorThemes.default;
 
-  // 通用基础配置
-  const baseOption = {
-    color: defaultColors,
-    backgroundColor: chartTheme.backgroundColor,
-    textStyle: chartTheme.textStyle,
-    title: { ...chartTheme.title, text: title },
-    legend: chartTheme.legend,
-    tooltip: chartTheme.tooltip,
-    grid: chartTheme.grid,
-    xAxis: chartTheme.xAxis,
-    yAxis: chartTheme.yAxis,
-  };
-
   let xCol = rawXCol;
   let yCol = rawYCol;
 
@@ -1476,21 +1517,60 @@ export default function EChartsRenderer({
   useEffect(() => {
     if (!chartRef.current || !data || !config) return;
 
-    // 如果实例已被 dispose（React Strict Mode 二次渲染），重新创建
-    if (chartInstance.current && chartInstance.current.isDisposed()) {
+    const isDark = document.documentElement.classList.contains('dark');
+
+    // 如果实例已被 dispose（React Strict Mode 二次渲染），或者主题不匹配，重新创建
+    if (chartInstance.current && (chartInstance.current.isDisposed() || (chartInstance.current._theme !== (isDark ? 'dark' : '')))) {
+      if (chartInstance.current && !chartInstance.current.isDisposed()) {
+        chartInstance.current.dispose();
+      }
       chartInstance.current = null;
     }
 
     // 初始化图表实例
     if (!chartInstance.current) {
-      chartInstance.current = echarts.init(chartRef.current, null, {
+      chartInstance.current = echarts.init(chartRef.current, isDark ? 'dark' : null, {
         renderer: 'canvas',
       });
+      chartInstance.current._theme = isDark ? 'dark' : '';
     }
 
     // 生成配置并渲染
     try {
       const option = generateChartOption(data, config);
+      
+      // 深度注入主题变量 (如果 generateChartOption 还没完全支持 darkTheme)
+      if (isDark) {
+          if (option.xAxis) {
+              const xList = Array.isArray(option.xAxis) ? option.xAxis : [option.xAxis];
+              xList.forEach(x => {
+                  x.axisLine = x.axisLine || {};
+                  x.axisLine.lineStyle = { color: '#4b5563' };
+                  x.axisLabel = x.axisLabel || {};
+                  x.axisLabel.color = '#9ca3af';
+                  x.splitLine = x.splitLine || {};
+                  x.splitLine.lineStyle = { color: '#1f2937' };
+              });
+          }
+          if (option.yAxis) {
+              const yList = Array.isArray(option.yAxis) ? option.yAxis : [option.yAxis];
+              yList.forEach(y => {
+                  y.axisLine = y.axisLine || {};
+                  y.axisLine.lineStyle = { color: '#4b5563' };
+                  y.axisLabel = y.axisLabel || {};
+                  y.axisLabel.color = '#9ca3af';
+                  y.splitLine = y.splitLine || {};
+                  y.splitLine.lineStyle = { color: '#1f2937' };
+              });
+          }
+          if (option.title && option.title.textStyle) {
+              option.title.textStyle.color = '#f3f4f6';
+          }
+          if (option.legend && option.legend.textStyle) {
+              option.legend.textStyle.color = '#9ca3af';
+          }
+      }
+
       chartInstance.current.setOption(option, true);
     } catch (err) {
       console.error('[EChartsRenderer] 生成图表配置失败:', err);
@@ -1504,9 +1584,50 @@ export default function EChartsRenderer({
     };
     window.addEventListener('resize', handleResize);
 
+    // 监听全局主题切换事件
+    const handleThemeChange = () => {
+        const nextIsDark = document.documentElement.classList.contains('dark');
+        if (chartInstance.current && !chartInstance.current.isDisposed()) {
+            chartInstance.current.dispose();
+        }
+        chartInstance.current = echarts.init(chartRef.current, nextIsDark ? 'dark' : null, {
+            renderer: 'canvas',
+        });
+        chartInstance.current._theme = nextIsDark ? 'dark' : '';
+        const option = generateChartOption(data, config);
+        // 重复注入深色逻辑 (临时方案直到全量更新 generateChartOption)
+        if (nextIsDark) {
+             if (option.xAxis) {
+              const xList = Array.isArray(option.xAxis) ? option.xAxis : [option.xAxis];
+              xList.forEach(x => {
+                  x.axisLine = x.axisLine || {};
+                  x.axisLine.lineStyle = { color: '#4b5563' };
+                  x.axisLabel = x.axisLabel || {};
+                  x.axisLabel.color = '#9ca3af';
+                  x.splitLine = x.splitLine || {};
+                  x.splitLine.lineStyle = { color: '#1f2937' };
+              });
+          }
+          if (option.yAxis) {
+              const yList = Array.isArray(option.yAxis) ? option.yAxis : [option.yAxis];
+              yList.forEach(y => {
+                  y.axisLine = y.axisLine || {};
+                  y.axisLine.lineStyle = { color: '#4b5563' };
+                  y.axisLabel = y.axisLabel || {};
+                  y.axisLabel.color = '#9ca3af';
+                  y.splitLine = y.splitLine || {};
+                  y.splitLine.lineStyle = { color: '#1f2937' };
+              });
+          }
+        }
+        chartInstance.current.setOption(option, true);
+    };
+    window.addEventListener('theme-change', handleThemeChange);
+
     // 清理
     return () => {
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('theme-change', handleThemeChange);
       if (chartInstance.current && !chartInstance.current.isDisposed()) {
         chartInstance.current.dispose();
         chartInstance.current = null;

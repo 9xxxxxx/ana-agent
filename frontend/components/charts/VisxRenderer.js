@@ -339,7 +339,7 @@ export function VisxLineChart({ data, xCol, yCol, title, colorTheme = 'default',
 /**
  * Visx 饼图
  */
-export function VisxPieChart({ data, xCol, yCol, title, colorTheme = 'default', width = 600, height = 400 }) {
+export function VisxPieChart({ data, yCol, title, colorTheme = 'default', width = 600, height = 400 }) {
   const margin = { top: 40, right: 30, bottom: 50, left: 30 };
   const radius = Math.min(width, height) / 2 - Math.max(margin.top, margin.left);
 

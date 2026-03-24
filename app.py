@@ -76,6 +76,10 @@ class DataPipelineFlowRequest(BaseModel):
     run_tests: bool = True
     target: str = "dev"
 
+
+class DeploymentRunRequest(BaseModel):
+    parameters: Optional[dict] = None
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用启动/关闭生命周期"""
@@ -405,6 +409,22 @@ async def list_orchestration_flows():
     return {"flows": orchestration_service.list_flows()}
 
 
+@app.get("/api/orchestration/runtime")
+async def get_orchestration_runtime():
+    try:
+        return {"success": True, "runtime": await orchestration_service.get_runtime_overview()}
+    except Exception as e:
+        return JSONResponse({"success": False, "message": str(e)}, status_code=400)
+
+
+@app.post("/api/orchestration/runtime/sync")
+async def sync_orchestration_runtime():
+    try:
+        return {"success": True, "runtime": await orchestration_service.sync_watchdog_deployments()}
+    except Exception as e:
+        return JSONResponse({"success": False, "message": str(e)}, status_code=400)
+
+
 @app.post("/api/orchestration/flows/decision-brief")
 async def run_decision_brief_flow_api(payload: DecisionBriefFlowRequest):
     try:
@@ -447,6 +467,18 @@ async def run_watchdog_flow_api(rule_id: str):
     try:
         result = orchestration_service.run_watchdog_flow(rule_id=rule_id)
         return {"success": True, "result": result}
+    except Exception as e:
+        return JSONResponse({"success": False, "message": str(e)}, status_code=400)
+
+
+@app.post("/api/orchestration/deployments/{deployment_id}/run")
+async def run_deployment_api(deployment_id: str, payload: DeploymentRunRequest | None = None):
+    try:
+        flow_run = await orchestration_service.trigger_deployment_run(
+            deployment_id=deployment_id,
+            parameters=(payload.parameters if payload else None),
+        )
+        return {"success": True, "run": flow_run}
     except Exception as e:
         return JSONResponse({"success": False, "message": str(e)}, status_code=400)
 

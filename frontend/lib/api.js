@@ -352,6 +352,18 @@ export async function fetchOrchestrationFlows() {
   return res.json();
 }
 
+export async function fetchOrchestrationRuntime() {
+  const res = await fetch(`${API_BASE}/api/orchestration/runtime`);
+  return res.json();
+}
+
+export async function syncOrchestrationRuntime() {
+  const res = await fetch(`${API_BASE}/api/orchestration/runtime/sync`, {
+    method: 'POST',
+  });
+  return res.json();
+}
+
 export async function runDecisionBriefFlow(payload) {
   const res = await fetch(`${API_BASE}/api/orchestration/flows/decision-brief`, {
     method: 'POST',
@@ -373,6 +385,15 @@ export async function runDataPipelineFlow(payload) {
 export async function runWatchdogFlow(ruleId) {
   const res = await fetch(`${API_BASE}/api/orchestration/flows/watchdog/${ruleId}`, {
     method: 'POST',
+  });
+  return res.json();
+}
+
+export async function triggerDeploymentRun(deploymentId, payload = {}) {
+  const res = await fetch(`${API_BASE}/api/orchestration/deployments/${deploymentId}/run`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
   });
   return res.json();
 }

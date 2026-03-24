@@ -5,6 +5,7 @@
  */
 
 import { useRef, useEffect, useState, memo, useMemo } from 'react';
+import Image from 'next/image';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import ToolStep from './ToolStep';
@@ -52,7 +53,14 @@ function AttachmentPreview({ files }) {
         return (
           <div key={i} className="relative">
             {isImage ? (
-              <img src={file} alt="attachment" className="h-16 w-16 object-cover rounded-lg border border-gray-200" />
+              <Image
+                src={file}
+                alt="attachment"
+                width={64}
+                height={64}
+                unoptimized
+                className="h-16 w-16 object-cover rounded-lg border border-gray-200"
+              />
             ) : (
               <a href={file} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm hover:bg-gray-50 transition-colors">
                 <FileIcon size={16} className="text-gray-500" />
@@ -221,9 +229,12 @@ const MessageItem = memo(({ msg, isStreaming, isLast, onViewReport, onEditSend }
                     <div className="flex flex-col gap-3 p-4 pt-0">
                       {output.images.map((img, imgIdx) => (
                         <div key={imgIdx} className="bg-bot-msg/50 border border-border rounded-xl overflow-hidden shadow-sm">
-                          <img
+                          <Image
                             src={`data:image/png;base64,${img}`}
                             alt={`Python 图表 ${imgIdx + 1}`}
+                            width={1200}
+                            height={720}
+                            unoptimized
                             className="w-full max-w-2xl mx-auto block"
                           />
                         </div>
