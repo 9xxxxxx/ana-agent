@@ -120,7 +120,7 @@ export default function BrainstormModal({ isOpen, onClose, onAdopt, onOpenReport
                   className="w-full px-4 py-3 rounded-2xl border border-border bg-popover text-foreground text-sm font-semibold hover:bg-muted transition"
                   onClick={() => onOpenReport?.(buildDecisionReport(result))}
                 >
-                  打开结构化报告
+                  打开可编排报告画布
                 </button>
               </div>
             )}

@@ -102,46 +102,46 @@ export default function DataTable({
   };
 
   return (
-    <div className="data-table-wrapper">
+    <div className="rounded-[24px] border border-stone-200 bg-white shadow-sm">
       {(title || searchable || exportable) && (
-        <div className="data-table-header">
-          {title && <h4 className="data-table-title">{title}</h4>}
-          
-          <div className="data-table-actions">
+        <div className="flex flex-col gap-3 border-b border-stone-200 px-5 py-4 md:flex-row md:items-center md:justify-between">
+          {title && <h4 className="text-lg font-semibold tracking-tight text-stone-950">{title}</h4>}
+
+          <div className="flex items-center gap-3">
             {searchable && (
-              <div className="table-search">
+              <div>
                 <input
                   type="text"
                   placeholder="搜索数据..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="table-search-input"
+                  className="h-10 min-w-[220px] rounded-full border border-stone-200 bg-stone-50 px-4 text-sm text-stone-700 outline-none"
                 />
               </div>
             )}
             {exportable && (
-              <button className="btn-icon" onClick={handleExport} title="导出数据">
-                ⬇
+              <button className="rounded-full border border-stone-200 bg-stone-50 px-4 py-2 text-sm font-medium text-stone-700 hover:border-stone-300 hover:bg-stone-100 transition" onClick={handleExport} title="导出数据">
+                导出 CSV
               </button>
             )}
           </div>
         </div>
       )}
 
-      <div className="data-table-container">
-        <table className="data-table">
-          <thead>
-            <tr>
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-sm">
+          <thead className="bg-stone-50/70">
+            <tr className="border-b border-stone-200">
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className={sortable ? 'sortable' : ''}
+                  className={`px-4 py-3 text-left font-semibold text-stone-600 ${sortable ? 'cursor-pointer select-none' : ''}`}
                   onClick={() => handleSort(col.key)}
                   style={{ width: col.width }}
                 >
-                  <div className="th-content">
+                  <div className="flex items-center gap-2">
                     <span>{col.label || col.key}</span>
-                    {sortable && <span className="sort-icon">{getSortIcon(col.key)}</span>}
+                    {sortable && <span className="text-xs text-stone-400">{getSortIcon(col.key)}</span>}
                   </div>
                 </th>
               ))}
@@ -150,9 +150,9 @@ export default function DataTable({
           <tbody>
             {paginatedData.length > 0 ? (
               paginatedData.map((row, rowIndex) => (
-                <tr key={rowIndex}>
+                <tr key={rowIndex} className="border-b border-stone-100 last:border-b-0">
                   {columns.map((col) => (
-                    <td key={col.key}>
+                    <td key={col.key} className="px-4 py-3 text-stone-700">
                       {col.render ? col.render(row[col.key], row) : row[col.key]}
                     </td>
                   ))}
@@ -160,7 +160,7 @@ export default function DataTable({
               ))
             ) : (
               <tr>
-                <td colSpan={columns.length} className="empty-cell">
+                <td colSpan={columns.length} className="px-4 py-8 text-center text-sm text-stone-500">
                   暂无数据
                 </td>
               </tr>
@@ -170,22 +170,22 @@ export default function DataTable({
       </div>
 
       {totalPages > 1 && (
-        <div className="data-table-pagination">
+        <div className="flex items-center justify-between border-t border-stone-200 px-5 py-4">
           <button
-            className="pagination-btn"
+            className="rounded-full border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-700 disabled:opacity-40"
             disabled={currentPage === 1}
             onClick={() => setCurrentPage((p) => p - 1)}
           >
             ←
           </button>
-          
-          <span className="pagination-info">
+
+          <span className="text-sm text-stone-600">
             第 {currentPage} / {totalPages} 页
-            <span className="pagination-total">（共 {sortedData.length} 条）</span>
+            <span className="ml-1 text-stone-400">（共 {sortedData.length} 条）</span>
           </span>
-          
+
           <button
-            className="pagination-btn"
+            className="rounded-full border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-700 disabled:opacity-40"
             disabled={currentPage === totalPages}
             onClick={() => setCurrentPage((p) => p + 1)}
           >

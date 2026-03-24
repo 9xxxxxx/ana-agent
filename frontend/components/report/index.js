@@ -3,6 +3,7 @@
  */
 
 export { default as ReportViewer } from './ReportViewer';
+export { default as ReportCanvas } from './ReportCanvas';
 export { default as MetricCard } from './MetricCard';
 export { default as DataTable } from './DataTable';
 export { default as SectionNavigator } from './SectionNavigator';

@@ -1,306 +1,322 @@
 'use client';
 
-/**
- * 深度业务报告查看器组件
- * 支持章节导航、图表展示、指标卡片、数据表格
- */
-
-import { useState, useRef, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import MetricCard from './MetricCard';
+
+import ReportCanvas from './ReportCanvas';
 import DataTable from './DataTable';
-import SectionNavigator from './SectionNavigator';
+import MetricCard from './MetricCard';
 import SmartChart from '../charts/SmartChart';
+import {
+  BarChartIcon,
+  BookOpenIcon,
+  CloseIcon,
+  DownloadIcon,
+  EditIcon,
+  LayersIcon,
+  SaveIcon,
+} from '../Icons';
 import { parseChartPayload } from '@/lib/chartData';
+import {
+  getBlockHeading,
+  getCanvasStorageKey,
+  reportToCanvasBlocks,
+} from '@/lib/reportCanvas';
 
-export default function ReportViewer({ report, onExport, onClose }) {
-  const [activeSection, setActiveSection] = useState(0);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const contentRef = useRef(null);
+function renderChartData(chartData) {
+  const parsed = parseChartPayload(chartData);
+  if (!parsed) return null;
 
-  // 监听滚动更新当前章节
-  useEffect(() => {
-    const handleScroll = () => {
-      if (!contentRef.current) return;
-      
-      const sections = contentRef.current.querySelectorAll('[data-section-index]');
-      const scrollTop = contentRef.current.scrollTop;
-      
-      for (let i = sections.length - 1; i >= 0; i--) {
-        const section = sections[i];
-        if (section.offsetTop <= scrollTop + 100) {
-          setActiveSection(i);
-          break;
-        }
-      }
-    };
+  if (parsed.type === 'chart_data' && parsed.data) {
+    return (
+      <SmartChart
+        data={parsed.data}
+        chartType={parsed.chartType}
+        title={parsed.title}
+        xCol={parsed.xCol}
+        yCol={parsed.yCol}
+        colorCol={parsed.colorCol}
+        sizeCol={parsed.sizeCol}
+        height={360}
+        showTypeSelector={false}
+        showLibrarySelector={false}
+      />
+    );
+  }
 
-    const container = contentRef.current;
-    if (container) {
-      container.addEventListener('scroll', handleScroll);
-      return () => container.removeEventListener('scroll', handleScroll);
-    }
-  }, []);
+  if (parsed.data && parsed.layout) {
+    const trace = parsed.data[0];
+    const xData = trace.x || [];
+    const yData = trace.y || [];
+    const normalized = xData.map((x, index) => ({
+      category: x,
+      value: yData[index],
+    }));
 
-  // 跳转到指定章节
-  const scrollToSection = (index) => {
-    const section = contentRef.current?.querySelector(`[data-section-index="${index}"]`);
-    if (section) {
-      section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  };
+    return (
+      <SmartChart
+        data={normalized}
+        chartType={trace.type === 'pie' ? 'pie' : trace.type === 'scatter' ? 'line' : 'bar'}
+        title={parsed.layout.title?.text || ''}
+        xCol="category"
+        yCol="value"
+        height={360}
+        showTypeSelector={false}
+        showLibrarySelector={false}
+      />
+    );
+  }
 
-  if (!report) return null;
+  return null;
+}
 
-  return (
-    <div className={`flex flex-col h-full w-full bg-background text-foreground relative ${isFullscreen ? 'fixed inset-0 z-[100]' : ''}`}>
-      {/* 报告头部 */}
-      <header className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 p-5 sm:p-6 lg:px-8 border-b border-border bg-popover shrink-0 z-10 shadow-sm relative">
-        <div className="flex-1 min-w-0 flex flex-col gap-2">
-          <div className="flex items-center gap-3 text-sm">
-            <span className="px-2.5 py-0.5 rounded-md bg-primary/10 text-primary font-medium border border-primary/20">{report.type || '业务报告'}</span>
-            <span className="text-muted-foreground font-mono text-xs">{report.createdAt}</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight leading-snug">{report.title}</h1>
-          {report.subtitle && <p className="text-muted-foreground text-base">{report.subtitle}</p>}
-          
-          {/* 指标概览 */}
-          {report.metrics && (
-            <div className="flex flex-wrap gap-4 mt-3">
-              {report.metrics.map((metric, i) => (
-                <MetricCard key={i} {...metric} />
-              ))}
-            </div>
+function PreviewBlock({ block }) {
+  if (block.type === 'hero') {
+    return (
+      <section className="rounded-[32px] border border-stone-200 bg-[linear-gradient(135deg,#fffdf7_0%,#f5efe2_45%,#efe6d3_100%)] px-8 py-10 shadow-sm">
+        <div className="inline-flex rounded-full border border-stone-300 bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-600">
+          {block.badge || 'Report'}
+        </div>
+        <h1 className="mt-5 max-w-4xl text-4xl font-semibold tracking-[-0.04em] text-stone-950 md:text-5xl">
+          {block.title}
+        </h1>
+        {block.subtitle && (
+          <p className="mt-4 max-w-3xl text-lg leading-8 text-stone-700">{block.subtitle}</p>
+        )}
+        <div className="mt-8 text-sm text-stone-500">{block.createdAt}</div>
+      </section>
+    );
+  }
+
+  if (block.type === 'metrics') {
+    return (
+      <section className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm">
+        <h2 className="text-xl font-semibold tracking-tight text-stone-950">{block.title}</h2>
+        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {(block.items || []).map((item, index) => (
+            <MetricCard key={index} {...item} title={item.title || item.label} />
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  if (block.type === 'chart') {
+    return (
+      <section className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm">
+        <div className="mb-5 flex items-center gap-2 text-stone-900">
+          <BarChartIcon size={16} />
+          <h2 className="text-xl font-semibold tracking-tight">{block.title}</h2>
+        </div>
+        <div className="rounded-[24px] border border-stone-200 bg-stone-50/60 p-4">
+          {renderChartData(block.chartData) || (
+            <div className="rounded-2xl bg-white p-8 text-center text-sm text-stone-500">图表暂不可用</div>
           )}
         </div>
-        
-        <div className="flex items-center gap-2 shrink-0 self-end sm:self-start mt-2 sm:mt-0">
-          <button className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors" onClick={() => setIsFullscreen(!isFullscreen)} title={isFullscreen ? '退出全屏' : '全屏查看'}>
-            {isFullscreen ? '⛶' : '⛶'}
-          </button>
-          <button className="px-3 py-1.5 text-sm font-medium text-muted-foreground bg-popover border border-border hover:bg-muted hover:text-primary rounded-lg shadow-sm transition-all" onClick={() => onExport?.('pdf')}>导出 PDF</button>
-          <button className="px-3 py-1.5 text-sm font-medium text-muted-foreground bg-popover border border-border hover:bg-muted hover:text-primary rounded-lg shadow-sm transition-all" onClick={() => onExport?.('markdown')}>导出 MD</button>
-          {onClose && <button className="p-2 ml-1 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors" onClick={onClose}>✕</button>}
-        </div>
-      </header>
-
-      <div className="flex flex-1 overflow-hidden bg-background">
-        {/* 章节导航 */}
-        <SectionNavigator
-          sections={report.sections}
-          activeIndex={activeSection}
-          onSelect={scrollToSection}
-        />
-
-        {/* 报告内容 */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-8 lg:p-12 scroll-smooth bg-background bg-[radial-gradient(var(--border)_1px,transparent_1px)] [background-size:16px_16px]" ref={contentRef}>
-          <div className="max-w-4xl mx-auto flex flex-col gap-10 pb-20">
-            {report.summary && (
-              <div className="bg-popover p-8 rounded-2xl shadow-sm border border-border">
-                <h2 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
-                  <span className="w-1.5 h-6 bg-primary rounded-full inline-block"></span>
-                  执行摘要
-                </h2>
-                <div className="prose prose-slate dark:prose-invert max-w-none text-muted-foreground leading-[1.8]">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{report.summary}</ReactMarkdown>
-                </div>
-              </div>
-            )}
-
-            {report.sections?.map((section, index) => (
-              <section
-                key={index}
-                className="bg-popover p-6 sm:p-10 rounded-3xl shadow-sm border border-border transition-all hover:shadow-md"
-                data-section-index={index}
-              >
-                <h2 className="text-2xl font-bold text-foreground mb-8 flex items-center gap-3 border-b border-border pb-5">
-                  <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/20 text-primary text-sm font-black">{index + 1}</span>
-                  {section.title}
-                </h2>
-                
-                {section.content && (
-                  <div className="prose prose-slate dark:prose-invert prose-lg max-w-none text-foreground/80 leading-relaxed mb-10">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {section.content}
-                    </ReactMarkdown>
-                  </div>
-                )}
-
-                {/* 章节内的图表 */}
-                {section.charts?.length > 0 && (
-                  <div className="flex flex-col gap-8 mb-10">
-                    {section.charts.map((chart, chartIndex) => (
-                      <div key={chartIndex} className="bg-muted/30 p-6 rounded-2xl border border-border">
-                        {chart.title && <h4 className="text-sm font-bold tracking-wider text-muted-foreground mb-5 text-center uppercase">{chart.title}</h4>}
-                        <div className="bg-popover rounded-xl p-2 sm:p-4 shadow-sm ring-1 ring-foreground/5">
-                          <ChartRenderer chartJson={chart.data} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* 章节内的数据表格 */}
-                {section.table && (
-                  <div className="mb-10 overflow-hidden rounded-2xl border border-border shadow-sm">
-                    <DataTable
-                      data={section.table.data}
-                      columns={section.table.columns}
-                      title={section.table.title}
-                    />
-                  </div>
-                )}
-
-                {/* 章节内的指标 */}
-                {section.metrics && (
-                  <div className="flex flex-wrap gap-4 mt-8 pt-6 border-t border-border">
-                    {section.metrics.map((metric, i) => (
-                      <MetricCard key={i} {...metric} size="small" />
-                    ))}
-                  </div>
-                )}
-              </section>
-            ))}
-
-            {/* 结论与建议 */}
-            {report.conclusion && (
-              <div className="bg-gradient-to-br from-primary/10 to-transparent p-8 sm:p-10 rounded-3xl border border-primary/20 shadow-sm relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-8 opacity-10 text-8xl">💡</div>
-                <h2 className="text-2xl font-bold text-foreground mb-6 flex items-center gap-2 relative z-10">
-                  <span className="text-primary">💡</span>
-                  结论与建议
-                </h2>
-                <div className="prose prose-slate dark:prose-invert prose-lg max-w-none text-foreground/90 leading-relaxed relative z-10">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {report.conclusion}
-                  </ReactMarkdown>
-                </div>
-              </div>
-            )}
+        {block.note && (
+          <div className="mt-4 rounded-[22px] bg-stone-50 px-5 py-4 text-sm leading-7 text-stone-700">
+            {block.note}
           </div>
+        )}
+      </section>
+    );
+  }
+
+  if (block.type === 'table') {
+    return (
+      <section className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm overflow-hidden">
+        <div className="mb-5 flex items-center gap-2 text-stone-900">
+          <LayersIcon size={16} />
+          <h2 className="text-xl font-semibold tracking-tight">{block.title}</h2>
         </div>
+        <DataTable
+          title={null}
+          pageSize={6}
+          searchable={false}
+          exportable={false}
+          data={block.rows || []}
+          columns={block.columns || []}
+        />
+      </section>
+    );
+  }
+
+  if (block.type === 'checklist') {
+    return (
+      <section className="rounded-[28px] border border-amber-200 bg-amber-50/60 p-6 shadow-sm">
+        <h2 className="text-xl font-semibold tracking-tight text-stone-950">{block.title}</h2>
+        {(block.content || '').trim() && (
+          <div className="prose mt-4 max-w-none text-stone-700">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{block.content}</ReactMarkdown>
+          </div>
+        )}
+        <div className="mt-5 space-y-3">
+          {(block.items || []).map((item, index) => (
+            <div key={item.id || index} className="flex items-center gap-3 rounded-2xl border border-white/90 bg-white px-4 py-3">
+              <input type="checkbox" checked={!!item.checked} readOnly />
+              <span className={`text-sm ${item.checked ? 'text-stone-400 line-through' : 'text-stone-800'}`}>{item.text}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  if (block.type === 'callout') {
+    return (
+      <section className="rounded-[28px] border border-blue-200 bg-blue-50/70 p-6 shadow-sm">
+        <h2 className="text-xl font-semibold tracking-tight text-stone-950">{block.title}</h2>
+        <div className="prose mt-4 max-w-none text-stone-700">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{block.content || ''}</ReactMarkdown>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm">
+      <h2 className="text-xl font-semibold tracking-tight text-stone-950">{block.title}</h2>
+      <div className="prose mt-4 max-w-none text-stone-700">
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{block.content || ''}</ReactMarkdown>
       </div>
-    </div>
+    </section>
   );
 }
 
-/**
- * 图表渲染器
- */
-function ChartRenderer({ chartJson }) {
-  const [error, setError] = useState(null);
-  const [chartData, setChartData] = useState(null);
+export default function ReportViewer({ report, onExport, onClose }) {
+  const [mode, setMode] = useState('canvas');
+  const storageKey = useMemo(() => getCanvasStorageKey(report), [report]);
+  const [blocks, setBlocks] = useState(() => reportToCanvasBlocks(report));
+  const [saveStatus, setSaveStatus] = useState('idle');
 
   useEffect(() => {
-    if (!chartJson) {
-      setError('图表数据为空');
-      return;
-    }
+    if (!report) return;
 
+    const fallbackBlocks = reportToCanvasBlocks(report);
     try {
-      const parsed = parseChartPayload(chartJson);
-
-      // 验证解析后的数据结构
-      if (!parsed) {
-        throw new Error('图表数据为空');
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setBlocks(parsed);
+          return;
+        }
       }
-      
-      setChartData(parsed);
-      setError(null);
-    } catch (e) {
-      setError(e.message);
-      console.error('图表数据解析错误:', chartJson);
+    } catch {}
+
+    setBlocks(fallbackBlocks);
+  }, [report, storageKey]);
+
+  useEffect(() => {
+    if (!blocks?.length) return;
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(blocks));
+      setSaveStatus('saved');
+      const timer = window.setTimeout(() => setSaveStatus('idle'), 1200);
+      return () => window.clearTimeout(timer);
+    } catch {
+      setSaveStatus('error');
     }
-  }, [chartJson]);
+  }, [blocks, storageKey]);
 
-  if (error) {
-    return (
-      <div className="chart-error">
-        ❌ 图表渲染失败: {error}
-        <div style={{ marginTop: '10px', fontSize: '0.8rem', opacity: 0.7 }}>
-          提示: 图表数据格式可能不正确，请检查数据源
-        </div>
-        <div style={{ marginTop: '8px', fontSize: '0.7rem', opacity: 0.5, wordBreak: 'break-all' }}>
-          数据预览: {typeof chartJson === 'string' ? chartJson.substring(0, 200) + '...' : JSON.stringify(chartJson).substring(0, 200) + '...'}
-        </div>
-      </div>
-    );
-  }
+  if (!report) return null;
 
-  if (!chartData) {
-    return (
-      <div className="chart-wrapper">
-        <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-tertiary)' }}>
-          加载中...
-        </div>
-      </div>
-    );
-  }
-
-  // 新格式：原始数据格式
-  if (chartData.type === 'chart_data' && chartData.data) {
-    return (
-      <SmartChart
-        data={chartData.data}
-        chartType={chartData.chartType}
-        title={chartData.title}
-        xCol={chartData.xCol}
-        yCol={chartData.yCol}
-        colorCol={chartData.colorCol}
-        sizeCol={chartData.sizeCol}
-        height={350}
-        showTypeSelector={false}
-        showLibrarySelector={false}
-      />
-    );
-  }
-
-  // 旧格式：Plotly 格式
-  if (chartData.data && chartData.layout) {
-    // 转换为新格式
-    const trace = chartData.data[0];
-    const xData = trace.x || [];
-    const yData = trace.y || [];
-    
-    const data = xData.map((x, i) => ({
-      [trace.name || 'category']: x,
-      [trace.name || 'value']: yData[i],
-    }));
-
-    let chartType = 'bar';
-    if (trace.type === 'scatter') chartType = 'line';
-    if (trace.type === 'pie') chartType = 'pie';
-
-    return (
-      <SmartChart
-        data={data}
-        chartType={chartType}
-        title={chartData.layout.title?.text || ''}
-        xCol={trace.name || 'category'}
-        yCol={trace.name || 'value'}
-        height={350}
-        showTypeSelector={false}
-        showLibrarySelector={false}
-      />
-    );
-  }
-
-  // 纯数据数组
-  if (Array.isArray(chartData)) {
-    return (
-      <SmartChart
-        data={chartData}
-        height={350}
-        showTypeSelector={false}
-        showLibrarySelector={false}
-      />
-    );
-  }
+  const hero = blocks.find((block) => block.type === 'hero') || blocks[0];
+  const navigableBlocks = blocks.filter((block) => block.type !== 'hero');
 
   return (
-    <div className="chart-error">
-      ❌ 无法识别的图表数据格式
+    <div className="flex h-full w-full bg-[linear-gradient(180deg,#f4ecdf_0%,#efe6d7_30%,#f8f4ea_100%)] text-stone-900">
+      <aside className="hidden xl:flex w-[280px] shrink-0 flex-col border-r border-stone-200/80 bg-[#f3ebdc]/90">
+        <div className="border-b border-stone-200/80 px-6 py-6">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">Decision Studio</div>
+          <div className="mt-3 text-2xl font-semibold tracking-[-0.04em] text-stone-950">{hero?.title || report.title}</div>
+          {hero?.subtitle && <p className="mt-3 text-sm leading-7 text-stone-600">{hero.subtitle}</p>}
+        </div>
+
+        <div className="px-4 py-4">
+          <div className="rounded-[24px] border border-stone-200 bg-white/80 p-3">
+            <button
+              className={`flex w-full items-center gap-2 rounded-2xl px-3 py-3 text-sm font-medium transition ${mode === 'canvas' ? 'bg-stone-900 text-white' : 'text-stone-600 hover:bg-stone-100'}`}
+              onClick={() => setMode('canvas')}
+            >
+              <EditIcon size={15} />
+              画布编排
+            </button>
+            <button
+              className={`mt-2 flex w-full items-center gap-2 rounded-2xl px-3 py-3 text-sm font-medium transition ${mode === 'preview' ? 'bg-stone-900 text-white' : 'text-stone-600 hover:bg-stone-100'}`}
+              onClick={() => setMode('preview')}
+            >
+              <BookOpenIcon size={15} />
+              成品预览
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-4 pb-5">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500 px-2 pb-2">Canvas Outline</div>
+          <div className="space-y-2">
+            {navigableBlocks.map((block, index) => (
+              <div key={block.id} className="rounded-2xl border border-stone-200 bg-white/80 px-3 py-3">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-400">
+                  {String(index + 1).padStart(2, '0')} · {block.type}
+                </div>
+                <div className="mt-1 text-sm font-medium text-stone-800">{getBlockHeading(block)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-10 border-b border-stone-200/80 bg-[#fbf7ef]/90">
+          <div className="flex flex-col gap-4 px-5 py-4 md:flex-row md:items-center md:justify-between md:px-8">
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">Report Workbench</div>
+              <div className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-stone-950">
+                {mode === 'canvas' ? '可编排报告画布' : '高保真成品预览'}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <div className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold ${saveStatus === 'error' ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-700'}`}>
+                <SaveIcon size={14} />
+                {saveStatus === 'saved' ? '草稿已保存' : saveStatus === 'error' ? '保存失败' : '自动保存开启'}
+              </div>
+              <button
+                className="inline-flex items-center gap-2 rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 hover:border-stone-400 hover:bg-stone-50 transition"
+                onClick={() => onExport?.('markdown')}
+              >
+                <DownloadIcon size={14} />
+                导出
+              </button>
+              {onClose && (
+                <button
+                  className="inline-flex items-center gap-2 rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 hover:border-stone-400 hover:bg-stone-50 transition"
+                  onClick={onClose}
+                >
+                  <CloseIcon size={14} />
+                  关闭
+                </button>
+              )}
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1 overflow-y-auto px-4 py-5 md:px-8 md:py-8">
+          <div className="mx-auto max-w-6xl">
+            {mode === 'canvas' ? (
+              <ReportCanvas blocks={blocks} onChange={setBlocks} />
+            ) : (
+              <div className="space-y-5">
+                {blocks.map((block) => (
+                  <PreviewBlock key={block.id} block={block} />
+                ))}
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

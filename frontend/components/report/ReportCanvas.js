@@ -1,0 +1,489 @@
+'use client';
+
+import { useMemo } from 'react';
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+import SmartChart from '../charts/SmartChart';
+import DataTable from './DataTable';
+import {
+  AlertIcon,
+  CheckCircleIcon,
+  CopyIcon,
+  EditIcon,
+  LayersIcon,
+  TrashIcon,
+} from '../Icons';
+import { parseChartPayload } from '@/lib/chartData';
+import { createCanvasBlock, getBlockHeading } from '@/lib/reportCanvas';
+
+function toneClass(tone = 'default') {
+  if (tone === 'summary') return 'border-blue-200 bg-blue-50/70';
+  if (tone === 'section') return 'border-stone-200 bg-white';
+  if (tone === 'note') return 'border-amber-200 bg-amber-50/70';
+  return 'border-border bg-white';
+}
+
+function CanvasToolbar({ onAddBlock, blockCount }) {
+  const blockTypes = [
+    { key: 'text', label: '文本', icon: <EditIcon size={14} /> },
+    { key: 'callout', label: '提示块', icon: <AlertIcon size={14} /> },
+    { key: 'checklist', label: '清单', icon: <CheckCircleIcon size={14} /> },
+    { key: 'metrics', label: '指标组', icon: <LayersIcon size={14} /> },
+  ];
+
+  return (
+    <div className="rounded-[28px] border border-stone-200 bg-white/90 px-4 py-4 shadow-sm">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">Canvas Controls</div>
+          <div className="mt-1 text-lg font-semibold text-stone-900">正在编排 {blockCount} 个内容块</div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {blockTypes.map((item) => (
+            <button
+              key={item.key}
+              className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-stone-50 px-3 py-2 text-sm font-medium text-stone-700 hover:border-stone-300 hover:bg-stone-100 transition"
+              onClick={() => onAddBlock(item.key)}
+            >
+              {item.icon}
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SortableBlock({ block, index, onUpdate, onDelete, onDuplicate }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: block.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <article
+      ref={setNodeRef}
+      style={style}
+      className={`rounded-[28px] border p-5 shadow-sm transition ${toneClass(block.tone)} ${isDragging ? 'opacity-70 shadow-lg' : ''}`}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <button
+            className="cursor-grab rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-stone-500"
+            {...attributes}
+            {...listeners}
+          >
+            {String(index + 1).padStart(2, '0')}
+          </button>
+          <div className="min-w-0">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">{block.type}</div>
+            <div className="mt-1 truncate text-base font-semibold text-stone-900">{getBlockHeading(block)}</div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            className="rounded-full p-2 text-stone-500 hover:bg-stone-100 hover:text-stone-900 transition"
+            onClick={() => onDuplicate(block.id)}
+            title="复制块"
+          >
+            <CopyIcon size={14} />
+          </button>
+          <button
+            className="rounded-full p-2 text-stone-500 hover:bg-rose-50 hover:text-rose-600 transition"
+            onClick={() => onDelete(block.id)}
+            title="删除块"
+          >
+            <TrashIcon size={14} />
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-5">
+        <BlockEditor block={block} onUpdate={onUpdate} />
+      </div>
+    </article>
+  );
+}
+
+function CanvasChart({ chartData }) {
+  try {
+    const parsed = parseChartPayload(chartData);
+    if (!parsed) {
+      return <div className="rounded-2xl bg-stone-50 p-8 text-center text-sm text-stone-500">暂无图表数据</div>;
+    }
+
+    if (parsed.type === 'chart_data' && parsed.data) {
+      return (
+        <SmartChart
+          data={parsed.data}
+          chartType={parsed.chartType}
+          title={parsed.title}
+          xCol={parsed.xCol}
+          yCol={parsed.yCol}
+          colorCol={parsed.colorCol}
+          sizeCol={parsed.sizeCol}
+          height={360}
+          showTypeSelector={false}
+          showLibrarySelector={false}
+        />
+      );
+    }
+
+    if (parsed.data && parsed.layout) {
+      const trace = parsed.data[0];
+      const xData = trace.x || [];
+      const yData = trace.y || [];
+      const normalized = xData.map((x, index) => ({
+        category: x,
+        value: yData[index],
+      }));
+
+      return (
+        <SmartChart
+          data={normalized}
+          chartType={trace.type === 'pie' ? 'pie' : trace.type === 'scatter' ? 'line' : 'bar'}
+          title={parsed.layout.title?.text || ''}
+          xCol="category"
+          yCol="value"
+          height={360}
+          showTypeSelector={false}
+          showLibrarySelector={false}
+        />
+      );
+    }
+  } catch {
+    return <div className="rounded-2xl bg-rose-50 p-8 text-center text-sm text-rose-600">图表数据解析失败</div>;
+  }
+
+  return <div className="rounded-2xl bg-stone-50 p-8 text-center text-sm text-stone-500">暂不支持该图表格式</div>;
+}
+
+function BlockEditor({ block, onUpdate }) {
+  if (block.type === 'hero') {
+    return (
+      <div className="grid gap-4 md:grid-cols-[1.6fr,1fr]">
+        <div className="space-y-3">
+          <input
+            className="w-full bg-transparent text-3xl font-semibold tracking-tight text-stone-950 outline-none"
+            value={block.title || ''}
+            onChange={(event) => onUpdate(block.id, { title: event.target.value })}
+            placeholder="报告标题"
+          />
+          <textarea
+            className="w-full min-h-[92px] resize-none rounded-3xl border border-stone-200 bg-stone-50/80 px-4 py-3 text-base leading-7 text-stone-700 outline-none"
+            value={block.subtitle || ''}
+            onChange={(event) => onUpdate(block.id, { subtitle: event.target.value })}
+            placeholder="补充一句具有观点感的副标题"
+          />
+        </div>
+        <div className="rounded-[24px] border border-stone-200 bg-stone-50 p-4 space-y-3">
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">类型</div>
+            <input
+              className="mt-2 w-full rounded-2xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-800 outline-none"
+              value={block.badge || ''}
+              onChange={(event) => onUpdate(block.id, { badge: event.target.value })}
+            />
+          </div>
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">时间</div>
+            <input
+              className="mt-2 w-full rounded-2xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-800 outline-none"
+              value={block.createdAt || ''}
+              onChange={(event) => onUpdate(block.id, { createdAt: event.target.value })}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (block.type === 'metrics') {
+    return (
+      <div className="space-y-4">
+        <input
+          className="w-full bg-transparent text-xl font-semibold text-stone-900 outline-none"
+          value={block.title || ''}
+          onChange={(event) => onUpdate(block.id, { title: event.target.value })}
+          placeholder="指标组标题"
+        />
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {(block.items || []).map((item, index) => (
+            <div key={index} className="rounded-[22px] border border-stone-200 bg-stone-50/80 p-4 space-y-2">
+              <input
+                className="w-full bg-transparent text-sm font-medium text-stone-600 outline-none"
+                value={item.label || item.title || ''}
+                onChange={(event) => {
+                  const items = [...(block.items || [])];
+                  items[index] = { ...items[index], label: event.target.value, title: event.target.value };
+                  onUpdate(block.id, { items });
+                }}
+                placeholder="指标名称"
+              />
+              <input
+                className="w-full bg-transparent text-2xl font-semibold text-stone-900 outline-none"
+                value={item.value || ''}
+                onChange={(event) => {
+                  const items = [...(block.items || [])];
+                  items[index] = { ...items[index], value: event.target.value };
+                  onUpdate(block.id, { items });
+                }}
+                placeholder="指标值"
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (block.type === 'chart') {
+    return (
+      <div className="space-y-4">
+        <input
+          className="w-full bg-transparent text-xl font-semibold text-stone-900 outline-none"
+          value={block.title || ''}
+          onChange={(event) => onUpdate(block.id, { title: event.target.value })}
+          placeholder="图表标题"
+        />
+        <div className="rounded-[24px] border border-stone-200 bg-white p-4">
+          <CanvasChart chartData={block.chartData} />
+        </div>
+        <textarea
+          className="w-full min-h-[96px] resize-none rounded-[24px] border border-stone-200 bg-stone-50/80 px-4 py-3 text-sm leading-7 text-stone-700 outline-none"
+          value={block.note || ''}
+          onChange={(event) => onUpdate(block.id, { note: event.target.value })}
+          placeholder="补充这张图的解读、异常点和业务含义"
+        />
+      </div>
+    );
+  }
+
+  if (block.type === 'table') {
+    return (
+      <div className="space-y-4">
+        <input
+          className="w-full bg-transparent text-xl font-semibold text-stone-900 outline-none"
+          value={block.title || ''}
+          onChange={(event) => onUpdate(block.id, { title: event.target.value })}
+          placeholder="数据表标题"
+        />
+        <div className="overflow-hidden rounded-[24px] border border-stone-200 bg-white">
+          <DataTable
+            title={null}
+            searchable={false}
+            exportable={false}
+            pageSize={6}
+            data={block.rows || []}
+            columns={block.columns || []}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (block.type === 'checklist') {
+    return (
+      <div className="space-y-4">
+        <input
+          className="w-full bg-transparent text-xl font-semibold text-stone-900 outline-none"
+          value={block.title || ''}
+          onChange={(event) => onUpdate(block.id, { title: event.target.value })}
+          placeholder="行动清单标题"
+        />
+        <div className="space-y-2">
+          {(block.items || []).map((item, index) => (
+            <label key={item.id || index} className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-white px-4 py-3">
+              <input
+                type="checkbox"
+                checked={!!item.checked}
+                onChange={(event) => {
+                  const items = [...(block.items || [])];
+                  items[index] = { ...items[index], checked: event.target.checked };
+                  onUpdate(block.id, { items });
+                }}
+              />
+              <input
+                className={`flex-1 bg-transparent text-sm outline-none ${item.checked ? 'text-stone-400 line-through' : 'text-stone-800'}`}
+                value={item.text || ''}
+                onChange={(event) => {
+                  const items = [...(block.items || [])];
+                  items[index] = { ...items[index], text: event.target.value };
+                  onUpdate(block.id, { items });
+                }}
+                placeholder="输入行动项"
+              />
+            </label>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <input
+        className="w-full bg-transparent text-xl font-semibold text-stone-900 outline-none"
+        value={block.title || ''}
+        onChange={(event) => onUpdate(block.id, { title: event.target.value })}
+        placeholder="块标题"
+      />
+      <textarea
+        className="w-full min-h-[180px] resize-none rounded-[24px] border border-stone-200 bg-white px-4 py-3 text-[15px] leading-8 text-stone-800 outline-none"
+        value={block.content || ''}
+        onChange={(event) => onUpdate(block.id, { content: event.target.value })}
+        placeholder="开始编写你的内容"
+      />
+    </div>
+  );
+}
+
+export default function ReportCanvas({ blocks, onChange }) {
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const blockIds = useMemo(() => blocks.map((block) => block.id), [blocks]);
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = blocks.findIndex((block) => block.id === active.id);
+    const newIndex = blocks.findIndex((block) => block.id === over.id);
+    onChange(arrayMove(blocks, oldIndex, newIndex));
+  };
+
+  const updateBlock = (blockId, patch) => {
+    onChange(
+      blocks.map((block) => (block.id === blockId ? { ...block, ...patch } : block))
+    );
+  };
+
+  const deleteBlock = (blockId) => {
+    onChange(blocks.filter((block) => block.id !== blockId));
+  };
+
+  const duplicateBlock = (blockId) => {
+    const current = blocks.find((block) => block.id === blockId);
+    if (!current) return;
+
+    const clone = {
+      ...current,
+      id: `${current.type}-${Math.random().toString(36).slice(2, 9)}`,
+      title: current.title ? `${current.title}（副本）` : current.title,
+    };
+
+    const next = [];
+    blocks.forEach((block) => {
+      next.push(block);
+      if (block.id === blockId) {
+        next.push(clone);
+      }
+    });
+    onChange(next);
+  };
+
+  const addBlock = (type) => {
+    if (type === 'metrics') {
+      onChange([
+        ...blocks,
+        createCanvasBlock('metrics', {
+          title: '新增指标组',
+          items: [
+            { label: '指标一', value: '0' },
+            { label: '指标二', value: '0' },
+            { label: '指标三', value: '0' },
+          ],
+        }),
+      ]);
+      return;
+    }
+
+    if (type === 'checklist') {
+      onChange([
+        ...blocks,
+        createCanvasBlock('checklist', {
+          title: '新增行动清单',
+          items: [
+            { id: 'todo-1', text: '补充第一项行动', checked: false },
+            { id: 'todo-2', text: '补充第二项行动', checked: false },
+          ],
+        }),
+      ]);
+      return;
+    }
+
+    if (type === 'callout') {
+      onChange([
+        ...blocks,
+        createCanvasBlock('callout', {
+          title: '关键提醒',
+          content: '在这里放入风险、依赖、阻塞或关键约束。',
+          tone: 'note',
+        }),
+      ]);
+      return;
+    }
+
+    onChange([
+      ...blocks,
+      createCanvasBlock('text', {
+        title: '新增文本块',
+        content: '开始编写内容。',
+        tone: 'section',
+      }),
+    ]);
+  };
+
+  return (
+    <div className="space-y-5">
+      <CanvasToolbar onAddBlock={addBlock} blockCount={blocks.length} />
+
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={blockIds} strategy={verticalListSortingStrategy}>
+          <div className="space-y-4">
+            {blocks.map((block, index) => (
+              <SortableBlock
+                key={block.id}
+                block={block}
+                index={index}
+                onUpdate={updateBlock}
+                onDelete={deleteBlock}
+                onDuplicate={duplicateBlock}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
+    </div>
+  );
+}
