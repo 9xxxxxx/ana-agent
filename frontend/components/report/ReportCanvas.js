@@ -33,7 +33,7 @@ import {
 } from '../Icons';
 import { fetchOrchestrationRuntime, triggerDeploymentRun } from '@/lib/api';
 import { parseChartPayload } from '@/lib/chartData';
-import { convertExpertOpinionToBlock, createCanvasBlock, generateDecisionPackBlocks, getBlockHeading, syncActionItemsWithRuns } from '@/lib/reportCanvas';
+import { convertExpertOpinionToBlock, createCanvasBlock, generateDecisionPackBlocks, getBlockHeading, getRunRecommendation, syncActionItemsWithRuns } from '@/lib/reportCanvas';
 import { reportTemplates } from '@/lib/reportTemplates';
 import { useToast } from '../Toast';
 
@@ -600,6 +600,29 @@ function BlockEditor({ block, onUpdate, linkOptions = [], onRunActionItem, runni
                       : '尚未回写执行状态'}
                   </div>
                 </div>
+                {(item.lastRunState || item.lastRunMessage) && (
+                  <div className="mt-3 rounded-2xl border border-stone-200 bg-stone-50/70 px-4 py-3 text-sm">
+                    <div className="flex flex-wrap gap-2 text-xs font-semibold">
+                      {item.linkedRunId && (
+                        <span className="rounded-full bg-white px-2.5 py-1 text-stone-600">Run {item.linkedRunId.slice(0, 8)}</span>
+                      )}
+                      {item.lastRunStartedAt && (
+                        <span className="rounded-full bg-white px-2.5 py-1 text-stone-600">开始: {item.lastRunStartedAt}</span>
+                      )}
+                      {item.lastRunEndedAt && (
+                        <span className="rounded-full bg-white px-2.5 py-1 text-stone-600">结束: {item.lastRunEndedAt}</span>
+                      )}
+                    </div>
+                    {item.lastRunMessage && (
+                      <div className="mt-3 rounded-xl bg-white px-3 py-2 leading-6 text-stone-600">
+                        {item.lastRunMessage}
+                      </div>
+                    )}
+                    <div className="mt-3 rounded-xl bg-amber-50 px-3 py-2 leading-6 text-amber-800">
+                      建议: {getRunRecommendation(item.lastRunState)}
+                    </div>
+                  </div>
+                )}
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <button
                     className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-stone-900 px-3 py-2 text-xs font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
@@ -955,7 +978,7 @@ export default function ReportCanvas({ blocks, onChange }) {
       }
 
       const run = response.run || {};
-      const nextBlocks = blocks.map((block) => {
+                  const nextBlocks = blocks.map((block) => {
         if (block.id !== blockId || block.type !== 'action_items') {
           return block;
         }
@@ -968,6 +991,9 @@ export default function ReportCanvas({ blocks, onChange }) {
                   linkedRunId: run.id || item.linkedRunId || '',
                   linkedDeploymentId: run.deployment_id || item.linkedDeploymentId || '',
                   lastRunState: run.state_name || 'Scheduled',
+                  lastRunMessage: run.state_message || item.lastRunMessage || '',
+                  lastRunStartedAt: run.start_time || item.lastRunStartedAt || '',
+                  lastRunEndedAt: run.end_time || item.lastRunEndedAt || '',
                   lastSyncedAt: new Date().toLocaleString(),
                   status: 'todo',
                 }

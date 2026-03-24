@@ -87,6 +87,7 @@ class OrchestrationService:
             "flow_id": str(getattr(flow_run, "flow_id", "")) if getattr(flow_run, "flow_id", None) else None,
             "state_name": getattr(flow_run, "state_name", None) or getattr(state, "name", None),
             "state_type": str(getattr(flow_run, "state_type", None) or getattr(state, "type", None) or ""),
+            "state_message": getattr(state, "message", None),
             "created": getattr(flow_run, "created", None).isoformat() if getattr(flow_run, "created", None) else None,
             "start_time": getattr(flow_run, "start_time", None).isoformat() if getattr(flow_run, "start_time", None) else None,
             "end_time": getattr(flow_run, "end_time", None).isoformat() if getattr(flow_run, "end_time", None) else None,

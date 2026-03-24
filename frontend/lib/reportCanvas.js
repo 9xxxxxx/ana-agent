@@ -124,6 +124,9 @@ function normalizeActionItems(items = []) {
     linkedDeploymentName: item.linkedDeploymentName || '',
     linkedRunId: item.linkedRunId || '',
     lastRunState: item.lastRunState || '',
+    lastRunMessage: item.lastRunMessage || '',
+    lastRunStartedAt: item.lastRunStartedAt || '',
+    lastRunEndedAt: item.lastRunEndedAt || '',
     lastSyncedAt: item.lastSyncedAt || '',
   }));
 }
@@ -135,6 +138,15 @@ function getActionStatusFromRunState(stateName = '') {
   if (normalized.includes('scheduled') || normalized.includes('pending')) return 'todo';
   if (normalized.includes('failed') || normalized.includes('crashed')) return 'todo';
   return null;
+}
+
+export function getRunRecommendation(stateName = '') {
+  const normalized = String(stateName).toLowerCase();
+  if (normalized.includes('completed')) return '执行完成，可以转入复盘或验证结果。';
+  if (normalized.includes('running')) return '流程正在运行，先等待结果回传，不要重复触发。';
+  if (normalized.includes('scheduled') || normalized.includes('pending')) return '任务已进入调度队列，关注启动时间和资源占用。';
+  if (normalized.includes('failed') || normalized.includes('crashed')) return '任务失败，优先检查 deployment 参数、依赖环境和上游数据。';
+  return '建议结合编排快照与日志进一步确认执行情况。';
 }
 
 export function syncActionItemsWithRuns(blocks = []) {
@@ -175,6 +187,9 @@ export function syncActionItemsWithRuns(blocks = []) {
         linkedDeploymentId: targetRun.deployment_id || item.linkedDeploymentId || '',
         linkedDeploymentName: targetRun.deployment_name || item.linkedDeploymentName || '',
         lastRunState: targetRun.state_name || item.lastRunState || '',
+        lastRunMessage: targetRun.state_message || item.lastRunMessage || '',
+        lastRunStartedAt: targetRun.start_time || item.lastRunStartedAt || '',
+        lastRunEndedAt: targetRun.end_time || item.lastRunEndedAt || '',
         lastSyncedAt: new Date().toLocaleString(),
         status: getActionStatusFromRunState(targetRun.state_name) || item.status || 'todo',
       };

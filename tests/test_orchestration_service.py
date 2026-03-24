@@ -62,7 +62,7 @@ class OrchestrationServiceTests(unittest.IsolatedAsyncioTestCase):
             expected_start_time=datetime(2026, 3, 24, 12, 10, 0),
             next_scheduled_start_time=None,
             tags=["sql-agent"],
-            state=SimpleNamespace(name="Completed", type="COMPLETED"),
+            state=SimpleNamespace(name="Completed", type="COMPLETED", message="Flow completed successfully"),
         )
         client = AsyncMock()
         client.read_deployments.return_value = [deployment]
@@ -80,6 +80,7 @@ class OrchestrationServiceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["stats"]["deployment_run_count"], 1)
         self.assertEqual(result["deployments"][0]["name"], "sql-agent-watchdog-sales")
         self.assertEqual(result["runs"][0]["state_name"], "Completed")
+        self.assertEqual(result["runs"][0]["state_message"], "Flow completed successfully")
 
     async def test_trigger_deployment_run_returns_serialized_flow_run(self):
         flow_run = SimpleNamespace(

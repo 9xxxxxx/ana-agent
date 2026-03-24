@@ -22,6 +22,7 @@ import {
   exportCanvasToMarkdown,
   getBlockHeading,
   getCanvasStorageKey,
+  getRunRecommendation,
   reportToCanvasBlocks,
 } from '@/lib/reportCanvas';
 
@@ -203,6 +204,29 @@ function PreviewBlock({ block }) {
                           <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">{item.lastRunState}</span>
                         )}
                       </div>
+                      {(item.lastRunState || item.lastRunMessage) && (
+                        <div className="mt-3 rounded-2xl border border-stone-200 bg-stone-50/70 px-3 py-3 text-sm">
+                          <div className="flex flex-wrap gap-2 text-xs font-semibold">
+                            {item.linkedRunId && (
+                              <span className="rounded-full bg-white px-2.5 py-1 text-stone-600">Run {item.linkedRunId.slice(0, 8)}</span>
+                            )}
+                            {item.lastRunStartedAt && (
+                              <span className="rounded-full bg-white px-2.5 py-1 text-stone-600">开始: {item.lastRunStartedAt}</span>
+                            )}
+                            {item.lastRunEndedAt && (
+                              <span className="rounded-full bg-white px-2.5 py-1 text-stone-600">结束: {item.lastRunEndedAt}</span>
+                            )}
+                          </div>
+                          {item.lastRunMessage && (
+                            <div className="mt-3 rounded-xl bg-white px-3 py-2 leading-6 text-stone-600">
+                              {item.lastRunMessage}
+                            </div>
+                          )}
+                          <div className="mt-3 rounded-xl bg-amber-50 px-3 py-2 leading-6 text-amber-800">
+                            建议: {getRunRecommendation(item.lastRunState)}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
