@@ -8,7 +8,7 @@ import { useToast } from './Toast';
 import { cn, ui, ToolbarButton } from './ui';
 import { InlineFeedback, StatusBadge } from './status';
 
-export default function ChatInput({ onSend, isStreaming, onStop, dbConnected, dbUrl }) {
+export default function ChatInput({ onSend, isStreaming, onStop, compactMode = true }) {
   const { error, success } = useToast();
   const [text, setText] = useState('');
   const [attachments, setAttachments] = useState([]);
@@ -20,11 +20,9 @@ export default function ChatInput({ onSend, isStreaming, onStop, dbConnected, db
   const fileInputRef = useRef(null);
   const menuRef = useRef(null);
 
-  const displayDbUrl = dbUrl ? (dbUrl.length > 40 ? `${dbUrl.substring(0, 40)}...` : dbUrl) : '';
-
   useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
         setShowMenu(false);
       }
     };
@@ -35,12 +33,12 @@ export default function ChatInput({ onSend, isStreaming, onStop, dbConnected, db
   }, [showMenu]);
 
   useEffect(() => {
-    const el = textareaRef.current;
-    if (el) {
-      el.style.height = 'auto';
-      el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
+    const element = textareaRef.current;
+    if (element) {
+      element.style.height = 'auto';
+      element.style.height = `${Math.min(element.scrollHeight, compactMode ? 220 : 250)}px`;
     }
-  }, [text]);
+  }, [text, compactMode]);
 
   const handleFileSelect = useCallback(async (files) => {
     if (!files || files.length === 0) return;
@@ -67,11 +65,11 @@ export default function ChatInput({ onSend, isStreaming, onStop, dbConnected, db
         });
       }
 
-      setAttachments((prev) => [...prev, ...uploaded]);
+      setAttachments((previous) => [...previous, ...uploaded]);
       setUploadStatus({ tone: 'success', title: '附件已准备就绪', message: `已添加 ${uploaded.length} 个附件，可以直接发送。` });
       success(`已添加 ${uploaded.length} 个附件`);
-    } catch (err) {
-      const message = err.message || '文件上传失败';
+    } catch (currentError) {
+      const message = currentError.message || '文件上传失败';
       setUploadStatus({ tone: 'danger', title: '上传失败', message });
       error(message);
     } finally {
@@ -80,18 +78,18 @@ export default function ChatInput({ onSend, isStreaming, onStop, dbConnected, db
   }, [error, success]);
 
   const removeAttachment = useCallback((id) => {
-    setAttachments((prev) => prev.filter((a) => a.id !== id));
+    setAttachments((previous) => previous.filter((attachment) => attachment.id !== id));
   }, []);
 
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleDragOver = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
   };
 
-  const handleDrop = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    handleFileSelect(e.dataTransfer.files);
+  const handleDrop = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    handleFileSelect(event.dataTransfer.files);
   };
 
   const handleSend = useCallback(() => {
@@ -99,7 +97,7 @@ export default function ChatInput({ onSend, isStreaming, onStop, dbConnected, db
 
     let content = text.trim();
     if (attachments.length > 0) {
-      const fileInfo = attachments.map((a) => `[附件: ${a.originalName}](${a.url})`).join('\n');
+      const fileInfo = attachments.map((attachment) => `[附件: ${attachment.originalName}](${attachment.url})`).join('\n');
       content = content ? `${content}\n\n${fileInfo}` : fileInfo;
     }
 
@@ -112,9 +110,9 @@ export default function ChatInput({ onSend, isStreaming, onStop, dbConnected, db
     }
   }, [text, attachments, isStreaming, onSend]);
 
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
+  const handleKeyDown = (event) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
       handleSend();
     }
   };
@@ -127,17 +125,11 @@ export default function ChatInput({ onSend, isStreaming, onStop, dbConnected, db
 
   return (
     <div className="mx-auto w-full max-w-3xl px-6" onDragOver={handleDragOver} onDrop={handleDrop}>
-      <div className="mb-2 flex items-center justify-center gap-2">
-        <StatusBadge tone={dbConnected ? 'success' : 'warning'}>
-          <span className={cn('h-2 w-2 rounded-full', dbConnected ? 'bg-emerald-500' : 'bg-amber-500')} />
-          {dbConnected ? `已连接数据源: ${displayDbUrl}` : '未连接数据库 (仅纯文本对话模式)'}
-        </StatusBadge>
-        {attachments.length > 0 && (
-          <StatusBadge tone="info">
-            已附加 {attachments.length} 个文件
-          </StatusBadge>
-        )}
-      </div>
+      {attachments.length > 0 && (
+        <div className="mb-1.5 flex justify-end px-1 text-[10px] text-slate-500">
+          <span className="shrink-0 rounded-full border border-brand-100 bg-brand-50 px-2 py-0.5 font-semibold text-brand-700">附件 {attachments.length}</span>
+        </div>
+      )}
 
       {uploadStatus && (
         <div className="mb-3">
@@ -147,12 +139,12 @@ export default function ChatInput({ onSend, isStreaming, onStop, dbConnected, db
 
       {attachments.length > 0 && (
         <div className="mb-3 flex flex-wrap gap-2">
-          {attachments.map((att) => (
-            <div key={att.id} className={`relative flex max-w-[200px] items-center gap-2 rounded-xl border border-zinc-200 bg-white ${att.isImage ? 'h-16 w-16 justify-center p-1' : 'p-2.5 shadow-sm'}`}>
-              {att.isImage && att.previewUrl ? (
+          {attachments.map((attachment) => (
+            <div key={attachment.id} className={`relative flex max-w-[200px] items-center gap-2 rounded-xl border border-white/80 bg-white/85 ${attachment.isImage ? 'h-16 w-16 justify-center p-1' : 'p-2.5 shadow-sm'}`}>
+              {attachment.isImage && attachment.previewUrl ? (
                 <Image
-                  src={att.previewUrl}
-                  alt={att.originalName}
+                  src={attachment.previewUrl}
+                  alt={attachment.originalName}
                   width={64}
                   height={64}
                   unoptimized
@@ -163,15 +155,15 @@ export default function ChatInput({ onSend, isStreaming, onStop, dbConnected, db
                   <PaperclipIcon size={18} />
                 </div>
               )}
-              {!att.isImage && (
+              {!attachment.isImage && (
                 <div className="min-w-0 pr-4">
-                  <div className="truncate text-[0.75rem] font-medium text-foreground">{att.originalName}</div>
-                  <div className="text-[0.65rem] text-muted-foreground">{formatSize(att.size)}</div>
+                  <div className="truncate text-[0.75rem] font-medium text-foreground">{attachment.originalName}</div>
+                  <div className="text-[0.65rem] text-muted-foreground">{formatSize(attachment.size)}</div>
                 </div>
               )}
               <button
                 className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-zinc-200 bg-white text-muted-foreground shadow-sm transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-500"
-                onClick={() => removeAttachment(att.id)}
+                onClick={() => removeAttachment(attachment.id)}
               >
                 <CloseIcon size={12} />
               </button>
@@ -180,7 +172,10 @@ export default function ChatInput({ onSend, isStreaming, onStop, dbConnected, db
         </div>
       )}
 
-      <div className="flex items-end gap-2 rounded-[28px] border border-zinc-200 bg-white px-2.5 py-2.5 shadow-[0_8px_30px_rgba(15,23,42,0.08)] transition-all hover:border-zinc-300 focus-within:border-emerald-300 focus-within:ring-4 focus-within:ring-emerald-100">
+      <div className={cn(
+        'glass-panel flex items-end gap-2 border border-white/80 px-2.5 shadow-[0_18px_50px_rgba(30,41,59,0.12)] transition-all hover:border-brand-100 focus-within:border-brand-200 focus-within:ring-4 focus-within:ring-brand-100/70',
+        compactMode ? 'rounded-[20px] py-2' : 'rounded-[22px] py-2.5'
+      )}>
         <div className="relative flex shrink-0 items-center pb-0.5" ref={menuRef}>
           <button
             className={cn(ui.iconButton, 'flex h-8 w-8 items-center justify-center')}
@@ -192,9 +187,9 @@ export default function ChatInput({ onSend, isStreaming, onStop, dbConnected, db
           </button>
 
           {showMenu && (
-            <div className="absolute bottom-12 left-0 z-50 w-36 rounded-xl border border-zinc-200 bg-white py-1.5 shadow-xl animate-in fade-in zoom-in-95 duration-100">
+            <div className="absolute bottom-12 left-0 z-50 w-36 rounded-xl border border-white/90 bg-white py-1.5 shadow-xl">
               <button
-                className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground transition-colors hover:bg-zinc-50"
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground transition-colors hover:bg-brand-50"
                 onClick={() => {
                   setAcceptType('*/*');
                   setTimeout(() => fileInputRef.current?.click(), 0);
@@ -205,7 +200,7 @@ export default function ChatInput({ onSend, isStreaming, onStop, dbConnected, db
                 <span>上传文件</span>
               </button>
               <button
-                className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground transition-colors hover:bg-zinc-50"
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground transition-colors hover:bg-brand-50"
                 onClick={() => {
                   setAcceptType('image/*');
                   setTimeout(() => fileInputRef.current?.click(), 0);
@@ -225,20 +220,24 @@ export default function ChatInput({ onSend, isStreaming, onStop, dbConnected, db
           multiple
           accept={acceptType}
           className="hidden"
-          onChange={(e) => {
-            handleFileSelect(e.target.files);
-            if (e.target) e.target.value = '';
+          onChange={(event) => {
+            handleFileSelect(event.target.files);
+            if (event.target) event.target.value = '';
           }}
         />
 
         <textarea
           ref={textareaRef}
-          className="max-h-[200px] min-h-[24px] flex-1 resize-none border-0 bg-transparent py-1.5 text-[0.95rem] leading-relaxed text-foreground outline-none placeholder:text-muted-foreground"
+          aria-label="输入消息"
+          className={cn(
+            'flex-1 resize-none border-0 bg-transparent py-2 text-[0.95rem] leading-relaxed text-foreground outline-none placeholder:text-muted-foreground',
+            compactMode ? 'max-h-[220px] min-h-[44px]' : 'max-h-[250px] min-h-[56px]'
+          )}
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(event) => setText(event.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={uploading ? '正在上传附件...' : '给 SQL Agent 发消息...'}
-          rows={1}
+          rows={compactMode ? 2 : 3}
           disabled={uploading}
         />
 

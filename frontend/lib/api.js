@@ -41,6 +41,84 @@ export async function fetchSystemDiagnostics() {
   return res.json();
 }
 
+export async function fetchRagConfig() {
+  const res = await fetch(`${API_BASE}/api/rag/config`);
+  return res.json();
+}
+
+export async function saveRagConfig(config) {
+  const res = await fetch(`${API_BASE}/api/rag/config`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(config),
+  });
+  return res.json();
+}
+
+export async function scanRagModels(modelDir) {
+  const res = await fetch(`${API_BASE}/api/rag/models/scan`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model_dir: modelDir }),
+  });
+  return res.json();
+}
+
+export async function verifyRagInjection(query) {
+  const res = await fetch(`${API_BASE}/api/rag/verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query }),
+  });
+  return res.json();
+}
+
+export async function createRagVerifyTask(query) {
+  const res = await fetch(`${API_BASE}/api/rag/verify/async`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query }),
+  });
+  return res.json();
+}
+
+export async function fetchRagVerifyTask(taskId) {
+  const res = await fetch(`${API_BASE}/api/rag/verify/async/${taskId}`);
+  return res.json();
+}
+
+export async function clearRagVectorStore() {
+  const res = await fetch(`${API_BASE}/api/rag/vector/clear`, {
+    method: 'POST',
+  });
+  return res.json();
+}
+
+export async function rebuildRagVectorStore() {
+  const res = await fetch(`${API_BASE}/api/rag/vector/rebuild`, {
+    method: 'POST',
+  });
+  return res.json();
+}
+
+export async function ingestRagUploads(payload) {
+  const res = await fetch(`${API_BASE}/api/rag/ingest/uploads`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return res.json();
+}
+
+export async function pickSystemDirectory(title = '选择文件夹', initialDir = '') {
+  const res = await fetch(`${API_BASE}/api/system/pick-directory`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, initial_dir: initialDir || '' }),
+  });
+  return res.json();
+}
+
 /**
  * 测试模型连接
  */
@@ -119,8 +197,31 @@ export async function uploadFile(file) {
  * SSE 流式对话
  * 返回一个 EventSource 包装对象
  */
-export function streamChat(message, threadId, model, systemPrompt, apiKey, baseUrl, databaseUrl, callbacks) {
-  const { onToken, onReasoning, onToolStart, onToolInput, onToolEnd, onChart, onFile, onCodeOutput, onDone, onError } = callbacks;
+export function streamChat(
+  message,
+  threadId,
+  model,
+  systemPrompt,
+  apiKey,
+  baseUrl,
+  databaseUrl,
+  modelParams,
+  ragOptions,
+  callbacks
+) {
+  const {
+    onToken,
+    onReasoning,
+    onToolStart,
+    onToolInput,
+    onToolEnd,
+    onChart,
+    onFile,
+    onCodeOutput,
+    onRagHits,
+    onDone,
+    onError,
+  } = callbacks;
 
   const controller = new AbortController();
   let completed = false;
@@ -135,7 +236,10 @@ export function streamChat(message, threadId, model, systemPrompt, apiKey, baseU
       system_prompt: systemPrompt,
       api_key: apiKey,
       base_url: baseUrl,
-      database_url: databaseUrl
+      database_url: databaseUrl,
+      model_params: modelParams || {},
+      rag_enabled: ragOptions?.enabled,
+      rag_retrieval_k: ragOptions?.retrievalK,
     }),
     signal: controller.signal,
   })
@@ -221,7 +325,7 @@ export function streamChat(message, threadId, model, systemPrompt, apiKey, baseU
                   break;
                 }
               }
-              onToolEnd?.(data.id, data.output);
+              onToolEnd?.(data.id, data.output, data.input || '', data.name || '');
               break;
             case 'chart':
               onChart?.(data.id, data.json);
@@ -231,6 +335,9 @@ export function streamChat(message, threadId, model, systemPrompt, apiKey, baseU
               break;
             case 'code_output':
               onCodeOutput?.(data.id, data.stdout, data.images);
+              break;
+            case 'rag_hits':
+              onRagHits?.(data);
               break;
             case 'done':
               finishOnce();
@@ -353,6 +460,41 @@ export async function runBrainstormAnalysis(payload) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
+  });
+  return res.json();
+}
+
+export async function createBrainstormSession(payload) {
+  const res = await fetch(`${API_BASE}/api/analysis/brainstorm/sessions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return res.json();
+}
+
+export async function fetchBrainstormSessions() {
+  const res = await fetch(`${API_BASE}/api/analysis/brainstorm/sessions`);
+  return res.json();
+}
+
+export async function fetchBrainstormSession(sessionId) {
+  const res = await fetch(`${API_BASE}/api/analysis/brainstorm/sessions/${sessionId}`);
+  return res.json();
+}
+
+export async function startBrainstormSession(sessionId, payload = {}) {
+  const res = await fetch(`${API_BASE}/api/analysis/brainstorm/sessions/${sessionId}/start`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return res.json();
+}
+
+export async function cancelBrainstormSession(sessionId) {
+  const res = await fetch(`${API_BASE}/api/analysis/brainstorm/sessions/${sessionId}/cancel`, {
+    method: 'POST',
   });
   return res.json();
 }

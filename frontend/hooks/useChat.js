@@ -46,6 +46,8 @@ export function useChat(threadId) {
           charts: m.charts || [],
           files: m.files || [],
           codeOutputs: m.codeOutputs || [],
+          ragHits: m.ragHits || [],
+          ragStatus: m.ragStatus || '',
         }));
         console.log('[useChat] Loaded messages:', loadedMessages.length);
         setMessages(loadedMessages);
@@ -61,7 +63,7 @@ export function useChat(threadId) {
 
   // 发送消息
   const sendMessage = useCallback(
-    (content, model = 'deepseek-chat', databaseUrl = '') => {
+    (content, model = 'deepseek-chat', databaseUrl = '', ragOptions = { enabled: true, retrievalK: 3 }) => {
       // 提取文件附件，格式：[附件: xxx](url)
       const attachRegex = /\[附件:\s*(.+?)\]\((.+?)\)/g;
       const initialFiles = [];
@@ -94,6 +96,8 @@ export function useChat(threadId) {
         charts: [],
         files: [],
         codeOutputs: [],
+        ragHits: [],
+        ragStatus: '',
       };
 
       setMessages((prev) => [...prev, userMsg, assistantMsg]);
@@ -115,15 +119,18 @@ export function useChat(threadId) {
       let customSystemPrompt = '';
       let apiKey = '';
       let baseUrl = '';
+      let modelParams = {};
       try {
         customSystemPrompt = localStorage.getItem('sqlAgentSystemPrompt') || '';
         apiKey = localStorage.getItem('sqlAgentApiKey') || '';
         baseUrl = localStorage.getItem('sqlAgentBaseUrl') || '';
+        modelParams = JSON.parse(localStorage.getItem('sqlAgentModelParams') || '{}');
       } catch (e) {
         console.warn('读取设置失败', e);
+        modelParams = {};
       }
 
-      const handle = streamChat(content, threadId, model, customSystemPrompt, apiKey, baseUrl, databaseUrl, {
+      const handle = streamChat(content, threadId, model, customSystemPrompt, apiKey, baseUrl, databaseUrl, modelParams, ragOptions, {
         onToken: (token) => {
           updateAssistant((m) => ({ ...m, content: mergeStreamText(m.content, token) }));
         },
@@ -140,7 +147,17 @@ export function useChat(threadId) {
             ...m,
             toolSteps: upsertToolStep(
               m.toolSteps,
-              { id, name, input: '', output: '', status: 'running', _rawInput: '' }
+              {
+                id,
+                name,
+                input: '',
+                output: '',
+                status: 'running',
+                _rawInput: '',
+                startedAt: Date.now(),
+                endedAt: null,
+                durationMs: null,
+              }
             ),
           }));
         },
@@ -171,11 +188,22 @@ export function useChat(threadId) {
           }));
         },
 
-        onToolEnd: (id, output) => {
+        onToolEnd: (id, output, input = '', name = '') => {
+          const endTs = Date.now();
           updateAssistant((m) => ({
             ...m,
             toolSteps: m.toolSteps.map((t) =>
-              t.id === id ? { ...t, output, status: 'done' } : t
+              t.id === id
+                ? {
+                    ...t,
+                    name: name || t.name,
+                    input: input || t.input,
+                    output,
+                    status: 'done',
+                    endedAt: endTs,
+                    durationMs: t.startedAt ? Math.max(1, endTs - t.startedAt) : null,
+                  }
+                : t
             ),
           }));
         },
@@ -198,6 +226,14 @@ export function useChat(threadId) {
           updateAssistant((m) => ({
             ...m,
             codeOutputs: [...(m.codeOutputs || []), { id, stdout, images }],
+          }));
+        },
+
+        onRagHits: (payload) => {
+          updateAssistant((m) => ({
+            ...m,
+            ragHits: Array.isArray(payload?.hits) ? payload.hits : [],
+            ragStatus: payload?.status || '',
           }));
         },
 

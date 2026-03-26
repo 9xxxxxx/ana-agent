@@ -1,35 +1,35 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f7f7f8;
-  --foreground: #111827;
-  --card: #ffffff;
-  --card-foreground: #111827;
+  --font-sans: "Fira Sans";
+  --font-mono: "Fira Code";
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --card: rgba(255, 255, 255, 0.88);
+  --card-foreground: #0f172a;
   --popover: #ffffff;
-  --popover-foreground: #111827;
-  --primary: #10a37f;
-  --primary-foreground: #ffffff;
-  --secondary: #f3f4f6;
-  --secondary-foreground: #111827;
-  --muted: #f3f4f6;
-  --muted-foreground: #6b7280;
-  --accent: #eef2ff;
-  --accent-foreground: #111827;
+  --popover-foreground: #0f172a;
+  --primary: #1e40af;
+  --primary-foreground: #eff6ff;
+  --secondary: #dbeafe;
+  --secondary-foreground: #0f172a;
+  --muted: #eff6ff;
+  --muted-foreground: #475569;
+  --accent: #fef3c7;
+  --accent-foreground: #7c2d12;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
-  --border: #e5e7eb;
-  --input: #d1d5db;
-  --ring: #10a37f;
-  
-  --sidebar-bg: #f2f2f3;
-  --sidebar-foreground: #1f2937;
-  --sidebar-hover: #e7e7ea;
-  --sidebar-active: #ffffff;
-  --sidebar-border: #e5e7eb;
-  
-  --chat-bg: #ffffff;
-  --user-msg: #f3f4f6;
-  --bot-msg: #ffffff;
+  --border: rgba(148, 163, 184, 0.28);
+  --input: rgba(191, 219, 254, 0.65);
+  --ring: #3b82f6;
+  --sidebar-bg: rgba(255, 255, 255, 0.58);
+  --sidebar-foreground: #0f172a;
+  --sidebar-hover: rgba(219, 234, 254, 0.72);
+  --sidebar-active: rgba(255, 255, 255, 0.92);
+  --sidebar-border: rgba(148, 163, 184, 0.24);
+  --chat-bg: rgba(255, 255, 255, 0.78);
+  --user-msg: #dbeafe;
+  --bot-msg: rgba(255, 255, 255, 0.86);
 }
 
 @theme {
@@ -38,15 +38,12 @@
   --color-brand-500: #3b82f6;
   --color-brand-600: #2563eb;
   --color-brand-700: #1d4ed8;
-  
   --color-sidebar-bg: var(--sidebar-bg);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-hover: var(--sidebar-hover);
-  
   --color-chat-bg: var(--chat-bg);
   --color-user-msg: var(--user-msg);
   --color-bot-msg: var(--bot-msg);
-  
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -69,84 +66,204 @@
 }
 
 @layer base {
+  html {
+    color-scheme: light;
+  }
+
+  html[data-ui-density='compact'] {
+    font-size: 14px;
+  }
+
+  html[data-ui-density='comfortable'] {
+    font-size: 16px;
+  }
+
+  html[data-font-scale='xs'] {
+    font-size: 13px;
+  }
+
+  html[data-font-scale='sm'] {
+    font-size: 14px;
+  }
+
+  html[data-font-scale='md'] {
+    font-size: 15px;
+  }
+
+  html[data-font-scale='lg'] {
+    font-size: 16px;
+  }
+
+  html[data-font-scale='xl'] {
+    font-size: 17px;
+  }
+
   * {
     box-sizing: border-box;
     border-color: var(--border);
   }
+
+  *:focus-visible {
+    outline: 2px solid rgba(59, 130, 246, 0.72);
+    outline-offset: 2px;
+  }
+
   body {
-    @apply bg-background text-foreground antialiased overflow-hidden m-0 p-0 h-screen w-screen transition-colors duration-300;
+    @apply m-0 h-screen w-screen overflow-hidden bg-background p-0 text-foreground antialiased transition-colors duration-300;
     background:
-      radial-gradient(circle at top left, rgba(16, 163, 127, 0.06), transparent 24%),
-      radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.05), transparent 22%),
-      linear-gradient(180deg, #f7f7f8 0%, #f3f4f6 100%);
-    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", ui-sans-serif, system-ui, sans-serif;
+      radial-gradient(circle at top left, rgba(30, 64, 175, 0.18), transparent 24%),
+      radial-gradient(circle at 82% 12%, rgba(245, 158, 11, 0.16), transparent 18%),
+      radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.1), transparent 20%),
+      linear-gradient(180deg, #f8fbff 0%, #eef4ff 46%, #f8fafc 100%);
+    font-family: var(--font-sans), "PingFang SC", "Microsoft YaHei", ui-sans-serif, system-ui, sans-serif;
+  }
+
+  code,
+  pre,
+  kbd,
+  samp {
+    font-family: var(--font-mono), ui-monospace, monospace;
+  }
+
+  button,
+  [role="button"] {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [role="button"][aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+
+  ::selection {
+    background: rgba(59, 130, 246, 0.18);
   }
 }
 
-/* Markdown/Prose 基础样式补充 (保障富文本的优雅呈现) */
 .prose table {
-  @apply min-w-full border-collapse my-4 text-sm;
+  @apply my-4 min-w-full border-collapse text-sm;
 }
+
 .prose th {
-  @apply px-4 py-2 bg-muted/50 border border-border font-semibold text-foreground text-left;
+  @apply border border-border bg-muted/50 px-4 py-2 text-left font-semibold text-foreground;
 }
+
 .prose td {
-  @apply px-4 py-2 border border-border text-foreground/80;
+  @apply border border-border px-4 py-2 text-foreground/80;
 }
+
 .prose p {
   @apply mb-4 leading-7;
 }
+
 .prose p:last-child {
   @apply mb-0;
 }
-.prose pre {
-  @apply bg-[#1e1e1e] text-gray-100 p-4 rounded-lg my-4 overflow-x-auto text-sm font-mono leading-normal;
-}
-.prose code {
-  @apply bg-muted text-rose-500 dark:text-rose-400 px-1.5 py-0.5 rounded text-[0.85em] font-mono;
-}
-.prose pre code {
-  @apply text-inherit bg-transparent p-0 rounded-none text-sm;
-}
-.prose a {
-  @apply text-brand-600 hover:text-brand-700 underline underline-offset-2;
-}
-.prose h1, .prose h2, .prose h3 {
-  @apply font-bold mt-6 mb-3 text-foreground;
-}
-.prose h1 { @apply text-2xl; }
-.prose h2 { @apply text-xl border-b pb-1 border-border; }
-.prose h3 { @apply text-lg; }
-.prose ul { @apply list-disc list-outside pl-5 mb-4 space-y-1; }
-.prose ol { @apply list-decimal list-outside pl-5 mb-4 space-y-1; }
-.prose blockquote { @apply border-l-4 border-primary/30 pl-4 italic text-muted-foreground my-4; }
 
-/* 滚动条美化 */
+.prose pre {
+  @apply my-4 overflow-x-auto rounded-lg bg-slate-950 p-4 text-sm leading-normal text-slate-100;
+}
+
+.prose code {
+  @apply rounded bg-muted px-1.5 py-0.5 text-[0.85em] text-brand-700;
+}
+
+.prose pre code {
+  @apply bg-transparent p-0 text-sm text-inherit;
+}
+
+.prose a {
+  @apply text-brand-600 underline underline-offset-2 hover:text-brand-700;
+}
+
+.prose h1,
+.prose h2,
+.prose h3 {
+  @apply mb-3 mt-6 font-bold text-foreground;
+}
+
+.prose h1 {
+  @apply text-2xl;
+}
+
+.prose h2 {
+  @apply border-b border-border pb-1 text-xl;
+}
+
+.prose h3 {
+  @apply text-lg;
+}
+
+.prose ul {
+  @apply mb-4 list-outside list-disc space-y-1 pl-5;
+}
+
+.prose ol {
+  @apply mb-4 list-outside list-decimal space-y-1 pl-5;
+}
+
+.prose blockquote {
+  @apply my-4 border-l-4 border-primary/30 pl-4 italic text-muted-foreground;
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(22px);
+}
+
+.grid-pattern {
+  background-image:
+    linear-gradient(to right, rgba(148, 163, 184, 0.12) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(148, 163, 184, 0.12) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
-  @apply bg-muted-foreground/30 rounded-full;
+  @apply rounded-full bg-muted-foreground/30;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-muted-foreground/50;
 }
+
 .sidebar-scroller::-webkit-scrollbar-thumb {
-  @apply bg-zinc-300;
-}
-.sidebar-scroller::-webkit-scrollbar-thumb:hover {
-  @apply bg-zinc-400;
+  @apply bg-slate-300;
 }
 
-/* 一些实用动画类 */
-@keyframes pulse-slow {
-  0%, 100% { opacity: 1; }
-  50% { opacity: .5; }
+.sidebar-scroller::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-400;
 }
+
+@keyframes pulse-slow {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
 .animate-pulse-slow {
   animation: pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -1,34 +1,64 @@
+# ============== Python ==============
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+coverage/
+.tox/
+.nox/
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+
+# Linting
+.ruff_cache/
+
 # Environments
 .env
 .venv
-.uv-cache/
-.prefect/
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
-
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
+.uv-cache/
+.python-version
 
 # IDE / Editor
 .vscode/
 .idea/
 *.swp
 *.swo
+*.swn
+.project
+.pydevproject
+.settings/
 
-# Project
-.chainlit/
+# ============== AI / ML ==============
+# Model files and caches
+models/
+.cache/
+.huggingface/
+HF_HOME/
+TRANSFORMERS_CACHE/
 
-# Frontend (Next.js)
-frontend/node_modules/
-frontend/.next/
-frontend/out/
-
-# Databases
+# ============== Project Specific ==============
+# Database files
 *.db
 *.db-shm
 *.db-wal
@@ -37,16 +67,12 @@ frontend/out/
 *.sqlite-shm
 *.sqlite-wal
 
-# Reports
-reports/
-uploads/
-contexts/
-test_log/
-chroma_data/
+# Project directories
+.codex/
+.chainlit/
 watchdog_rules.json
-.files/logs/
 
-# Generated
+# Generated files
 feishu_v2_snippets.txt
 db_configs.json
 temp_*.js
@@ -57,9 +83,85 @@ core/agent_optimized.py
 test_api.py
 test_etl_dbt_flow.py
 test_model_switch.py
+
+# Data directories
+reports/
+uploads/
+contexts/
+test_log/
+chroma_data/
+
+# Orchestration
+.prefect/
+
+# Large DB backups
+/db_backup/demo_backup.sql
+
+# ============== DBT ==============
 dbt_project/logs/
 dbt_project/target/
 dbt_project/.user.yml
+*.run/
 
-# Large full DB backups
-/db_backup/demo_backup.sql
+# ============== Frontend (Next.js) ==============
+# Dependencies
+frontend/node_modules/
+
+# Production builds
+frontend/.next/
+frontend/out/
+frontend/build/
+
+# Debug logs
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/pnpm-debug.log*
+
+# Local env files
+frontend/.env*.local
+frontend/.env.production
+
+# Vercel
+frontend/.vercel
+
+# Turbopack
+frontend/.turbo/
+
+# TypeScript
+frontend/*.tsbuildinfo
+
+# ESLint cache
+frontend/.eslintcache
+
+# Next.js cache
+frontend/.next/cache/
+
+# ============== System Files ==============
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+
+# Linux
+*~
+.directory
+
+# ============== Logs ==============
+*.log
+logs/
+.files/logs/
+
+# ============== Temporary Files ==============
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo

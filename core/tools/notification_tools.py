@@ -5,13 +5,32 @@
 
 import os
 import json
-import urllib.request
+import re
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 from langchain_core.tools import tool
 from core.config import settings
+
+
+READ_ONLY_SQL_BLOCKLIST = ("DROP", "DELETE", "UPDATE", "INSERT", "ALTER", "TRUNCATE", "CREATE", "REPLACE")
+
+
+def _validate_read_only_sql(query: str) -> tuple[bool, str]:
+    """校验 SQL 仅为只读查询（SELECT/WITH）。"""
+    if not query or not isinstance(query, str):
+        return False, "SQL 为空。"
+
+    normalized = query.strip()
+    upper_sql = normalized.upper()
+    if not (upper_sql.startswith("SELECT ") or upper_sql.startswith("WITH ")):
+        return False, "仅支持 SELECT/WITH 只读查询。"
+
+    for keyword in READ_ONLY_SQL_BLOCKLIST:
+        if re.search(rf"\b{keyword}\b", upper_sql):
+            return False, f"包含危险关键字 {keyword}。"
+    return True, ""
 
 
 @tool
@@ -179,6 +198,11 @@ def send_feishu_notification_tool(content: str, chart_configs_json: str = None, 
                     y_col = cfg.get("y_col", "")
                     color_col = cfg.get("color_col")
 
+                    valid_sql, reason = _validate_read_only_sql(sql)
+                    if not valid_sql:
+                        generation_notes.append(f"图表 '{title}' SQL 非只读（{reason}），已跳过。")
+                        continue
+
                     df = run_query_to_dataframe(sql)
                     if df.empty:
                         generation_notes.append(f"图表 '{title}' 查询无数据，已跳过。")
@@ -227,6 +251,11 @@ def send_feishu_notification_tool(content: str, chart_configs_json: str = None, 
                 try:
                     sql = cfg.get("sql_query", "")
                     title = cfg.get("title", f"表格 {i+1}")
+
+                    valid_sql, reason = _validate_read_only_sql(sql)
+                    if not valid_sql:
+                        generation_notes.append(f"表格 '{title}' SQL 非只读（{reason}），已跳过。")
+                        continue
 
                     df = run_query_to_dataframe(sql)
                     if df.empty:
@@ -342,20 +371,16 @@ def send_feishu_notification_tool(content: str, chart_configs_json: str = None, 
             elements=card_elements
         )
 
-        data = json.dumps(payload, ensure_ascii=False, default=str).encode("utf-8")
-        req = urllib.request.Request(webhook_url, data=data)
-        req.add_header("Content-Type", "application/json")
+        from core.feishu_api import send_feishu_card
 
-        with urllib.request.urlopen(req) as response:
-            resp_body = json.loads(response.read().decode("utf-8"))
-            if response.status == 200 and resp_body.get("code", -1) == 0:
-                visual_info = []
-                if chart_configs_json: visual_info.append("图表")
-                if table_configs_json: visual_info.append("表格")
-                visual_desc = f"（含 {'/'.join(visual_info)}）" if visual_info else "（纯文本）"
-                return f"✅ 已成功推送到飞书群组！{visual_desc}"
-            else:
-                return f"推送可能失败，飞书返回: {resp_body}"
+        send_result = send_feishu_card(webhook_url, payload)
+        if send_result.get("ok"):
+            visual_info = []
+            if chart_configs_json: visual_info.append("图表")
+            if table_configs_json: visual_info.append("表格")
+            visual_desc = f"（含 {'/'.join(visual_info)}）" if visual_info else "（纯文本）"
+            return f"✅ 已成功推送到飞书群组！{visual_desc}"
+        return f"推送失败: {send_result.get('msg', '未知错误')}"
     except Exception as e:
         return f"发送飞书通知异常: {str(e)}"
 

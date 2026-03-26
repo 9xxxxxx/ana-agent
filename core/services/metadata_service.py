@@ -129,3 +129,23 @@ class MetadataService:
             "legacy_db_configs_path": str(self.legacy_db_configs_path) if self.legacy_db_configs_path else None,
             "legacy_db_configs_exists": bool(self.legacy_db_configs_path and self.legacy_db_configs_path.exists()),
         }
+
+    def get_app_kv(self, key: str, default: str | None = None) -> str | None:
+        with closing(self._connect()) as conn:
+            row = conn.execute("SELECT value FROM app_kv WHERE key = ?", (key,)).fetchone()
+        if not row:
+            return default
+        return str(row["value"])
+
+    def set_app_kv(self, key: str, value: str) -> None:
+        now = datetime.now().isoformat()
+        with closing(self._connect()) as conn:
+            conn.execute(
+                """
+                INSERT INTO app_kv (key, value, updated_at)
+                VALUES (?, ?, ?)
+                ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+                """,
+                (key, value, now),
+            )
+            conn.commit()

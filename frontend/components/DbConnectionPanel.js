@@ -33,6 +33,9 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
   const [activeTab, setActiveTab] = useState('form');
   const [verifiedUrl, setVerifiedUrl] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [connectTimeout, setConnectTimeout] = useState(15);
+  const [poolSize, setPoolSize] = useState(8);
+  const [sslMode, setSslMode] = useState('prefer');
 
   useEffect(() => {
     if (isOpen) {
@@ -173,6 +176,11 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
         name: `${DB_TYPES.find((t) => t.value === dbType)?.label || 'Custom'} - ${database || 'default'}`,
         url,
         type: dbType,
+        options: {
+          connect_timeout_seconds: connectTimeout,
+          pool_size: poolSize,
+          ssl_mode: sslMode,
+        },
       });
       await loadSavedConfigs();
       onConnect?.(url);
@@ -242,17 +250,17 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
             <DatabaseIcon size={18} />
           </div>
           <div>
-            <div className="text-[1.1rem] font-semibold text-foreground">数据库连接配置</div>
-            <p className="mt-1 text-sm text-zinc-500">统一管理测试、保存和切换你的数据源连接。</p>
+            <div className="text-[1.1rem] font-semibold text-foreground">数据库管理</div>
+            <p className="mt-1 text-sm text-zinc-500">统一管理数据源接入、连接测试、连接策略与复用配置。</p>
           </div>
         </div>
       }
     >
       <div className="border-b border-zinc-200 bg-zinc-50">
         <div className="flex">
-          <button className={tabClass('form')} onClick={() => setActiveTab('form')}>表单配置</button>
-          <button className={tabClass('custom')} onClick={() => setActiveTab('custom')}>自定义 URL</button>
-          <button className={tabClass('saved')} onClick={() => setActiveTab('saved')}>已保存 ({savedConfigs.length})</button>
+          <button className={tabClass('form')} onClick={() => setActiveTab('form')}>连接向导</button>
+          <button className={tabClass('custom')} onClick={() => setActiveTab('custom')}>连接 URI</button>
+          <button className={tabClass('saved')} onClick={() => setActiveTab('saved')}>数据源资产 ({savedConfigs.length})</button>
         </div>
       </div>
 
@@ -272,7 +280,7 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
         )}
 
         {activeTab === 'form' && (
-          <SectionCard title="表单连接参数" description="适合 PostgreSQL、MySQL、SQLite 和 DuckDB。">
+          <SectionCard title="连接向导参数" description="适合 PostgreSQL、MySQL、SQLite 和 DuckDB 的标准接入。">
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-medium text-foreground">数据库类型</label>
@@ -362,12 +370,52 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
                   </div>
                 </div>
               )}
+
+              <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+                <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">连接策略</div>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-medium text-foreground">连接超时(秒)</label>
+                    <input
+                      type="number"
+                      min="3"
+                      max="120"
+                      className={cn(ui.inputMuted, 'rounded-xl px-3 py-2')}
+                      value={connectTimeout}
+                      onChange={(e) => setConnectTimeout(parseInt(e.target.value, 10) || 15)}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-medium text-foreground">连接池大小</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="64"
+                      className={cn(ui.inputMuted, 'rounded-xl px-3 py-2')}
+                      value={poolSize}
+                      onChange={(e) => setPoolSize(parseInt(e.target.value, 10) || 8)}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-medium text-foreground">SSL 模式</label>
+                    <select
+                      className={cn(ui.select, 'rounded-xl px-3 py-2')}
+                      value={sslMode}
+                      onChange={(e) => setSslMode(e.target.value)}
+                    >
+                      <option value="disable">disable</option>
+                      <option value="prefer">prefer</option>
+                      <option value="require">require</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
             </div>
           </SectionCard>
         )}
 
         {activeTab === 'custom' && (
-          <SectionCard title="自定义连接 URI" description="直接填写标准 SQLAlchemy 连接字符串。">
+          <SectionCard title="连接 URI 管理" description="直接填写标准 SQLAlchemy 连接字符串。">
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-foreground">连接 URI</label>
               <textarea
@@ -383,7 +431,7 @@ export default function DbConnectionPanel({ isOpen, onClose, onConnect }) {
         )}
 
         {activeTab === 'saved' && (
-          <SectionCard title="已保存的数据源" description="先测试再连接，避免无效配置直接接入工作区。">
+          <SectionCard title="数据源资产库" description="统一管理可复用的数据源，先测试再连接。">
             {loadingSaved ? (
               <LoadingState title="正在加载已保存连接" description="读取本地元数据中的数据库配置。" />
             ) : savedConfigs.length === 0 ? (

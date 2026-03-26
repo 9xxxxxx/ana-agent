@@ -9,18 +9,14 @@ from langchain_openai import ChatOpenAI
 
 from core.config import settings
 
-SUPPORTED_CHAT_MODELS = {
-    "deepseek-chat",
-    "deepseek-reasoner",
-    "gpt-4o",
-    "gpt-4o-mini",
-    "gpt-4.1",
-    "gpt-4.1-mini",
-}
-
 _PROVIDER_DEFAULT_BASE_URLS = {
     "deepseek": "https://api.deepseek.com/v1",
     "openai": "https://api.openai.com/v1",
+    "doubao": "https://ark.cn-beijing.volces.com/api/v3",
+    "qwen": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "glm": "https://open.bigmodel.cn/api/paas/v4",
+    "kimi": "https://api.moonshot.cn/v1",
+    "minimax": "https://api.minimaxi.com/v1",
 }
 
 _PLACEHOLDER_API_KEYS = {
@@ -41,14 +37,23 @@ class ResolvedModelConfig:
 
 
 def get_model_provider(model_name: str) -> str:
-    if model_name.startswith("deepseek-"):
+    normalized = model_name.lower().strip()
+    if normalized.startswith("deepseek-"):
         return "deepseek"
-    if model_name.startswith("gpt-"):
+    if normalized.startswith("gpt-"):
         return "openai"
-    raise ValueError(
-        f"当前后端仅支持 {', '.join(sorted(SUPPORTED_CHAT_MODELS))}。"
-        f" 不支持的模型: {model_name}"
-    )
+    if normalized.startswith(("doubao", "ep-")):
+        return "doubao"
+    if normalized.startswith("qwen"):
+        return "qwen"
+    if normalized.startswith("glm"):
+        return "glm"
+    if normalized.startswith(("kimi", "moonshot")):
+        return "kimi"
+    if normalized.startswith(("minimax", "abab")):
+        return "minimax"
+    # 未识别前缀时走通用 OpenAI 兼容 provider，要求前端显式配置 base_url
+    return "openai"
 
 
 def looks_like_placeholder_api_key(api_key: str | None) -> bool:
@@ -67,13 +72,6 @@ def resolve_model_configuration(
     api_key: str | None = None,
     base_url: str | None = None,
 ) -> ResolvedModelConfig:
-    if model_name not in SUPPORTED_CHAT_MODELS:
-        get_model_provider(model_name)
-        raise ValueError(
-            f"当前后端仅支持 {', '.join(sorted(SUPPORTED_CHAT_MODELS))}。"
-            f" 不支持的模型: {model_name}"
-        )
-
     provider = get_model_provider(model_name)
     explicit_api_key = (api_key or "").strip()
     final_api_key = explicit_api_key or settings.OPENAI_API_KEY.strip()
@@ -112,16 +110,27 @@ def create_chat_model(
     *,
     temperature: float = 0.1,
     streaming: bool = True,
+    model_params: dict | None = None,
 ) -> ChatOpenAI:
     resolved = resolve_model_configuration(
         model_name=model_name,
         api_key=api_key,
         base_url=base_url,
     )
+    params = {
+        "model": resolved.model,
+        "api_key": resolved.api_key,
+        "base_url": resolved.base_url,
+        "temperature": temperature,
+        "streaming": streaming,
+    }
+    if isinstance(model_params, dict):
+        # 仅透传常用且稳定的生成参数，避免无效字段污染底层调用
+        for key in ("top_p", "presence_penalty", "frequency_penalty", "max_tokens"):
+            value = model_params.get(key)
+            if value is not None:
+                params[key] = value
+
     return ChatOpenAI(
-        model=resolved.model,
-        api_key=resolved.api_key,
-        base_url=resolved.base_url,
-        temperature=temperature,
-        streaming=streaming,
+        **params,
     )

@@ -6,10 +6,39 @@
 
 import json
 import urllib.request
+import urllib.error
 import io
-import os
+import socket
+import time
 from datetime import datetime, timedelta
 from core.config import settings
+
+
+DEFAULT_REQUEST_TIMEOUT_SECONDS = 10
+DEFAULT_MAX_RETRIES = 2
+RETRYABLE_HTTP_STATUS = {429, 500, 502, 503, 504}
+
+
+def _request_json_with_retry(
+    req: urllib.request.Request,
+    *,
+    timeout: int = DEFAULT_REQUEST_TIMEOUT_SECONDS,
+    max_retries: int = DEFAULT_MAX_RETRIES,
+) -> dict:
+    """发送 HTTP 请求并解析 JSON，遇到可恢复错误时自动重试。"""
+    for attempt in range(max_retries + 1):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            is_retryable = exc.code in RETRYABLE_HTTP_STATUS
+            if attempt >= max_retries or not is_retryable:
+                raise
+        except (urllib.error.URLError, TimeoutError, socket.timeout):
+            if attempt >= max_retries:
+                raise
+        time.sleep(0.5 * (2 ** attempt))
+
 
 class FeishuClient:
     """飞书 API 客户端，负责 token 管理和图片上传"""
@@ -33,8 +62,7 @@ class FeishuClient:
         req = urllib.request.Request(url, data=payload)
         req.add_header("Content-Type", "application/json; charset=utf-8")
 
-        with urllib.request.urlopen(req) as response:
-            result = json.loads(response.read().decode("utf-8"))
+        result = _request_json_with_retry(req)
 
         if result.get("code") != 0:
             raise RuntimeError(f"获取飞书 token 失败: {result.get('msg', '未知错误')}")
@@ -68,8 +96,7 @@ class FeishuClient:
         req.add_header("Authorization", f"Bearer {token}")
         req.add_header("Content-Type", f"multipart/form-data; boundary={boundary}")
 
-        with urllib.request.urlopen(req) as response:
-            result = json.loads(response.read().decode("utf-8"))
+        result = _request_json_with_retry(req)
 
         if result.get("code") != 0:
             raise RuntimeError(f"图片上传失败: {result.get('msg', '未知错误')}")
@@ -195,9 +222,12 @@ def build_feishu_card_v2(
     返回:
         飞书卡片 JSON 结构（可直接作为 Webhook 的 payload）
     """
+    # 复制一份，避免修改调用方传入的组件列表
+    body_elements = list(elements or [])
+
     # 底部时间戳
-    elements.append({"tag": "hr"})
-    elements.append({
+    body_elements.append({"tag": "hr"})
+    body_elements.append({
         "tag": "markdown",
         "content": f"<font color='grey'>由 SQL Agent 自动生成 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</font>"
     })
@@ -214,15 +244,17 @@ def build_feishu_card_v2(
                 "template": "blue"
             },
             "body": {
-                "elements": elements
+                "elements": body_elements
             }
         }
     }
-def send_feishu_card(webhook_url: str, card_payload: dict):
+
+def send_feishu_card(webhook_url: str, card_payload: dict) -> dict:
     """通过 Webhook 发送飞书卡片"""
     if not webhook_url:
-        print("未配置 FEISHU_WEBHOOK_URL，跳过通知。")
-        return
+        message = "未配置 FEISHU_WEBHOOK_URL，跳过通知。"
+        print(message)
+        return {"ok": False, "msg": message}
     
     # 飞书官方 V2 卡片要求最外层是 msg_type: "interactive" 且包含 "card"
     payload = json.dumps(card_payload).encode("utf-8")
@@ -230,11 +262,14 @@ def send_feishu_card(webhook_url: str, card_payload: dict):
     req.add_header("Content-Type", "application/json; charset=utf-8")
 
     try:
-        with urllib.request.urlopen(req) as response:
-            result = json.loads(response.read().decode("utf-8"))
-            if result.get("code") != 0:
-                print(f"发送飞书卡片失败: {result.get('msg')}")
-            else:
-                print("✅ 飞书卡片发送成功")
+        result = _request_json_with_retry(req)
+        if result.get("code") != 0:
+            message = f"发送飞书卡片失败: {result.get('msg', '未知错误')}"
+            print(message)
+            return {"ok": False, "msg": message, "response": result}
+        print("飞书卡片发送成功")
+        return {"ok": True, "msg": "success", "response": result}
     except Exception as e:
-        print(f"发送飞书卡片遇到网络异常: {e}")
+        message = f"发送飞书卡片遇到网络异常: {e}"
+        print(message)
+        return {"ok": False, "msg": message}
