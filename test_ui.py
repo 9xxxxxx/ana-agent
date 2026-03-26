@@ -1,7 +1,14 @@
 import time
-from playwright.sync_api import sync_playwright
+
+try:
+    from playwright.sync_api import sync_playwright
+except Exception:  # pragma: no cover - optional dependency for manual UI script
+    sync_playwright = None
 
 def run():
+    if sync_playwright is None:
+        print("playwright 未安装，跳过 UI 脚本。")
+        return
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()

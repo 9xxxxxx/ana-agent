@@ -28,6 +28,18 @@ class ResolveModelConfigurationTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 llm_service.resolve_model_configuration("claude-3-5-sonnet")
 
+    def test_unknown_model_allowed_with_explicit_base_url(self):
+        with patch.object(llm_service.settings, "OPENAI_API_KEY", "sk-real"), patch.object(
+            llm_service.settings, "OPENAI_API_BASE", ""
+        ):
+            resolved = llm_service.resolve_model_configuration(
+                "claude-3-5-sonnet",
+                base_url="https://example-openai-compatible/v1",
+            )
+
+        self.assertEqual(resolved.provider, "openai")
+        self.assertEqual(resolved.base_url, "https://example-openai-compatible/v1")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,6 +1,11 @@
 """
 通用工具集 - 提供Agent常用的辅助功能
 包括：文件操作、数据转换、网络请求、代码执行等
+
+挂载状态说明：
+- 已挂载到主 Agent：calculate_tool, data_stats_tool
+- 未挂载（保留备用）：format_number_tool, date_time_tool, text_analysis_tool,
+  json_formatter_tool, hash_tool, base64_tool, regex_tool, generate_id_tool
 """
 
 import os

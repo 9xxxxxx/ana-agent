@@ -5,13 +5,10 @@ from fastapi.testclient import TestClient
 from langchain_core.messages import AIMessage
 
 from app import app
-from core.agent import (
+from core.intent_detector import (
     detect_general_chat_intent,
-    detect_db_analysis_intent,
-    detect_db_query_intent,
     detect_direct_db_intent,
     detect_direct_sql_intent,
-    detect_multi_table_query_intent,
     is_database_related_message,
     should_abort_tool_loop,
 )
@@ -55,31 +52,8 @@ class ChatGuardTests(unittest.TestCase):
 
         self.assertEqual(intent, {"intent": "run_sql", "query": "SELECT * FROM public.movies LIMIT 5"})
 
-    def test_detects_nl_query_intent(self):
-        intent = detect_db_query_intent("public.movies 表有多少行？")
-
-        self.assertEqual(
-            intent,
-            {"intent": "nl_query", "schema_name": "public", "table_name": "movies"},
-        )
-
-    def test_analysis_intent_skips_query_route(self):
-        self.assertIsNone(detect_db_query_intent("请根据表名总结这个数据库的业务域"))
-        self.assertEqual(
-            detect_db_analysis_intent("请根据表名总结这个数据库的业务域"),
-            {"intent": "list_tables", "schema_name": None},
-        )
-
-    def test_detects_multi_table_query_intent(self):
-        intent = detect_multi_table_query_intent("请关联 public.movies 和 public.top_rated_tmdb_movies，看看共同电影有哪些")
-
-        self.assertEqual(
-            intent,
-            {
-                "intent": "multi_table_query",
-                "tables": [("public", "movies"), ("public", "top_rated_tmdb_movies")],
-            },
-        )
+    # 注意：detect_db_query_intent / detect_multi_table_query_intent / detect_db_analysis_intent
+    # 已不再用于路由决策。复杂数据库任务统一交由 autonomous 节点自主规划。
 
     def test_detects_general_chat_intent(self):
         self.assertEqual(detect_general_chat_intent("你好"), {"intent": "general_chat"})
@@ -96,10 +70,16 @@ class ChatGuardTests(unittest.TestCase):
 class ChatEndpointRoutingTests(unittest.TestCase):
     def test_general_chat_does_not_trigger_database_tools(self):
         client = TestClient(app)
-        fake_llm = AsyncMock()
-        fake_llm.ainvoke = AsyncMock(return_value=AIMessage(content="你好，我是你的数据分析助手。"))
 
-        with patch("core.agent.create_chat_model", return_value=fake_llm) as mocked_create_chat_model:
+        class _FakeGeneralGraph:
+            async def ainvoke(self, _inputs, config=None):
+                return {
+                    "messages": [
+                        AIMessage(content="你好，我是你的数据分析助手。"),
+                    ]
+                }
+
+        with patch("core.agent._create_general_react_graph", return_value=_FakeGeneralGraph()) as mocked_create_graph:
             with client.stream(
                 "POST",
                 "/api/chat",
@@ -109,9 +89,12 @@ class ChatEndpointRoutingTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn("event: token", body)
-        self.assertIn("\\u4f60\\u597d\\uff0c\\u6211\\u662f\\u4f60\\u7684\\u6570\\u636e\\u5206\\u6790\\u52a9\\u624b\\u3002", body)
+        self.assertTrue(
+            "\\u4f60\\u597d\\uff0c\\u6211\\u662f\\u4f60\\u7684\\u6570\\u636e\\u5206\\u6790\\u52a9\\u624b\\u3002" in body
+            or "你好，我是你的数据分析助手。" in body
+        )
         self.assertNotIn("event: tool_start", body)
-        self.assertTrue(mocked_create_chat_model.called)
+        self.assertTrue(mocked_create_graph.called)
 
 
 if __name__ == "__main__":

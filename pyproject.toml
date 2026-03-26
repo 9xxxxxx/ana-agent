@@ -33,4 +33,5 @@ dependencies = [
     "pyarrow>=23.0.1",
     "duckdb-engine>=0.17.0",
     "prefect>=3.6.23",
+    "tiktoken>=0.12.0",
 ]

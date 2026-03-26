@@ -8,11 +8,12 @@ from __future__ import annotations
 import asyncio
 import time
 from dataclasses import dataclass, asdict
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from core.prompts import SYNTHESIS_PROMPT_BASE
 from core.services.llm_service import create_chat_model
 
 
@@ -72,17 +73,6 @@ ROLE_LIBRARY = [
         ),
     },
 ]
-
-SYNTHESIS_PROMPT_BASE = (
-    "你是总控分析负责人。请综合多位专家观点，产出高质量的决策报告。"
-    "要求：\n"
-    "1. 先给一句话结论\n"
-    "2. 给出核心依据（数据/逻辑）\n"
-    "3. 明确风险与不确定性\n"
-    "4. 给出分优先级行动建议（短/中/长期）\n"
-    "5. 如果证据不足，明确还需要哪些数据"
-)
-
 
 @dataclass
 class SpecialistConfig:
@@ -265,7 +255,7 @@ class MultiAgentBrainstormService:
         for round_idx in range(1, rounds + 1):
             timeline.append(
                 {
-                    "ts": datetime.utcnow().isoformat(),
+                    "ts": datetime.now(UTC).isoformat(),
                     "type": "round_started",
                     "round": round_idx,
                 }
@@ -304,7 +294,7 @@ class MultiAgentBrainstormService:
             for item in current:
                 timeline.append(
                     {
-                        "ts": datetime.utcnow().isoformat(),
+                        "ts": datetime.now(UTC).isoformat(),
                         "type": "specialist_finished",
                         "round": round_idx,
                         "role_id": item.role_id,
@@ -322,7 +312,7 @@ class MultiAgentBrainstormService:
             )
             timeline.append(
                 {
-                    "ts": datetime.utcnow().isoformat(),
+                    "ts": datetime.now(UTC).isoformat(),
                     "type": "round_synthesized",
                     "round": round_idx,
                 }
@@ -337,7 +327,7 @@ class MultiAgentBrainstormService:
         )
         timeline.append(
             {
-                "ts": datetime.utcnow().isoformat(),
+                "ts": datetime.now(UTC).isoformat(),
                 "type": "final_synthesized",
             }
         )

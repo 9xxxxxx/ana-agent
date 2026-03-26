@@ -157,6 +157,8 @@ export default function Home() {
   });
   const [threadRagPrefs, setThreadRagPrefs] = useState<Record<string, boolean>>({});
   const [ragRetrievalK, setRagRetrievalK] = useState(3);
+  const [streamEventsSupported, setStreamEventsSupported] = useState<string[]>([]);
+  const [agentArchitecture, setAgentArchitecture] = useState('');
 
   const { messages, isStreaming, sendMessage, stopStreaming, loadHistory, clearMessages } = useChat(threadId);
 
@@ -246,6 +248,9 @@ export default function Home() {
     fetchSystemStatus().then((res) => {
       const k = Number(res?.runtime?.rag?.retrieval_k || 3);
       if (!Number.isNaN(k) && k > 0) setRagRetrievalK(k);
+      const events = Array.isArray(res?.runtime?.stream_events_supported) ? res.runtime.stream_events_supported : [];
+      setStreamEventsSupported(events.map((item: unknown) => String(item)));
+      setAgentArchitecture(String(res?.runtime?.agent_architecture || ''));
     }).catch(() => {});
   }, []);
 
@@ -496,6 +501,31 @@ export default function Home() {
                     <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
                       {modelSwitchNotice}
                     </span>
+                  )}
+                  {agentArchitecture && (
+                    <span
+                      className="rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700"
+                      title={agentArchitecture}
+                    >
+                      {agentArchitecture}
+                    </span>
+                  )}
+                  {streamEventsSupported.length > 0 && (
+                    <details className="relative">
+                      <summary className="cursor-pointer list-none rounded-full border border-cyan-200 bg-cyan-50 px-2 py-0.5 text-[10px] font-semibold text-cyan-700">
+                        SSE {streamEventsSupported.length}
+                      </summary>
+                      <div className="absolute left-0 top-6 z-20 w-[280px] rounded-xl border border-cyan-100 bg-white p-3 shadow-xl">
+                        <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-cyan-700">Stream Events Supported</div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {streamEventsSupported.map((evt) => (
+                            <span key={evt} className="rounded-md border border-cyan-100 bg-cyan-50/60 px-1.5 py-0.5 text-[10px] text-cyan-800">
+                              {evt}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </details>
                   )}
                   <button
                     className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold transition ${

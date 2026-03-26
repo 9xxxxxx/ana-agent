@@ -10,6 +10,34 @@ from core.database import get_engine, get_engine_by_url, run_query_to_dataframe
 from core.db_adapter import get_adapter
 
 
+def _build_table_hints(max_items: int = 20) -> str:
+    try:
+        engine = get_engine()
+        adapter = get_adapter(engine)
+        tables = adapter.list_tables()
+    except Exception:
+        return ""
+    if not tables:
+        return ""
+
+    rows = []
+    for item in tables[: max(1, int(max_items))]:
+        schema = str(item.get("schema", "") or "").strip()
+        table = str(item.get("table", "") or "").strip()
+        if not table:
+            continue
+        qualified = f"{schema}.{table}" if schema else table
+        rows.append(f"- {qualified}")
+
+    if not rows:
+        return ""
+
+    suffix = ""
+    if len(tables) > len(rows):
+        suffix = f"\n- ... (其余 {len(tables) - len(rows)} 个省略)"
+    return "可用表线索:\n" + "\n".join(rows) + suffix
+
+
 @tool
 def switch_database_tool(database_url: str) -> str:
     """切换当前的数据库连接。
@@ -67,6 +95,15 @@ def list_schemas_tool() -> str:
 @tool
 def list_tables_tool(schema_name: str = None) -> str:
     """列出数据库中的表和视图。
+    何时使用：
+    - 用户询问“有哪些表/视图”
+    - 开始新分析任务，需要快速了解数据全貌
+    - 发现表名可能写错，需要确认真实表名
+
+    何时不使用：
+    - 已在本轮拿到有效表清单且需求未变化
+    - 用户问的是字段级信息（应使用 describe_table_tool）
+
     如果指定了 schema_name 参数，则只列出该 schema 下的表；
     如果不指定，则列出所有 schema 下的所有表（推荐首次探索时使用）。
 
@@ -110,6 +147,7 @@ def list_tables_tool(schema_name: str = None) -> str:
 def describe_table_tool(table_name: str, schema_name: str = None) -> str:
     """获取指定数据表的结构信息（列名、类型、主键、索引）并随机采样 3 条真实数据。
     当你不知道表里存的数据具体格式（如日期格式、枚举值内容）时，必须调用此工具查看。
+    在不确定字段名时，不应直接写 SQL，先调用本工具。
 
     参数:
         table_name: 需要查询的表名。支持 "schema.table" 格式或单独表名。
@@ -177,6 +215,9 @@ def describe_table_tool(table_name: str, schema_name: str = None) -> str:
 def run_sql_query_tool(query: str) -> str:
     """执行 SQL 查询并返回最多前100条结果的文本表示。
     仅用于 SELECT 查询以进行数据探索。
+    何时不使用：
+    - 需要修改数据（INSERT/UPDATE/DELETE/DDL）；本工具会拒绝执行
+    - 仅需查看库结构时（优先 list_tables_tool / describe_table_tool）
 
     参数:
         query: 要执行的 SQL 查询语句。
@@ -207,4 +248,14 @@ def run_sql_query_tool(query: str) -> str:
 
         return f"{header}:\n" + df.to_string(index=False)
     except Exception as e:
-        return f"SQL 执行错误: {str(e)}\n请检查 SQL 语法，若列名不确定请先使用 describe_table_tool 确认。"
+        error_message = str(e).strip() or repr(e)
+        table_hints = _build_table_hints()
+        guidance = (
+            "建议下一步:\n"
+            "- 检查 SQL 语法与函数方言是否匹配当前数据库\n"
+            "- 检查表名/字段名是否存在\n"
+            "- 如需列定义，调用 describe_table_tool"
+        )
+        if table_hints:
+            return f"SQL 执行错误:\n{error_message}\n\n{guidance}\n\n{table_hints}"
+        return f"SQL 执行错误:\n{error_message}\n\n{guidance}"

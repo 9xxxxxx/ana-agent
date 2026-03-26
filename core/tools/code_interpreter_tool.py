@@ -18,6 +18,10 @@ def run_python_code_tool(code: str) -> str:
     - 蒙特卡洛模拟等数值计算
     - 数据格式转换与文本处理
 
+    何时不使用：
+    - SQL 已能直接完成的聚合、过滤、分组查询
+    - 仅需数据库结构探索（应使用 list/describe 类工具）
+
     可用的库：pandas, numpy, matplotlib, scipy, sklearn, statistics, math, datetime, json, re, collections
     使用 print() 输出文本结果，使用 matplotlib 的 plt.show() 生成图表。
 

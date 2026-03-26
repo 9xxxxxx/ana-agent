@@ -4,6 +4,7 @@ LLM 运行时配置与实例化服务。
 """
 
 from dataclasses import dataclass
+from typing import Literal
 
 from langchain_openai import ChatOpenAI
 
@@ -36,7 +37,7 @@ class ResolvedModelConfig:
     base_url: str
 
 
-def get_model_provider(model_name: str) -> str:
+def get_model_provider(model_name: str) -> Literal["deepseek", "openai", "doubao", "qwen", "glm", "kimi", "minimax", "unknown"]:
     normalized = model_name.lower().strip()
     if normalized.startswith("deepseek-"):
         return "deepseek"
@@ -52,8 +53,7 @@ def get_model_provider(model_name: str) -> str:
         return "kimi"
     if normalized.startswith(("minimax", "abab")):
         return "minimax"
-    # 未识别前缀时走通用 OpenAI 兼容 provider，要求前端显式配置 base_url
-    return "openai"
+    return "unknown"
 
 
 def looks_like_placeholder_api_key(api_key: str | None) -> bool:
@@ -73,6 +73,14 @@ def resolve_model_configuration(
     base_url: str | None = None,
 ) -> ResolvedModelConfig:
     provider = get_model_provider(model_name)
+    explicit_base_url = normalize_base_url(base_url)
+    configured_base_url = normalize_base_url(settings.OPENAI_API_BASE)
+    if provider == "unknown" and not (explicit_base_url or configured_base_url):
+        raise ValueError(
+            f"不支持的模型: {model_name}。"
+            "请使用受支持的模型前缀，或显式提供兼容接口 base_url。"
+        )
+    provider_for_defaults = "openai" if provider == "unknown" else provider
     explicit_api_key = (api_key or "").strip()
     final_api_key = explicit_api_key or settings.OPENAI_API_KEY.strip()
     if looks_like_placeholder_api_key(final_api_key):
@@ -81,14 +89,12 @@ def resolve_model_configuration(
             "或在 .env 中设置 OPENAI_API_KEY。"
         )
 
-    explicit_base_url = normalize_base_url(base_url)
-    configured_base_url = normalize_base_url(settings.OPENAI_API_BASE)
-    provider_default_base_url = _PROVIDER_DEFAULT_BASE_URLS[provider]
+    provider_default_base_url = _PROVIDER_DEFAULT_BASE_URLS[provider_for_defaults]
 
     if explicit_base_url:
         final_base_url = explicit_base_url
     elif configured_base_url:
-        if provider == "deepseek" and "openai.com" in configured_base_url:
+        if provider_for_defaults == "deepseek" and "openai.com" in configured_base_url:
             final_base_url = provider_default_base_url
         else:
             final_base_url = configured_base_url
@@ -97,7 +103,7 @@ def resolve_model_configuration(
 
     return ResolvedModelConfig(
         model=model_name,
-        provider=provider,
+        provider=provider_for_defaults,
         api_key=final_api_key,
         base_url=final_base_url,
     )

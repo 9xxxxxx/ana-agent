@@ -48,6 +48,10 @@ export function useChat(threadId) {
           codeOutputs: m.codeOutputs || [],
           ragHits: m.ragHits || [],
           ragStatus: m.ragStatus || '',
+          runMeta: m.runMeta || null,
+          brainstormProgress: m.brainstormProgress || [],
+          brainstormAgentCount: Number(m.brainstormAgentCount || 0),
+          brainstormMultiAgentVerified: Boolean(m.brainstormMultiAgentVerified || false),
         }));
         console.log('[useChat] Loaded messages:', loadedMessages.length);
         setMessages(loadedMessages);
@@ -98,6 +102,10 @@ export function useChat(threadId) {
         codeOutputs: [],
         ragHits: [],
         ragStatus: '',
+        runMeta: null,
+        brainstormProgress: [],
+        brainstormAgentCount: 0,
+        brainstormMultiAgentVerified: false,
       };
 
       setMessages((prev) => [...prev, userMsg, assistantMsg]);
@@ -234,6 +242,46 @@ export function useChat(threadId) {
             ...m,
             ragHits: Array.isArray(payload?.hits) ? payload.hits : [],
             ragStatus: payload?.status || '',
+          }));
+        },
+
+        onBrainstormProgress: (payload) => {
+          updateAssistant((m) => {
+            const nextItem = {
+              type: String(payload?.type || ''),
+              round: Number(payload?.round || 0),
+              role_id: String(payload?.role_id || ''),
+              role_name: String(payload?.role_name || ''),
+              elapsed_ms: Number(payload?.elapsed_ms || 0),
+              ts: String(payload?.ts || ''),
+            };
+            const exists = (m.brainstormProgress || []).some(
+              (item) =>
+                item.type === nextItem.type &&
+                item.round === nextItem.round &&
+                item.role_id === nextItem.role_id &&
+                item.ts === nextItem.ts
+            );
+            const progress = exists ? (m.brainstormProgress || []) : [...(m.brainstormProgress || []), nextItem];
+            const roleSet = new Set(
+              progress
+                .filter((item) => item.type === 'specialist_finished' && item.role_id)
+                .map((item) => item.role_id)
+            );
+            const roleCount = roleSet.size;
+            return {
+              ...m,
+              brainstormProgress: progress,
+              brainstormAgentCount: roleCount,
+              brainstormMultiAgentVerified: roleCount >= 2,
+            };
+          });
+        },
+
+        onRunMeta: (payload) => {
+          updateAssistant((m) => ({
+            ...m,
+            runMeta: payload || null,
           }));
         },
 

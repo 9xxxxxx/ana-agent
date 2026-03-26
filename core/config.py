@@ -1,6 +1,7 @@
 import os
 import json
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -59,7 +60,7 @@ def _load_rag_config_from_db() -> dict | None:
     if not db_path.exists():
         return None
     try:
-        with sqlite3.connect(str(db_path)) as conn:
+        with closing(sqlite3.connect(str(db_path))) as conn:
             row = conn.execute("SELECT value FROM app_kv WHERE key = ?", (RAG_CONFIG_KV_KEY,)).fetchone()
         if not row:
             return None

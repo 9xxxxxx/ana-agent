@@ -219,6 +219,8 @@ export function streamChat(
     onFile,
     onCodeOutput,
     onRagHits,
+    onBrainstormProgress,
+    onRunMeta,
     onDone,
     onError,
   } = callbacks;
@@ -338,6 +340,12 @@ export function streamChat(
               break;
             case 'rag_hits':
               onRagHits?.(data);
+              break;
+            case 'brainstorm_progress':
+              onBrainstormProgress?.(data);
+              break;
+            case 'run_meta':
+              onRunMeta?.(data);
               break;
             case 'done':
               finishOnce();

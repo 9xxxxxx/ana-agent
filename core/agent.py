@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Annotated, Any
+from datetime import UTC, datetime
+from typing import Any, Literal
 from uuid import uuid4
 
 import aiosqlite
@@ -17,14 +18,27 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, Tool
 from langchain_core.runnables import RunnableConfig, RunnableLambda
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph import END, START, StateGraph
-from langgraph.graph.message import add_messages
 from langgraph.prebuilt import create_react_agent
-from typing_extensions import TypedDict
 
+from core.agent_types import AgentState
+from core.intent_detector import (
+    detect_direct_db_intent,
+    detect_direct_sql_intent,
+    detect_general_chat_intent,
+    is_database_related_message,
+)
+from core.prompts import (
+    ANALYSIS_WORKER_SYSTEM_PROMPT,
+    DB_SYSTEM_PROMPT,
+    DELIVERY_WORKER_SYSTEM_PROMPT,
+    GENERAL_SYSTEM_PROMPT,
+    SUPERVISOR_ROUTER_SYSTEM_PROMPT,
+)
 from core.rag.vector_store import get_metadata_store
 from core.config import get_runtime_rag_config
 from core.services.llm_service import create_chat_model
 from core.tools.chart_tools import create_chart_tool
+from core.tools.common_tools import calculate_tool, data_stats_tool
 from core.tools.code_interpreter_tool import run_python_code_tool
 from core.tools.collaboration_tools import multi_agent_brainstorm_tool
 from core.tools.db_tools import (
@@ -57,105 +71,46 @@ from core.tools.notification_tools import (
     send_feishu_notification_tool,
 )
 from core.tools.rag_tools import search_knowledge_rag_tool, sync_db_metadata_tool
+from pydantic import BaseModel, ValidationError
 
-DB_SYSTEM_PROMPT = """你是一个极简、高效、以数据为核心的 SQL 数据分析专家。你的唯一目标是：**根据工具返回的真实数据，直接回答用户的问题。**
-
-## 🎯 核心行为守则
-
-### 1. 有问必答，禁止废话
-- **直接回答**：用户问什么，你就答什么。严禁在回答前加“好的”、“我来帮您”、“经过分析”等毫无意义的开场白。
-- **技术查询也是任务**：当用户问“有哪些表”、“表结构是什么”、“连接状态如何”时，这些是**最高优先级的任务**。调用工具后，你必须**立即、详细地列出**工具返回的结果，严禁回复通用的欢迎语。
-- **禁止复读问候**：如果你已经调用了工具，或者对话历史中已有数据，绝对禁止再说“您好，请问需要分析什么”之类的话。
-
-### 2. 工具调用逻辑
-- **勘探流程**：`list_schemas_tool` -> `list_tables_tool` -> `describe_table_tool`。
-- **按问题直选工具**：
-  - 用户问“有哪些表 / 表列表 / 当前数据库有哪些表”时，优先调用 `list_tables_tool`。
-  - 用户问“有哪些 schema”时，才调用 `list_schemas_tool`。
-  - 只有在确实需要确认 schema 范围时，才先调用一次 `list_schemas_tool`，禁止重复调用同一个勘探工具。
-- **禁止瞎猜**：绝对不准假设表名。没看到 `list_tables_tool` 的结果前，你不知道任何表。
-- **结果至上**：工具返回的每一行数据都是你回答的依据。如果工具返回了表名列表，你就得把这些表名展示给用户。
-- **禁止工具死循环**：同一个问题里，如果某个工具已经返回了有效结果，不得再次调用同一个工具，必须转入下一个必要工具或直接回答用户。
-
-### 3. 数据呈现规范
-- **结果展示**：查询结果超过 5 行时，请使用 Markdown 表格展示。
-- **可视化建议**：只有在发现明显的趋势、对比或分布时，才调用 `create_chart_tool`。
-- **深度分析**：只有在用户明确要求“深度分析”或“分析原因”时，才进行多维度拆解。默认情况下，保持简洁。
-- **专家会商**：当用户明确要求“头脑风暴”、“决策建议”、“高水平报告”、“多角度评估”时，优先调用 `multi_agent_brainstorm_tool` 形成更严谨的分析底稿，再基于结果给出最终回答。
-
-### 4. 最终纪律
-- 回答必须使用**中文**。
-- **严禁忽略工具的输出**。工具给出了什么，你的回复里就必须包含什么。
-- 只要对话在进行，你就必须处于“工作模式”，严禁退回到“待机问候模式”。
-"""
-
-GENERAL_SYSTEM_PROMPT = """你是一个中文智能助手。
-
-## 行为要求
-- 先理解用户真正想问什么，再直接完成请求。
-- 对于问候，简短自然地回应即可。
-- 对于身份、能力说明、帮助说明，简短说明你能做什么，不要长篇模板化介绍。
-- 对于写作润色、文案生成、普通问答，直接给结果，不要先自我介绍。
-- 不要调用任何数据库工具。
-- 只有当用户的问题显然依赖数据库、表结构、SQL 或查询结果时，才建议对方继续提具体的数据问题。
-- 不要假装访问了数据库，不要虚构表名、字段或查询结果。
-- 语气自然、简洁、可靠，避免模板化复读。
-"""
-
-LOOP_SENSITIVE_TOOLS = {"list_schemas_tool", "list_tables_tool", "describe_table_tool"}
-GENERAL_CHAT_PATTERNS = [
-    r"^\s*(你好|您好|嗨|哈喽|hello|hi)\s*[!！。.\s]*$",
-    r"^\s*(你是谁|你是做什么的|你能做什么|help|帮助|怎么用|如何使用)\s*[?？!！。.\s]*$",
-    r"^\s*(谢谢|多谢|谢了|thanks|thank you)\s*[!！。.\s]*$",
-]
-DATABASE_KEYWORDS = {
-    "数据库",
-    "表",
-    "schema",
-    "字段",
-    "列",
-    "行",
-    "sql",
-    "查询",
-    "join",
-    "select",
-    "from",
-    "where",
-    "group by",
-    "order by",
-    "postgres",
-    "postgresql",
-    "mysql",
-    "sqlite",
-    "duckdb",
-    "数据源",
-    "建表",
-    "索引",
-    "主键",
-    "外键",
-}
-
-db_agent_tools = [
+SQL_CORE_TOOLS = [
     switch_database_tool,
     list_schemas_tool,
     list_tables_tool,
     describe_table_tool,
     run_sql_query_tool,
+]
+
+ANALYSIS_TOOLS = [
     create_chart_tool,
+    run_python_code_tool,
+    calculate_tool,
+    data_stats_tool,
+    list_uploaded_files_tool,
+    analyze_uploaded_file_tool,
+    multi_agent_brainstorm_tool,
+]
+
+DELIVERY_TOOLS = [
     export_report_tool,
     export_data_tool,
     send_feishu_notification_tool,
     send_email_notification_tool,
-    list_uploaded_files_tool,
-    analyze_uploaded_file_tool,
-    run_python_code_tool,
+]
+
+KNOWLEDGE_TOOLS = [
     list_knowledge_base_tool,
     read_knowledge_doc_tool,
     save_knowledge_tool,
     search_knowledge_tool,
+]
+
+RAG_TOOLS = [
     sync_db_metadata_tool,
     search_knowledge_rag_tool,
-    multi_agent_brainstorm_tool,
+]
+
+ENGINEERING_TOOLS = [
     list_dbt_models_tool,
     run_dbt_tool,
     create_dbt_model_tool,
@@ -165,15 +120,37 @@ db_agent_tools = [
     ingest_json_to_db_tool,
 ]
 
+TOOL_GROUPS: dict[str, list[Any]] = {
+    "sql_core": SQL_CORE_TOOLS,
+    "analysis": ANALYSIS_TOOLS,
+    "delivery": DELIVERY_TOOLS,
+    "knowledge": KNOWLEDGE_TOOLS,
+    "rag": RAG_TOOLS,
+    "engineering": ENGINEERING_TOOLS,
+}
+
+db_agent_tools = (
+    SQL_CORE_TOOLS
+    + ANALYSIS_TOOLS
+    + DELIVERY_TOOLS
+    + KNOWLEDGE_TOOLS
+    + RAG_TOOLS
+    + ENGINEERING_TOOLS
+)
+
 memory = None
 
 
-class AgentState(TypedDict, total=False):
-    messages: Annotated[list, add_messages]
-    route: str
-    intent_payload: dict[str, Any]
-    final_answer: str
-    tool_events: list[dict[str, str]]
+class RouteDecision(BaseModel):
+    next_agent: Literal["general", "direct_sql", "direct_db", "autonomous", "analysis_worker", "delivery_worker", "finish"]
+
+
+def _safe_positive_int(value: Any, default: int, *, minimum: int = 1) -> int:
+    try:
+        parsed = int(value)
+    except Exception:
+        return max(minimum, int(default))
+    return max(minimum, parsed)
 
 
 async def init_memory():
@@ -183,158 +160,6 @@ async def init_memory():
         memory = AsyncSqliteSaver(conn)
         await memory.setup()
     return memory
-
-
-def normalize_tool_input(raw_input: str) -> str:
-    return " ".join((raw_input or "").split())
-
-
-def should_abort_tool_loop(tool_name: str, raw_input: str, seen_signatures: dict[tuple[str, str], int]) -> bool:
-    if tool_name not in LOOP_SENSITIVE_TOOLS:
-        return False
-    signature = (tool_name, normalize_tool_input(raw_input))
-    seen_signatures[signature] = seen_signatures.get(signature, 0) + 1
-    return seen_signatures[signature] > 2
-
-
-def detect_general_chat_intent(message: str) -> dict | None:
-    text = (message or "").strip()
-    if not text:
-        return None
-    for pattern in GENERAL_CHAT_PATTERNS:
-        if re.match(pattern, text, re.IGNORECASE):
-            return {"intent": "general_chat"}
-    return None
-
-
-def detect_direct_sql_intent(message: str) -> dict | None:
-    text = (message or "").strip()
-    normalized = text.lower()
-    if normalized.startswith("select ") or normalized.startswith("with "):
-        return {"intent": "run_sql", "query": text}
-    return None
-
-
-def is_database_related_message(message: str) -> bool:
-    text = (message or "").strip()
-    if not text:
-        return False
-    lowered = text.lower()
-    if detect_direct_sql_intent(text) is not None:
-        return True
-    if re.search(r"([a-zA-Z_][\w]*)\.([a-zA-Z_][\w]*)", text):
-        return True
-    return any(keyword in lowered or keyword in text for keyword in DATABASE_KEYWORDS)
-
-
-def detect_direct_db_intent(message: str) -> dict | None:
-    text = (message or "").strip()
-    normalized = text.lower()
-    analysis_markers = ["分析", "总结", "理由", "为什么", "适合", "建议", "对比", "洞察"]
-    if any(marker in text for marker in analysis_markers):
-        return None
-    # 需要可视化或更强解释时，不走“硬路由直返”，交给自主节点决策工具链
-    if any(marker in text for marker in ("图", "可视化", "趋势", "分布", "占比")):
-        return None
-
-    table_query_patterns = ["有哪些表", "表有哪些", "表名", "列出表", "哪些表", "tables"]
-    schema_query_patterns = ["有哪些schema", "有哪些 schema", "schema有哪些", "列出schema", "schemas"]
-    qualified_table_match = re.search(r"([a-zA-Z_][\w]*)\.([a-zA-Z_][\w]*)", text)
-
-    if "结构" in text or "字段" in text or "列" in text:
-        if qualified_table_match:
-            return {
-                "intent": "describe_table",
-                "schema_name": qualified_table_match.group(1),
-                "table_name": qualified_table_match.group(2),
-            }
-        match = re.search(r"([a-zA-Z_][\w]*)\s*表", text)
-        if match:
-            return {
-                "intent": "describe_table",
-                "schema_name": None,
-                "table_name": match.group(1),
-            }
-
-    if any(pattern in normalized for pattern in schema_query_patterns):
-        return {"intent": "list_schemas"}
-
-    if any(pattern in text for pattern in table_query_patterns) or any(pattern in normalized for pattern in table_query_patterns):
-        schema_match = re.search(r"([a-zA-Z_][\w]*)\s*schema", normalized)
-        if not schema_match:
-            schema_match = re.search(r"([a-zA-Z_][\w]*)\s*schema", text, re.IGNORECASE)
-        return {"intent": "list_tables", "schema_name": schema_match.group(1) if schema_match else None}
-
-    return None
-
-
-def detect_db_analysis_intent(message: str) -> dict | None:
-    text = (message or "").strip()
-    analysis_markers = ["分析", "总结", "理由", "为什么", "适合", "建议", "优先", "怎么用", "做什么"]
-    metadata_markers = ["表", "schema", "字段", "结构", "数据库"]
-    if not any(marker in text for marker in analysis_markers):
-        return None
-    if not any(marker in text.lower() or marker in text for marker in metadata_markers):
-        return None
-
-    qualified_table_match = re.search(r"([a-zA-Z_][\w]*)\.([a-zA-Z_][\w]*)", text)
-    if qualified_table_match:
-        return {
-            "intent": "describe_table",
-            "schema_name": qualified_table_match.group(1),
-            "table_name": qualified_table_match.group(2),
-        }
-    return {"intent": "list_tables", "schema_name": None}
-
-
-def extract_table_reference(message: str) -> tuple[str | None, str | None]:
-    text = (message or "").strip()
-    qualified_match = re.search(r"([a-zA-Z_][\w]*)\.([a-zA-Z_][\w]*)", text)
-    if qualified_match:
-        return qualified_match.group(1), qualified_match.group(2)
-    table_match = re.search(r"([a-zA-Z_][\w]*)\s*表", text)
-    if table_match:
-        return None, table_match.group(1)
-    return None, None
-
-
-def extract_table_references(message: str) -> list[tuple[str | None, str]]:
-    text = (message or "").strip()
-    found: list[tuple[str | None, str]] = []
-    seen = set()
-    for match in re.finditer(r"([a-zA-Z_][\w]*)\.([a-zA-Z_][\w]*)", text):
-        item = (match.group(1), match.group(2))
-        if item not in seen:
-            seen.add(item)
-            found.append(item)
-    for match in re.finditer(r"([a-zA-Z_][\w]*)\s*表", text):
-        item = (None, match.group(1))
-        if item not in seen:
-            seen.add(item)
-            found.append(item)
-    return found
-
-
-def detect_db_query_intent(message: str) -> dict | None:
-    text = (message or "").strip()
-    query_markers = ["多少", "统计", "总数", "平均", "最大", "最小", "top", "前", "查询", "筛选", "按", "排序"]
-    if not any(marker in text.lower() or marker in text for marker in query_markers):
-        return None
-    schema_name, table_name = extract_table_reference(text)
-    if not table_name:
-        return None
-    return {"intent": "nl_query", "schema_name": schema_name, "table_name": table_name}
-
-
-def detect_multi_table_query_intent(message: str) -> dict | None:
-    text = (message or "").strip()
-    join_markers = ["关联", "联合", "join", "对比", "一起看", "同时看", "匹配", "对应"]
-    if not any(marker in text.lower() or marker in text for marker in join_markers):
-        return None
-    refs = extract_table_references(text)
-    if len(refs) < 2:
-        return None
-    return {"intent": "multi_table_query", "tables": refs[:2]}
 
 
 def _next_tool_event(tool_name: str, tool_input: str, output: str) -> dict[str, str]:
@@ -372,6 +197,7 @@ def _build_database_prompt(state: AgentState, config: RunnableConfig | None = No
     knowledge_injection = get_available_knowledge_str()
     rag_injection = ""
     user_query = _extract_last_user_query(state)
+    context_data = state.get("context_data", {}) if isinstance(state.get("context_data"), dict) else {}
     rag_config = get_runtime_rag_config()
     rag_enabled = rag_config.get("enabled")
     if configurable.get("rag_enabled") is not None:
@@ -383,6 +209,9 @@ def _build_database_prompt(state: AgentState, config: RunnableConfig | None = No
         except Exception:
             pass
     precomputed_docs = configurable.get("rag_precomputed_docs") or []
+    injected_docs = context_data.get("rag_docs") if isinstance(context_data, dict) else None
+    if isinstance(injected_docs, list) and injected_docs:
+        precomputed_docs = injected_docs
     if rag_enabled:
         if isinstance(precomputed_docs, list) and precomputed_docs:
             rag_injection = "\n\n【🔗 检索到的可能相关表参考 (注意：仅供参考，以真实查询为准)】\n"
@@ -403,6 +232,22 @@ def _build_database_prompt(state: AgentState, config: RunnableConfig | None = No
     return base_prompt + "\n\n" + knowledge_injection + rag_injection
 
 
+def _build_analysis_worker_prompt(state: AgentState, config: RunnableConfig | None = None) -> str:
+    config = config or {}
+    configurable = config.get("configurable", {})
+    custom_prompt = configurable.get("system_prompt", "")
+    base_prompt = custom_prompt if custom_prompt.strip() else ANALYSIS_WORKER_SYSTEM_PROMPT
+    return base_prompt + "\n\n" + _build_database_prompt(state, config)
+
+
+def _build_delivery_worker_prompt(state: AgentState, config: RunnableConfig | None = None) -> str:
+    config = config or {}
+    configurable = config.get("configurable", {})
+    custom_prompt = configurable.get("system_prompt", "")
+    base_prompt = custom_prompt if custom_prompt.strip() else DELIVERY_WORKER_SYSTEM_PROMPT
+    return base_prompt + "\n\n" + _build_database_prompt(state, config)
+
+
 def _build_general_prompt(config: RunnableConfig | None = None) -> str:
     config = config or {}
     custom_prompt = config.get("configurable", {}).get("system_prompt", "")
@@ -414,6 +259,10 @@ def agent_state_modifier(state: AgentState, config: RunnableConfig | None = None
     profile = config.get("configurable", {}).get("agent_profile", "database")
     if profile == "general":
         return _build_general_prompt(config)
+    if profile == "analysis_worker":
+        return _build_analysis_worker_prompt(state, config)
+    if profile == "delivery_worker":
+        return _build_delivery_worker_prompt(state, config)
     return _build_database_prompt(state, config)
 
 
@@ -430,7 +279,80 @@ def _resolve_runtime_config(config: RunnableConfig | None = None) -> dict[str, A
         "system_prompt": configurable.get("system_prompt", ""),
         "profile": configurable.get("agent_profile", "database"),
         "model_params": model_params,
+        "tool_scope": configurable.get("tool_scope"),
+        "supervisor_llm": configurable.get("supervisor_llm", "auto"),
+        "max_worker_loops": _safe_positive_int(configurable.get("max_worker_loops", 2), 2),
+        "max_idle_rounds": _safe_positive_int(configurable.get("max_idle_rounds", 2), 2),
     }
+
+
+def _parse_supervisor_llm_mode(value: Any) -> Literal["on", "off", "auto"]:
+    if isinstance(value, bool):
+        return "on" if value else "off"
+    text = str(value or "").strip().lower()
+    if text in {"on", "true", "1", "yes", "enabled", "llm"}:
+        return "on"
+    if text in {"off", "false", "0", "no", "disabled"}:
+        return "off"
+    return "auto"
+
+
+def _dedupe_tools(tools: list[Any]) -> list[Any]:
+    seen = set()
+    deduped: list[Any] = []
+    for item in tools:
+        name = getattr(item, "name", None) or str(item)
+        if name in seen:
+            continue
+        seen.add(name)
+        deduped.append(item)
+    return deduped
+
+
+def _normalize_scope_values(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        candidate = value.strip().lower()
+        return [candidate] if candidate else []
+    if isinstance(value, list):
+        values: list[str] = []
+        for item in value:
+            if isinstance(item, str) and item.strip():
+                values.append(item.strip().lower())
+        return values
+    return []
+
+
+def _infer_tool_scope_from_message(message: str) -> list[str]:
+    text = str(message or "").lower()
+    scopes = ["sql_core"]
+    if any(key in text for key in ("图", "可视化", "chart", "plot", "python")):
+        scopes.append("analysis")
+    if any(key in text for key in ("导出", "export", "发送", "飞书", "email", "邮件", "通知", "报告")):
+        scopes.append("delivery")
+    if any(key in text for key in ("知识库", "文档", "knowledge", "rag")):
+        scopes.extend(["knowledge", "rag"])
+    if any(key in text for key in ("dbt", "etl", "建模", "模型", "csv", "json", "同步")):
+        scopes.append("engineering")
+    if any(key in text for key in ("头脑风暴", "brainstorm", "策略", "多角度")):
+        scopes.append("analysis")
+    return list(dict.fromkeys(scopes))
+
+
+def resolve_autonomous_tools(message: str, tool_scope: Any = None) -> list[Any]:
+    explicit_scopes = _normalize_scope_values(tool_scope)
+    if explicit_scopes:
+        selected: list[Any] = []
+        for scope_name in explicit_scopes:
+            selected.extend(TOOL_GROUPS.get(scope_name, []))
+        if selected:
+            return _dedupe_tools(selected)
+    inferred = _infer_tool_scope_from_message(message)
+    selected: list[Any] = []
+    for scope_name in inferred:
+        selected.extend(TOOL_GROUPS.get(scope_name, []))
+    return _dedupe_tools(selected or SQL_CORE_TOOLS)
 
 
 def execute_direct_db_intent(intent_payload: dict) -> tuple[str, str]:
@@ -527,6 +449,7 @@ def _create_llm(config: RunnableConfig | None, temperature: float, streaming: bo
 def _route_request(state: AgentState, config=None) -> AgentState:
     config = config or {}
     message = _extract_last_user_query(state)
+    context_data = state.get("context_data", {}) if isinstance(state.get("context_data"), dict) else {}
     profile = config.get("configurable", {}).get("agent_profile", "database")
     if profile == "general":
         return {"route": "general", "intent_payload": {}, "tool_events": [], "final_answer": ""}
@@ -539,17 +462,20 @@ def _route_request(state: AgentState, config=None) -> AgentState:
     if direct_intent:
         return {"route": "direct_db", "intent_payload": direct_intent, "tool_events": [], "final_answer": ""}
 
-    multi_table_intent = detect_multi_table_query_intent(message)
-    if multi_table_intent:
-        return {"route": "multi_table", "intent_payload": multi_table_intent, "tool_events": [], "final_answer": ""}
+    task_flags = {
+        "requires_analysis": bool(context_data.get("requires_analysis", False)),
+        "requires_delivery": bool(context_data.get("requires_delivery", False)),
+    }
+    if not task_flags["requires_analysis"] and not task_flags["requires_delivery"]:
+        task_flags = _infer_task_flags(message)
+    if task_flags["requires_analysis"] and task_flags["requires_delivery"]:
+        return {"route": "analysis_worker", "intent_payload": {"intent": "analysis_then_delivery"}, "tool_events": [], "final_answer": ""}
 
-    db_query_intent = detect_db_query_intent(message)
-    if db_query_intent:
-        return {"route": "nl_query", "intent_payload": db_query_intent, "tool_events": [], "final_answer": ""}
+    if task_flags["requires_delivery"]:
+        return {"route": "delivery_worker", "intent_payload": {"intent": "delivery_worker"}, "tool_events": [], "final_answer": ""}
 
-    db_analysis_intent = detect_db_analysis_intent(message)
-    if db_analysis_intent:
-        return {"route": "analysis", "intent_payload": db_analysis_intent, "tool_events": [], "final_answer": ""}
+    if task_flags["requires_analysis"]:
+        return {"route": "analysis_worker", "intent_payload": {"intent": "analysis_worker"}, "tool_events": [], "final_answer": ""}
 
     general_chat_intent = detect_general_chat_intent(message)
     if general_chat_intent or not is_database_related_message(message):
@@ -558,20 +484,256 @@ def _route_request(state: AgentState, config=None) -> AgentState:
     return {"route": "autonomous", "intent_payload": {"intent": "autonomous"}, "tool_events": [], "final_answer": ""}
 
 
+def _supervisor_node(state: AgentState, config=None) -> AgentState:
+    config = config or {}
+    profile = config.get("configurable", {}).get("agent_profile", "database")
+    routed = _route_request(state, config=config)
+    next_agent = routed.get("route", "autonomous")
+    context_data = state.get("context_data", {}) if isinstance(state.get("context_data"), dict) else {}
+    worker_round = int(context_data.get("worker_round", 0) or 0)
+    last_worker = str(context_data.get("last_worker", "") or "")
+    consecutive_idle_rounds = _safe_positive_int(context_data.get("consecutive_idle_rounds", 0), 0, minimum=0)
+    requires_delivery = bool(context_data.get("requires_delivery", False))
+    delivery_done = bool(context_data.get("delivery_done", False))
+    max_worker_loops = _safe_positive_int(config.get("configurable", {}).get("max_worker_loops", 2), 2)
+    max_idle_rounds = _safe_positive_int(config.get("configurable", {}).get("max_idle_rounds", 2), 2)
+    force_finish = False
+    decision_source = "heuristic"
+    finish_reason = ""
+    llm_mode = _parse_supervisor_llm_mode(config.get("configurable", {}).get("supervisor_llm", "auto"))
+    direct_confident_routes = {"general", "direct_sql", "direct_db"}
+    should_use_llm = llm_mode == "on" or (llm_mode == "auto" and next_agent not in direct_confident_routes)
+    if (
+        last_worker == "analysis_worker"
+        and requires_delivery
+        and not delivery_done
+        and worker_round < max_worker_loops
+    ):
+        next_agent = "delivery_worker"
+        routed["route"] = "delivery_worker"
+        should_use_llm = False
+    if last_worker and str(state.get("final_answer", "")).strip():
+        if worker_round >= max_worker_loops:
+            next_agent = "finish"
+            routed["route"] = "finish"
+            force_finish = True
+            decision_source = "forced_finish"
+            finish_reason = "max_worker_loops"
+        elif consecutive_idle_rounds >= max_idle_rounds:
+            next_agent = "finish"
+            routed["route"] = "finish"
+            force_finish = True
+            decision_source = "forced_finish"
+            finish_reason = "no_progress"
+        elif last_worker == "delivery_worker":
+            next_agent = "finish"
+            routed["route"] = "finish"
+            force_finish = True
+            decision_source = "forced_finish"
+            finish_reason = "delivery_completed"
+        elif llm_mode == "off":
+            next_agent = "finish"
+            routed["route"] = "finish"
+            force_finish = True
+            decision_source = "forced_finish"
+            finish_reason = "single_worker_round"
+    if not force_finish and should_use_llm and profile != "general":
+        llm_decision = _supervisor_decide_with_llm(state, config=config)
+        if llm_decision:
+            next_agent = llm_decision
+            routed["route"] = llm_decision
+            decision_source = "llm"
+            if llm_decision == "finish":
+                finish_reason = "llm_finish"
+    route_history = context_data.get("route_history", [])
+    if not isinstance(route_history, list):
+        route_history = []
+    context_data["route_history"] = [*route_history, next_agent]
+    decision_trace = context_data.get("supervisor_trace", [])
+    if not isinstance(decision_trace, list):
+        decision_trace = []
+    decision_trace.append(
+        {
+            "source": decision_source,
+            "next_agent": next_agent,
+            "worker_round": worker_round,
+            "at": datetime.now(UTC).isoformat(),
+        }
+    )
+    context_data["supervisor_trace"] = decision_trace
+    if next_agent == "finish" and finish_reason:
+        context_data["finish_reason"] = finish_reason
+    return {
+        **routed,
+        "next_agent": next_agent,
+        "context_data": context_data,
+    }
+
+
+def _supervisor_decide_with_llm(state: AgentState, config=None) -> str | None:
+    config = config or {}
+    runtime = _resolve_runtime_config(config)
+    query = _extract_last_user_query(state).strip()
+    if not query:
+        return None
+    try:
+        llm = create_chat_model(
+            model_name=runtime["model_name"],
+            api_key=runtime["api_key"],
+            base_url=runtime["base_url"],
+            temperature=0.0,
+            streaming=False,
+            model_params=runtime.get("model_params", {}),
+        )
+        router_llm = llm.with_structured_output(RouteDecision)
+        result = router_llm.invoke(
+            [
+                SystemMessage(
+                    content=SUPERVISOR_ROUTER_SYSTEM_PROMPT
+                ),
+                HumanMessage(
+                    content=(
+                        f"用户请求：{query}\n"
+                        f"当前是否已有结果: {'yes' if str(state.get('final_answer', '')).strip() else 'no'}\n"
+                        f"当前已执行轮次: {int((state.get('context_data') or {}).get('worker_round', 0) or 0)}"
+                    )
+                ),
+            ]
+        )
+        if isinstance(result, RouteDecision):
+            return result.next_agent
+        if isinstance(result, dict):
+            decision = RouteDecision.model_validate(result)
+            return decision.next_agent
+        if hasattr(result, "next_agent"):
+            decision = RouteDecision(next_agent=str(getattr(result, "next_agent", "")).strip())
+            return decision.next_agent
+        if isinstance(result, str):
+            decision = RouteDecision.model_validate_json(result)
+            return decision.next_agent
+    except (ValidationError, ValueError, KeyError, TypeError):
+        return None
+    except Exception:
+        return None
+    return None
+
+
+def _is_analysis_worker_intent(message: str) -> bool:
+    text = str(message or "").lower()
+    return any(token in text for token in ("图表", "可视化", "chart", "plot", "头脑风暴", "brainstorm", "多角度"))
+
+
+def _is_delivery_worker_intent(message: str) -> bool:
+    text = str(message or "").lower()
+    return any(token in text for token in ("导出", "export", "发送", "飞书", "邮件", "email", "通知", "报告推送"))
+
+
+def _infer_task_flags(message: str) -> dict[str, bool]:
+    return {
+        "requires_analysis": _is_analysis_worker_intent(message),
+        "requires_delivery": _is_delivery_worker_intent(message),
+    }
+
+
+def _context_injector_node(state: AgentState, config=None) -> AgentState:
+    config = config or {}
+    configurable = config.get("configurable", {})
+    context_data: dict[str, Any] = {}
+    message = _extract_last_user_query(state)
+    context_data["last_user_query"] = message
+    context_data["route_history"] = ["context_injector"]
+    context_data.update(_infer_task_flags(message))
+
+    explicit_scope = configurable.get("tool_scope")
+    if explicit_scope is not None:
+        context_data["tool_scope"] = explicit_scope
+    else:
+        inferred_scope = _infer_tool_scope_from_message(message)
+        if inferred_scope:
+            context_data["tool_scope"] = inferred_scope
+
+    rag_docs = configurable.get("rag_precomputed_docs") or []
+    if not rag_docs and message.strip():
+        rag_config = get_runtime_rag_config()
+        rag_enabled = rag_config.get("enabled")
+        if configurable.get("rag_enabled") is not None:
+            rag_enabled = bool(configurable.get("rag_enabled"))
+        rag_k = int(rag_config.get("retrieval_k", 3))
+        if configurable.get("rag_retrieval_k") is not None:
+            try:
+                rag_k = int(configurable.get("rag_retrieval_k"))
+            except Exception:
+                pass
+        if rag_enabled:
+            try:
+                retrieval_k = max(1, min(8, rag_k))
+                docs = get_metadata_store().similarity_search(message, k=retrieval_k, non_blocking=True)
+                rag_docs = [
+                    {
+                        "page_content": str(getattr(doc, "page_content", "") or "").strip(),
+                        "metadata": getattr(doc, "metadata", {}) or {},
+                    }
+                    for doc in docs
+                    if str(getattr(doc, "page_content", "") or "").strip()
+                ]
+            except Exception:
+                rag_docs = []
+    if rag_docs:
+        context_data["rag_docs"] = rag_docs
+
+    return {"context_data": context_data}
+
+
 async def _general_chat_node(state: AgentState, config=None) -> AgentState:
-    llm = _create_llm(config, temperature=0.2, streaming=False)
-    conversation = [SystemMessage(content=_build_general_prompt(config))]
-    conversation.extend([msg for msg in state.get("messages", []) if isinstance(msg, (HumanMessage, AIMessage))][-10:])
-    response = await llm.ainvoke(conversation)
-    content = _stringify_content(response.content).strip()
-    return {"messages": [AIMessage(content=content)], "final_answer": content, "tool_events": []}
+    config = config or {}
+    runtime = _resolve_runtime_config(config)
+    react_graph = _create_general_react_graph(
+        model_name=runtime["model_name"],
+        api_key=runtime["api_key"],
+        base_url=runtime["base_url"],
+        model_params=runtime.get("model_params", {}),
+    )
+    result = await react_graph.ainvoke(
+        {"messages": state.get("messages", [])},
+        config={
+            "configurable": {
+                "system_prompt": runtime["system_prompt"],
+                "agent_profile": "general",
+            },
+            "recursion_limit": 12,
+        },
+    )
+    result_messages = result.get("messages", [])
+    appended_messages = result_messages[len(state.get("messages", [])) :]
+    tool_events = _extract_tool_events_from_react_messages(appended_messages)
+    content = ""
+    for msg in reversed(result_messages):
+        if isinstance(msg, AIMessage):
+            content = _stringify_content(msg.content).strip()
+            if content:
+                break
+    return {"messages": [AIMessage(content=content)], "final_answer": content, "tool_events": tool_events}
 
 
 def _direct_sql_node(state: AgentState, *_args, **_kwargs) -> AgentState:
     query = state["intent_payload"]["query"]
     output = run_sql_query_tool.invoke({"query": query})
+    tool_call_id = f"direct-sql-{uuid4().hex[:8]}"
     return {
-        "messages": [AIMessage(content=output)],
+        "messages": [
+            AIMessage(
+                content="",
+                tool_calls=[
+                    {
+                        "id": tool_call_id,
+                        "name": "run_sql_query_tool",
+                        "args": {"query": query},
+                    }
+                ],
+            ),
+            ToolMessage(content=output, tool_call_id=tool_call_id),
+            AIMessage(content=output),
+        ],
         "final_answer": output,
         "tool_events": [_next_tool_event("run_sql_query_tool", query, output)],
     }
@@ -580,131 +742,27 @@ def _direct_sql_node(state: AgentState, *_args, **_kwargs) -> AgentState:
 def _direct_db_node(state: AgentState, *_args, **_kwargs) -> AgentState:
     tool_name, tool_output = execute_direct_db_intent(state["intent_payload"])
     formatted_output = _format_direct_db_output(state["intent_payload"], tool_name, tool_output)
+    tool_call_id = f"direct-db-{uuid4().hex[:8]}"
+    tool_args = dict(state["intent_payload"])
+    tool_args.pop("intent", None)
     return {
-        "messages": [AIMessage(content=formatted_output)],
+        "messages": [
+            AIMessage(
+                content="",
+                tool_calls=[
+                    {
+                        "id": tool_call_id,
+                        "name": tool_name,
+                        "args": tool_args,
+                    }
+                ],
+            ),
+            ToolMessage(content=tool_output, tool_call_id=tool_call_id),
+            AIMessage(content=formatted_output),
+        ],
         "final_answer": formatted_output,
         "tool_events": [_next_tool_event(tool_name, json.dumps(state["intent_payload"], ensure_ascii=False), tool_output)],
     }
-
-
-async def _analysis_node(state: AgentState, config=None) -> AgentState:
-    message = _extract_last_user_query(state)
-    tool_name, tool_output = execute_direct_db_intent(state["intent_payload"])
-    llm = _create_llm(config, temperature=0.1, streaming=False)
-    summary_prompt = (
-        "你是一个数据库分析助手。请严格基于工具结果回答用户问题。\n"
-        "要求：\n"
-        "1. 直接回答，不要寒暄。\n"
-        "2. 如果是推荐优先看的表，请点名表名并说明理由。\n"
-        "3. 不要重复工具原文，不要再次调用工具。\n\n"
-        f"用户问题：{message}\n\n"
-        f"工具结果（{tool_name}）：\n{tool_output}\n"
-    )
-    response = await llm.ainvoke([HumanMessage(content=summary_prompt)])
-    answer = _stringify_content(response.content).strip()
-    return {
-        "messages": [AIMessage(content=answer)],
-        "final_answer": answer,
-        "tool_events": [_next_tool_event(tool_name, json.dumps(state["intent_payload"], ensure_ascii=False), tool_output)],
-    }
-
-
-async def _nl_query_node(state: AgentState, config=None) -> AgentState:
-    message = _extract_last_user_query(state)
-    schema_name = state["intent_payload"].get("schema_name")
-    table_name = state["intent_payload"]["table_name"]
-    describe_payload = {"table_name": table_name}
-    if schema_name:
-        describe_payload["schema_name"] = schema_name
-
-    describe_output = describe_table_tool.invoke(describe_payload)
-    llm = _create_llm(config, temperature=0, streaming=False)
-    sql_prompt = (
-        "你是一个 SQL 生成助手。请严格基于表结构和用户问题生成一个只读 SQL 查询。\n"
-        "要求：\n"
-        "1. 只输出 JSON，不要输出 Markdown。\n"
-        "2. JSON 格式必须是 {\"sql\":\"...\"}。\n"
-        "3. 只能生成 SELECT/WITH 查询。\n"
-        "4. 不确定时优先使用最保守、可执行的查询。\n\n"
-        f"用户问题：{message}\n\n"
-        f"表结构信息：\n{describe_output}\n"
-    )
-    sql_response = await llm.ainvoke([HumanMessage(content=sql_prompt)])
-    query = (_extract_json_object(_stringify_content(sql_response.content)).get("sql") or "").strip()
-    if not query:
-        raise ValueError("SQL 生成失败，返回为空。")
-    query_output = run_sql_query_tool.invoke({"query": query})
-    summary_prompt = (
-        "你是一个数据库分析助手。请严格基于 SQL 查询结果回答用户问题。\n"
-        "要求：\n"
-        "1. 直接回答，不要寒暄。\n"
-        "2. 如果结果中有明确数字或排序，请优先给出关键结论。\n"
-        "3. 如果 SQL 执行报错，请简短说明原因。\n\n"
-        f"用户问题：{message}\n\n"
-        f"生成的 SQL：\n{query}\n\n"
-        f"查询结果：\n{query_output}\n"
-    )
-    summary_response = await llm.ainvoke([HumanMessage(content=summary_prompt)])
-    answer = _stringify_content(summary_response.content).strip()
-    return {
-        "messages": [AIMessage(content=answer)],
-        "final_answer": answer,
-        "tool_events": [
-            _next_tool_event("describe_table_tool", json.dumps(describe_payload, ensure_ascii=False), describe_output),
-            _next_tool_event("run_sql_query_tool", query, query_output),
-        ],
-    }
-
-
-async def _multi_table_node(state: AgentState, config=None) -> AgentState:
-    message = _extract_last_user_query(state)
-    llm = _create_llm(config, temperature=0, streaming=False)
-
-    describe_outputs: list[tuple[dict[str, Any], str, str]] = []
-    for schema_name, table_name in state["intent_payload"]["tables"]:
-        payload = {"table_name": table_name}
-        if schema_name:
-            payload["schema_name"] = schema_name
-        table_label = f"{schema_name + '.' if schema_name else ''}{table_name}"
-        describe_outputs.append((payload, table_label, describe_table_tool.invoke(payload)))
-
-    schema_context = "\n\n".join(
-        f"表 {table_label} 的结构信息：\n{table_output}"
-        for _, table_label, table_output in describe_outputs
-    )
-    sql_prompt = (
-        "你是一个 SQL 生成助手。请根据两张表的结构，为用户生成一个只读联表查询。\n"
-        "要求：\n"
-        "1. 只输出 JSON，不要输出 Markdown。\n"
-        "2. JSON 格式必须是 {\"sql\":\"...\"}。\n"
-        "3. 只能生成 SELECT/WITH 查询。\n"
-        "4. 优先使用明显同名主键/外键字段进行关联；如果不能安全关联，就生成保守 SQL。\n\n"
-        f"用户问题：{message}\n\n"
-        f"{schema_context}\n"
-    )
-    sql_response = await llm.ainvoke([HumanMessage(content=sql_prompt)])
-    query = (_extract_json_object(_stringify_content(sql_response.content)).get("sql") or "").strip()
-    if not query:
-        raise ValueError("联表 SQL 生成失败，返回为空。")
-    query_output = run_sql_query_tool.invoke({"query": query})
-    summary_prompt = (
-        "你是一个数据库分析助手。请严格基于联表查询结果回答用户问题。\n"
-        "要求：\n"
-        "1. 直接回答，不要寒暄。\n"
-        "2. 如果结果有限，请概括关键发现；如果结果为空或 SQL 报错，请简短说明。\n\n"
-        f"用户问题：{message}\n\n"
-        f"生成的 SQL：\n{query}\n\n"
-        f"查询结果：\n{query_output}\n"
-    )
-    summary_response = await llm.ainvoke([HumanMessage(content=summary_prompt)])
-    answer = _stringify_content(summary_response.content).strip()
-
-    tool_events = [
-        _next_tool_event("describe_table_tool", json.dumps(payload, ensure_ascii=False), output)
-        for payload, _, output in describe_outputs
-    ]
-    tool_events.append(_next_tool_event("run_sql_query_tool", query, query_output))
-    return {"messages": [AIMessage(content=answer)], "final_answer": answer, "tool_events": tool_events}
 
 
 def _extract_tool_events_from_react_messages(messages: list[Any]) -> list[dict[str, str]]:
@@ -779,6 +837,7 @@ def _create_autonomous_react_graph(
     api_key: str | None,
     base_url: str | None,
     model_params: dict[str, Any] | None = None,
+    tools: list[Any] | None = None,
 ):
     effective_temp = 0.1
     if isinstance(model_params, dict) and model_params.get("temperature") is not None:
@@ -793,27 +852,71 @@ def _create_autonomous_react_graph(
     )
     return create_react_agent(
         model=llm,
-        tools=db_agent_tools,
+        tools=tools or db_agent_tools,
+        prompt=RunnableLambda(agent_state_modifier),
+    )
+
+
+def _create_general_react_graph(
+    *,
+    model_name: str,
+    api_key: str | None,
+    base_url: str | None,
+    model_params: dict[str, Any] | None = None,
+):
+    effective_temp = 0.2
+    if isinstance(model_params, dict) and model_params.get("temperature") is not None:
+        effective_temp = model_params.get("temperature")
+    llm = create_chat_model(
+        model_name=model_name,
+        api_key=api_key,
+        base_url=base_url,
+        temperature=effective_temp,
+        streaming=False,
+        model_params=model_params if isinstance(model_params, dict) else None,
+    )
+    return create_react_agent(
+        model=llm,
+        tools=[run_python_code_tool],
         prompt=RunnableLambda(agent_state_modifier),
     )
 
 
 async def _autonomous_node(state: AgentState, config=None) -> AgentState:
+    return await _run_autonomous_worker(state, config=config, tool_scope=None, agent_profile=None)
+
+
+async def _run_autonomous_worker(
+    state: AgentState,
+    *,
+    config=None,
+    tool_scope: list[str] | None,
+    agent_profile: str | None,
+) -> AgentState:
+    config = config or {}
     runtime = _resolve_runtime_config(config)
+    recursion_limit = int(config.get("recursion_limit", 25))
+    message = _extract_last_user_query(state)
+    context_data = state.get("context_data", {}) if isinstance(state.get("context_data"), dict) else {}
+    injected_tool_scope = context_data.get("tool_scope")
+    effective_scope = tool_scope or runtime.get("tool_scope") or injected_tool_scope
+    selected_tools = resolve_autonomous_tools(message, effective_scope)
+    effective_profile = agent_profile or runtime.get("profile", "database")
     react_graph = _create_autonomous_react_graph(
         model_name=runtime["model_name"],
         api_key=runtime["api_key"],
         base_url=runtime["base_url"],
         model_params=runtime.get("model_params", {}),
+        tools=selected_tools,
     )
     result = await react_graph.ainvoke(
         {"messages": state.get("messages", [])},
         config={
             "configurable": {
                 "system_prompt": runtime["system_prompt"],
-                "agent_profile": "database",
+                "agent_profile": effective_profile,
             },
-            "recursion_limit": 10,
+            "recursion_limit": recursion_limit,
         },
     )
     result_messages = result.get("messages", [])
@@ -828,11 +931,73 @@ async def _autonomous_node(state: AgentState, config=None) -> AgentState:
                 break
     if _is_incomplete_autonomous_answer(final_answer):
         final_answer = _build_autonomous_fallback_answer(tool_events)
-    return {"messages": [AIMessage(content=final_answer)], "final_answer": final_answer, "tool_events": tool_events}
+    return {
+        "messages": [AIMessage(content=final_answer)],
+        "final_answer": final_answer,
+        "tool_events": tool_events,
+        "context_data": context_data,
+    }
+
+
+async def _analysis_worker_node(state: AgentState, config=None) -> AgentState:
+    state = dict(state)
+    context_data = state.get("context_data", {}) if isinstance(state.get("context_data"), dict) else {}
+    context_data["tool_scope"] = ["sql_core", "analysis"]
+    context_data["last_worker"] = "analysis_worker"
+    context_data["analysis_done"] = True
+    context_data["worker_round"] = int(context_data.get("worker_round", 0) or 0) + 1
+    state["context_data"] = context_data
+    result = await _run_autonomous_worker(
+        state,
+        config=config,
+        tool_scope=["sql_core", "analysis"],
+        agent_profile="analysis_worker",
+    )
+    current_events = result.get("tool_events", []) if isinstance(result.get("tool_events", []), list) else []
+    if len(current_events) == 0:
+        context_data["consecutive_idle_rounds"] = int(context_data.get("consecutive_idle_rounds", 0) or 0) + 1
+    else:
+        context_data["consecutive_idle_rounds"] = 0
+    result["context_data"] = context_data
+    return result
+
+
+async def _delivery_worker_node(state: AgentState, config=None) -> AgentState:
+    state = dict(state)
+    context_data = state.get("context_data", {}) if isinstance(state.get("context_data"), dict) else {}
+    context_data["tool_scope"] = ["sql_core", "delivery"]
+    context_data["last_worker"] = "delivery_worker"
+    context_data["delivery_done"] = True
+    context_data["worker_round"] = int(context_data.get("worker_round", 0) or 0) + 1
+    state["context_data"] = context_data
+    result = await _run_autonomous_worker(
+        state,
+        config=config,
+        tool_scope=["sql_core", "delivery"],
+        agent_profile="delivery_worker",
+    )
+    current_events = result.get("tool_events", []) if isinstance(result.get("tool_events", []), list) else []
+    if len(current_events) == 0:
+        context_data["consecutive_idle_rounds"] = int(context_data.get("consecutive_idle_rounds", 0) or 0) + 1
+    else:
+        context_data["consecutive_idle_rounds"] = 0
+    result["context_data"] = context_data
+    return result
+
+
+def _finish_node(state: AgentState, *_args, **_kwargs) -> AgentState:
+    return {
+        "final_answer": str(state.get("final_answer", "")).strip(),
+        "tool_events": state.get("tool_events", []) or [],
+    }
 
 
 def _select_route(state: AgentState) -> str:
     return state["route"]
+
+
+def _select_next_agent(state: AgentState) -> str:
+    return state.get("next_agent") or state.get("route", "autonomous")
 
 
 def create_agent_graph(
@@ -843,32 +1008,36 @@ def create_agent_graph(
     profile: str = "database",
 ):
     workflow = StateGraph(AgentState)
-    workflow.add_node("router", _route_request)
+    workflow.add_node("context_injector", _context_injector_node)
+    workflow.add_node("supervisor", _supervisor_node)
     workflow.add_node("general", _general_chat_node)
     workflow.add_node("direct_sql", _direct_sql_node)
     workflow.add_node("direct_db", _direct_db_node)
-    workflow.add_node("analysis", _analysis_node)
-    workflow.add_node("nl_query", _nl_query_node)
-    workflow.add_node("multi_table", _multi_table_node)
     workflow.add_node("autonomous", _autonomous_node)
+    workflow.add_node("analysis_worker", _analysis_worker_node)
+    workflow.add_node("delivery_worker", _delivery_worker_node)
+    workflow.add_node("finish", _finish_node)
 
-    workflow.add_edge(START, "router")
+    workflow.add_edge(START, "context_injector")
+    workflow.add_edge("context_injector", "supervisor")
     workflow.add_conditional_edges(
-        "router",
-        _select_route,
+        "supervisor",
+        _select_next_agent,
         {
             "general": "general",
             "direct_sql": "direct_sql",
             "direct_db": "direct_db",
-            "analysis": "analysis",
-            "nl_query": "nl_query",
-            "multi_table": "multi_table",
             "autonomous": "autonomous",
+            "analysis_worker": "analysis_worker",
+            "delivery_worker": "delivery_worker",
+            "finish": "finish",
         },
     )
 
-    for node_name in ("general", "direct_sql", "direct_db", "analysis", "nl_query", "multi_table", "autonomous"):
+    for node_name in ("general", "direct_sql", "direct_db", "finish"):
         workflow.add_edge(node_name, END)
+    for node_name in ("autonomous", "analysis_worker", "delivery_worker"):
+        workflow.add_edge(node_name, "supervisor")
 
     return workflow.compile(
         checkpointer=memory,
@@ -880,5 +1049,9 @@ def create_agent_graph(
             "base_url": base_url,
             "agent_profile": profile,
             "model_params": {},
+            "tool_scope": None,
+            "supervisor_llm": "auto",
+            "max_worker_loops": 2,
+            "max_idle_rounds": 2,
         }
     )

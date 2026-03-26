@@ -329,6 +329,27 @@ const MessageItem = memo(({ msg, isStreaming, isLast, onViewReport, onEditSend, 
     () => (msg.toolSteps || []).filter((step) => step.status === 'done').length,
     [msg.toolSteps]
   );
+  const brainstormProgress = useMemo(
+    () => (Array.isArray(msg.brainstormProgress) ? msg.brainstormProgress : []),
+    [msg.brainstormProgress]
+  );
+  const brainstormRoleCount = useMemo(
+    () =>
+      new Set(
+        brainstormProgress
+          .filter((item) => item.type === 'specialist_finished' && item.role_id)
+          .map((item) => item.role_id)
+      ).size,
+    [brainstormProgress]
+  );
+  const brainstormFinishedCount = useMemo(
+    () => brainstormProgress.filter((item) => item.type === 'specialist_finished').length,
+    [brainstormProgress]
+  );
+  const brainstormRoundCount = useMemo(
+    () => new Set(brainstormProgress.map((item) => item.round).filter((round) => Number(round) > 0)).size,
+    [brainstormProgress]
+  );
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -420,6 +441,95 @@ const MessageItem = memo(({ msg, isStreaming, isLast, onViewReport, onEditSend, 
               {msg.toolSteps.map((step) => (
                 <ToolStep key={step.id} step={step} />
               ))}
+            </div>
+          </details>
+        )}
+
+        {brainstormProgress.length > 0 && (
+          <details className="mb-4 overflow-hidden rounded-2xl border border-indigo-200/80 bg-indigo-50/40" open>
+            <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-medium text-indigo-900 hover:bg-indigo-50/70">
+              <span className="flex items-center gap-2">
+                <SparklesIcon size={14} className="text-indigo-600" />
+                Multi-Agent 进度（事件 {brainstormProgress.length}）
+              </span>
+              <span
+                className={`text-xs ${brainstormRoleCount >= 2 ? 'text-emerald-700' : 'text-rose-700'}`}
+                title={brainstormRoleCount >= 2 ? '已观察到多个专家角色完成' : '当前只观察到 1 个专家角色完成'}
+              >
+                角色完成数 {brainstormRoleCount} · 轮次 {brainstormRoundCount}
+              </span>
+            </summary>
+            <div className="border-t border-indigo-200/80 bg-white/85 px-4 py-3">
+              <div className="mb-3 h-2 overflow-hidden rounded-full bg-indigo-100">
+                <div
+                  className="h-full rounded-full bg-indigo-500 transition-all"
+                  style={{ width: `${Math.min(100, (brainstormFinishedCount / Math.max(1, brainstormProgress.length)) * 100)}%` }}
+                />
+              </div>
+              {brainstormRoleCount < 2 && (
+                <div className="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                  当前会商只观察到单角色完成记录，尚不能证明是“真实多 Agent 协作”。
+                </div>
+              )}
+              <div className="max-h-56 overflow-auto rounded-lg border border-indigo-100">
+                <table className="w-full border-collapse text-left text-[12px]">
+                  <thead className="bg-indigo-50 text-indigo-800">
+                    <tr>
+                      <th className="px-2 py-1.5 font-semibold">类型</th>
+                      <th className="px-2 py-1.5 font-semibold">轮次</th>
+                      <th className="px-2 py-1.5 font-semibold">角色</th>
+                      <th className="px-2 py-1.5 font-semibold">耗时</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-indigo-50 bg-white">
+                    {brainstormProgress.map((item, idx) => (
+                      <tr key={`${item.type}-${item.round}-${item.role_id}-${item.ts}-${idx}`}>
+                        <td className="px-2 py-1.5 text-slate-700">{item.type || '-'}</td>
+                        <td className="px-2 py-1.5 text-slate-600">{item.round || '-'}</td>
+                        <td className="px-2 py-1.5 text-slate-700">{item.role_name || item.role_id || '-'}</td>
+                        <td className="px-2 py-1.5 text-slate-600">{item.elapsed_ms ? `${item.elapsed_ms}ms` : '--'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </details>
+        )}
+
+        {msg.runMeta && (
+          <details className="mb-4 overflow-hidden rounded-2xl border border-cyan-200/80 bg-cyan-50/40">
+            <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-medium text-cyan-900 hover:bg-cyan-50/70">
+              <span className="flex items-center gap-2">
+                <DatabaseIcon size={14} className="text-cyan-700" />
+                运行元数据（run_meta）
+              </span>
+              <span className="text-xs text-cyan-700">
+                tools {Number(msg.runMeta.tool_calls || 0)} · steps {Number(msg.runMeta.supervisor_steps || 0)}
+              </span>
+            </summary>
+            <div className="border-t border-cyan-200/80 bg-white/85 px-4 py-3">
+              <div className="grid grid-cols-2 gap-2 text-[12px] md:grid-cols-3">
+                {[
+                  ['finish_reason', String(msg.runMeta.finish_reason || '-')],
+                  ['last_worker', String(msg.runMeta.last_worker || '-')],
+                  ['worker_round', String(msg.runMeta.worker_round ?? '-')],
+                  ['supervisor_steps', String(msg.runMeta.supervisor_steps ?? '-')],
+                  ['last_decision_source', String(msg.runMeta.last_decision_source || '-')],
+                  ['last_decision_at', String(msg.runMeta.last_decision_at || '-')],
+                  ['requires_analysis', String(Boolean(msg.runMeta.requires_analysis))],
+                  ['requires_delivery', String(Boolean(msg.runMeta.requires_delivery))],
+                  ['analysis_done', String(Boolean(msg.runMeta.analysis_done))],
+                  ['delivery_done', String(Boolean(msg.runMeta.delivery_done))],
+                  ['idle_rounds', String(msg.runMeta.consecutive_idle_rounds ?? 0)],
+                  ['stream_fallback', String(Boolean(msg.runMeta.stream_fallback))],
+                ].map(([k, v]) => (
+                  <div key={k} className="rounded-md border border-cyan-100 bg-cyan-50/40 px-2 py-1.5">
+                    <div className="text-[10px] uppercase tracking-wide text-cyan-700">{k}</div>
+                    <div className="mt-0.5 truncate text-slate-700" title={v}>{v}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           </details>
         )}
